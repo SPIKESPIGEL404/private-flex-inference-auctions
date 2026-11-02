@@ -1,6 +1,6 @@
 # 外部 Prefill 门控 Scheduler Spec
 
-- **状态：阶段一核心与阶段二 mock HTTP/SSE 已实现并通过本地验收；后续阶段尚未完成。**
+- **状态：阶段一至三已实现并通过本地验收；BitRouter 与真实引擎集成尚未完成。**
 - 日期：2026-11-02
 - 本轮范围：实现可独立运行的 scheduler 组件，复用 BitRouter 已有的 auction 与 settlement。
 - 执行方向：前一请求出现可信生成 token 或明确终止证据后，才允许派发下一请求；decode 可并发，不修改 vLLM 核心。
@@ -8,6 +8,7 @@
 - 关联：[README](../../README.md)、[独立审阅](../reviews/2026-11-02-external-prefill-gating-scheduler-review.md)。本文采纳 scheduler 相关意见；经济机制与金融政策由 BitRouter 拥有。
 - 实现与证据：[阶段一核心说明](../phase1-core.md)、[阶段一验收报告](../acceptance/2026-11-02-phase1.md)。离线 fixture 验证状态机，不代表真实 vLLM/GPU/TEE 验收。
 - 阶段二：[HTTP/SSE 说明](../phase2-http.md)、[阶段二验收报告](../acceptance/2026-11-02-phase2.md)。本机 mock 的协议完整不代表完整结果已持久化或已交付。
+- 阶段三：[结果 spool 与交接](../phase3-spool.md)、[阶段三验收报告](../acceptance/2026-11-02-phase3.md)、[恢复 runbook](../runbooks/scheduler-recovery.md)。已验证本地文件与独立 mock sink，尚未接实际 BitRouter/vLLM/GPU/TEE。
 
 ## 1. Scheduler 的输入、输出和服务语义
 
@@ -320,8 +321,8 @@ RESULT_DURABLE(execution_id, digest, usage, artifact_ref)
 
 1. **范围已定：** 本次交付 scheduler；auction、VCG、资金和 settlement 复用 BitRouter，不新建这些模块。
 2. **执行已定：** 外部 token-ID 进度门控；合法终止可退出；decode 并发；不改 vLLM 核心。
-3. **接口待对齐：** 候选 ExecutionPlan / ExecutionEvent / Result Handoff 映射到现有 BitRouter，确认授权证明、连续计划流和结果 ACK。
-4. **容量待测量：** 对 1、2、4 在途请求校准 profile，确定 context、输出空间及 timeout；不使用未校准默认值。
+3. **接口待对齐：** 阶段五先讨论候选 ExecutionPlan / ExecutionEvent / Result Handoff 如何映射到现有 BitRouter，确认授权证明、连续计划流和结果 ACK，再实现适配。
+4. **容量待测量：** 阶段四对真实 vLLM 的 1、2、4 在途请求校准 profile，确定 context、输出空间及 timeout；不使用未校准默认值。
 5. **Scheduler 交付要求：** 本地幂等 journal、有界 spool、可重放事件、旧 writer/engine 隔离和人工触发恢复。
 
 原 review 中的 buyer-level VCG 分摊与 auction 数学契约属于 BitRouter 的所有权边界，不作为本仓库需重新实现的内容；没有因为本次范围决定而宣称它们已经通过代码或理论审计。
@@ -332,9 +333,9 @@ RESULT_DURABLE(execution_id, digest, usage, artifact_ref)
 
 1. **已实现并本地验收：** scheduler 契约、单写入者状态机、持久化 journal 与重放；使用固定顺序的计划 fixture，不实现竞价或清算。验收范围与限制见阶段一报告。
 2. **已实现并本地验收：** 接本机 mock vLLM HTTP/SSE，验证门控、实际请求重叠、去重、背压、错误、取消和写入失败窗口；旧阶段一 journal 可升级读取。未验证真实 vLLM/GPU。
-3. 实现有界结果 spool、durable handoff ACK 和恢复 runbook。
-4. 编写 BitRouter 适配层，对齐其现有计划与事件/结果接口；financial behavior 仍由 BitRouter 的既有实现承担。
-5. 接真实 pinned vLLM，验证输入一致性、SSE 信号及 decode 重叠，保存目标 GPU 的校准 profile。
+3. **已实现并本地验收：** 有界物理结果 spool、身份/摘要绑定的 durable handoff ACK、保留期与可恢复清理、恢复 runbook；验证分配/写入/sync/journal/ACK/删除失败和进程退出。接收端是独立本地 mock sink，实际 BitRouter 交接仍待阶段五。
+4. **下一阶段：真实 vLLM 适配与验收。** 接固定版本的真实 vLLM，验证最终 token-ID 输入一致性、SSE 信号、外部门控与 decode 重叠、结果 spool 和故障恢复；在目标 GPU 上比较 1、2、4 在途请求，保存可复现的校准 profile。使用已签名计划 fixture 和阶段三的独立 durable mock sink 驱动完整执行/交接流程，不依赖 BitRouter 适配完成。
+5. **随后讨论并实现：BitRouter 适配。** 基于阶段四验证过的执行契约，先讨论并对齐现有 BitRouter 的授权、连续计划流、事件消费、owner 映射和持久化结果 ACK，再编写适配层并验收真实交接；financial behavior 仍由 BitRouter 的既有实现承担。
 
 ### 13.2 必须通过的验收
 

@@ -1,5 +1,7 @@
 # Phase one: durable scheduler core
 
+This guide describes phase-one scope. The current [phase-three implementation](phase3-spool.md) adds result storage, handoff ACK and cleanup.
+
 Status: implemented and locally accepted. This is a Rust library and an offline
 fixture walkthrough, not an HTTP service or a GPU serving deployment. The scope
 is step 1 of [the scheduler spec](specs/2026-11-02-external-prefill-gating-scheduler.md).

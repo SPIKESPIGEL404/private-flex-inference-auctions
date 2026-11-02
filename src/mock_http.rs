@@ -1,4 +1,4 @@
-//! Phase-two loopback-only HTTP acceptance adapter. Physical spool is phase three.
+//! Loopback-only HTTP acceptance adapter, with optional physical result spool.
 use crate::*;
 use serde::{Deserialize, Serialize};
 use std::{net::IpAddr, time::Duration};
@@ -41,6 +41,7 @@ pub struct MockRunReport {
 
 struct Message {
     observation: Observation,
+    text_delta: String,
     ack: oneshot::Sender<bool>,
 }
 
@@ -174,7 +175,12 @@ impl MockHttpRunner {
             if tasks.is_empty() {
                 guard.completed = true;
                 return Ok(MockRunReport {
-                    scope: "phase-two-loopback-mock-no-result-spool".into(),
+                    scope: if guard.scheduler.spool_enabled() {
+                        "phase-three-loopback-mock-with-result-spool"
+                    } else {
+                        "phase-two-loopback-mock-no-result-spool"
+                    }
+                    .into(),
                     dispatch_order,
                     streams: reports,
                     final_snapshot: guard.scheduler.snapshot()?,
@@ -191,7 +197,12 @@ impl MockHttpRunner {
 }
 
 fn apply_message(scheduler: &mut Scheduler, message: Message) -> Result<()> {
-    match scheduler.observe(message.observation) {
+    let result = if scheduler.spool_enabled() {
+        scheduler.observe_delta(message.observation, &message.text_delta)
+    } else {
+        scheduler.observe(message.observation)
+    };
+    match result {
         Ok(_) => {
             let _ = message.ack.send(true);
             Ok(())
@@ -210,6 +221,18 @@ fn finish_task(
 ) -> Result<()> {
     let report = joined.map_err(|_| Error::Transition("HTTP worker interrupted"))?;
     scheduler.finish_stream(report.clone())?;
+    if scheduler.spool_enabled() && report.protocol == ProtocolStatus::CompleteProtocol {
+        let result = scheduler.finalize_result(&report.execution_id);
+        // A storage failure has already been journaled and halted new dispatch.
+        // Drain the remaining streams; never abandon their execution evidence.
+        if result.is_err()
+            && !(scheduler.snapshot()?.mode == Mode::RecoveryRequired
+                && scheduler.state.executions[&report.execution_id].result
+                    == ResultState::Unavailable)
+        {
+            result?;
+        }
+    }
     reports.push(report);
     Ok(())
 }
@@ -222,6 +245,7 @@ struct Worker {
     decoder: CompletionDecoder,
     source_seq: u64,
     accepted_tokens: u64,
+    accepted_text_bytes: u64,
     terminal_accepted: bool,
     gate_accepted: bool,
     wire_bytes: u64,
@@ -246,6 +270,7 @@ impl Worker {
             decoder,
             source_seq: 0,
             accepted_tokens: 0,
+            accepted_text_bytes: 0,
             terminal_accepted: false,
             gate_accepted: false,
             wire_bytes: 0,
@@ -253,7 +278,7 @@ impl Worker {
         }
     }
 
-    async fn emit(&mut self, observation: ObservationKind) -> bool {
+    async fn emit(&mut self, observation: ObservationKind, text_delta: String) -> bool {
         let (ack, received) = oneshot::channel();
         let observation = Observation {
             execution_id: self.intent.binding.execution_id.clone(),
@@ -262,7 +287,16 @@ impl Worker {
             evidence_ref: format!("http-observation-{}", self.source_seq + 1),
             observation,
         };
-        if self.tx.send(Message { observation, ack }).await.is_err() {
+        if self
+            .tx
+            .send(Message {
+                observation,
+                text_delta,
+                ack,
+            })
+            .await
+            .is_err()
+        {
             return false;
         }
         if received.await != Ok(true) {
@@ -281,7 +315,7 @@ impl Worker {
                 }
                 _ => UnknownReason::ProtocolError,
             };
-            self.emit(ObservationKind::ExecutionUnknown { reason })
+            self.emit(ObservationKind::ExecutionUnknown { reason }, String::new())
                 .await;
         }
         self.report(ProtocolStatus::IncompleteProtocol(failure))
@@ -299,7 +333,7 @@ impl Worker {
             protocol,
             generated_tokens: self.accepted_tokens,
             wire_bytes: self.wire_bytes,
-            text_bytes: self.decoder.text_bytes,
+            text_bytes: self.accepted_text_bytes,
         }
     }
 
@@ -422,12 +456,14 @@ impl Worker {
                     if tokens > self.max_observation_tokens {
                         return self.failure(StreamFailure::TokenEvidence).await;
                     }
-                    if !self.emit(observation).await {
+                    let text_bytes = decoded.text_delta.len() as u64;
+                    if !self.emit(observation, decoded.text_delta).await {
                         return self.report(ProtocolStatus::IncompleteProtocol(
                             StreamFailure::CoreRejected,
                         ));
                     }
                     self.accepted_tokens += tokens;
+                    self.accepted_text_bytes += text_bytes;
                     self.terminal_accepted |= terminal;
                     self.gate_accepted = true;
                 }

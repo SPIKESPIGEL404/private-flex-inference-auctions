@@ -1,5 +1,7 @@
 # Phase two: loopback HTTP/SSE adapter
 
+This guide describes the HTTP-only phase-two scope, committed as `085a09b`. The current [phase-three implementation](phase3-spool.md) adds result storage, handoff ACK and cleanup when opened with spool enabled.
+
 Status: implemented and locally accepted with a mock vLLM server. See the
 [acceptance report](acceptance/2026-11-02-phase2.md). Phase one was committed as
 `b5bcc26` before this work started.

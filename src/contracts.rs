@@ -38,7 +38,7 @@ pub fn encode_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn decode_hex<const N: usize>(s: &str) -> Result<[u8; N]> {
+pub(crate) fn decode_hex<const N: usize>(s: &str) -> Result<[u8; N]> {
     if s.len() != N * 2
         || !s
             .bytes()

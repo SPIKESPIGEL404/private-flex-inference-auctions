@@ -13,10 +13,13 @@ pub struct Scheduler {
     connection: Connection,
     _writer_lock: File,
     config: SchedulerConfig,
-    state: State,
+    pub(crate) state: State,
     head_seq: u64,
     head_hash: String,
     poisoned: bool,
+    pub(crate) database_path: PathBuf,
+    pub(crate) spool: Option<crate::spool::LocalSpool>,
+    pub(crate) spool_ready: bool,
 }
 
 #[derive(Serialize)]
@@ -111,12 +114,15 @@ impl Scheduler {
             head_seq,
             head_hash,
             poisoned: false,
+            database_path: path,
+            spool: None,
+            spool_ready: false,
         };
         scheduler.commit(Action::SessionOpened)?;
         Ok(scheduler)
     }
 
-    fn available(&self) -> Result<()> {
+    pub(crate) fn available(&self) -> Result<()> {
         if self.poisoned {
             Err(Error::Poisoned)
         } else {
@@ -128,6 +134,9 @@ impl Scheduler {
     /// runbook. This method does not kill/fence any real engine or verify a TEE.
     pub fn activate(&mut self, evidence: ActivationEvidence) -> Result<()> {
         self.available()?;
+        if self.state.spool_policy.is_some() && (!self.spool_ready || self.spool.is_none()) {
+            return Err(Error::NotActive);
+        }
         self.commit(Action::Activated { evidence })
     }
 
@@ -183,9 +192,12 @@ impl Scheduler {
     }
 
     /// Persist the one-shot dispatch intent before returning it to a future
-    /// adapter. Phase one only records logical output-space reservation.
+    /// adapter. With spool enabled, physical allocation and sync precede commit.
     pub fn claim_next(&mut self) -> Result<ClaimOutcome> {
         self.available()?;
+        if self.state.spool_policy.is_some() && (!self.spool_ready || self.spool.is_none()) {
+            return Err(Error::NotActive);
+        }
         if let Some(reason) = self.state.claim_block(&self.config)? {
             return Ok(ClaimOutcome::Blocked(reason));
         }
@@ -199,9 +211,28 @@ impl Scheduler {
             .engine_epoch
             .clone()
             .ok_or(Error::Corrupt("active epoch"))?;
+        let (spool_reservation, spool_checkpoint) = if let Some(spool) = &self.spool {
+            let mut binding = self.state.binding(&request.execution_id)?;
+            binding.engine_epoch = Some(epoch.clone());
+            match spool.reserve(&binding, request.max_result_bytes) {
+                Ok((r, c)) => (Some(r), Some(c)),
+                Err(e) => {
+                    self.spool_ready = false;
+                    self.commit(Action::StorageFailed {
+                        execution_id: request.execution_id.clone(),
+                        evidence_ref: "spool-allocation-failed".into(),
+                    })?;
+                    return Err(e);
+                }
+            }
+        } else {
+            (None, None)
+        };
         self.commit(Action::DispatchIntended {
             execution_id: request.execution_id.clone(),
             engine_epoch: epoch,
+            spool_reservation,
+            spool_checkpoint,
         })?;
         Ok(ClaimOutcome::Intent(Box::new(DispatchIntent {
             binding: self.state.binding(&request.execution_id)?,
@@ -227,7 +258,26 @@ impl Scheduler {
             return Err(Error::ObservationConflict);
         }
         let late = r.fenced;
-        self.commit(Action::Observed { observation })?;
+        let checkpoint = if r.spool_reservation.is_some() && r.result == ResultState::Pending {
+            if matches!(
+                &observation.observation,
+                ObservationKind::OutputProgress { generated_token_ids }
+                | ObservationKind::ExecutionTerminal { generated_token_ids, .. }
+                if !generated_token_ids.is_empty()
+            ) {
+                return Err(Error::Transition(
+                    "spooled generation requires observe_delta",
+                ));
+            }
+            r.spool_checkpoint.clone()
+        } else {
+            None
+        };
+        self.commit(Action::Observed {
+            observation,
+            spool_checkpoint: checkpoint,
+            delta_digest: None,
+        })?;
         Ok(if late {
             ObservationOutcome::LateEvidence
         } else {
@@ -280,7 +330,8 @@ impl Scheduler {
         rows.map(|s| Ok(serde_json::from_str(&s?)?)).collect()
     }
 
-    fn commit(&mut self, action: Action) -> Result<()> {
+    pub(crate) fn commit(&mut self, action: Action) -> Result<()> {
+        self.available()?;
         let mut next = self.state.clone();
         next.apply(&action, &self.config)?;
         let seq = self

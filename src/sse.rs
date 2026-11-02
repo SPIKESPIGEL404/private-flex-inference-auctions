@@ -163,6 +163,7 @@ struct Choice {
 
 pub struct DecodedChunk {
     pub observation: Option<ObservationKind>,
+    pub text_delta: String,
 }
 
 pub struct CompletionDecoder {
@@ -201,7 +202,10 @@ impl CompletionDecoder {
             return Err(StreamFailure::ErrorEvent);
         }
         if event.data.is_empty() {
-            return Ok(DecodedChunk { observation: None });
+            return Ok(DecodedChunk {
+                observation: None,
+                text_delta: String::new(),
+            });
         }
         if self.done {
             return Err(StreamFailure::UnexpectedAfterDone);
@@ -211,7 +215,10 @@ impl CompletionDecoder {
                 return Err(StreamFailure::MissingTerminal);
             }
             self.done = true;
-            return Ok(DecodedChunk { observation: None });
+            return Ok(DecodedChunk {
+                observation: None,
+                text_delta: String::new(),
+            });
         }
         // Direct typed deserialization rejects duplicate known fields; passing
         // through Value first would silently overwrite conflicting token/ID keys.
@@ -230,6 +237,7 @@ impl CompletionDecoder {
             return Err(StreamFailure::Choice);
         }
         let mut observation = None;
+        let mut text_delta = String::new();
         let mut generated = self.generated_tokens;
         let mut text_bytes = self.text_bytes;
         let mut terminal = self.terminal;
@@ -265,6 +273,7 @@ impl CompletionDecoder {
             text_bytes = text_bytes
                 .checked_add(choice.text.len() as u64)
                 .ok_or(StreamFailure::StreamTooLarge)?;
+            text_delta = choice.text;
             if let Some(reason) = choice.finish_reason {
                 let outcome = match reason.as_str() {
                     "stop" => TerminalOutcome::Stop,
@@ -302,7 +311,10 @@ impl CompletionDecoder {
         if chunk.usage.is_some() {
             self.usage = chunk.usage.map(Into::into);
         }
-        Ok(DecodedChunk { observation })
+        Ok(DecodedChunk {
+            observation,
+            text_delta,
+        })
     }
 
     pub fn finish(&self) -> Result<(), StreamFailure> {

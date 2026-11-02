@@ -1,8 +1,11 @@
-//! Phase-one scheduler core. No HTTP, GPU execution, financial state or result files.
+//! Durable scheduler core, loopback HTTP adapter, and bounded local result spool.
+//! No real GPU adapter, financial state, or network-facing service APIs.
 //! Observation and recovery methods are trusted-adapter/operator interfaces, not public RPCs.
 mod contracts;
 mod journal;
 mod mock_http;
+mod results;
+mod spool;
 mod sse;
 mod state;
 mod stream;
@@ -10,6 +13,7 @@ mod stream;
 pub use contracts::*;
 pub use journal::Scheduler;
 pub use mock_http::*;
+pub use spool::*;
 pub use sse::*;
 pub use state::*;
 pub use stream::*;
