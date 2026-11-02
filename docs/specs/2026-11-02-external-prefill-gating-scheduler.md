@@ -1,12 +1,13 @@
 # 外部 Prefill 门控 Scheduler Spec
 
-- **状态：阶段一核心已实现并通过本地验收；候选接口待 BitRouter 对齐，后续阶段尚未完成。**
+- **状态：阶段一核心与阶段二 mock HTTP/SSE 已实现并通过本地验收；后续阶段尚未完成。**
 - 日期：2026-11-02
 - 本轮范围：实现可独立运行的 scheduler 组件，复用 BitRouter 已有的 auction 与 settlement。
 - 执行方向：前一请求出现可信生成 token 或明确终止证据后，才允许派发下一请求；decode 可并发，不修改 vLLM 核心。
 - MVP：一个模型、一个 GPU、一个 vLLM 实例、一个有序计划流、一个调度写入者。
 - 关联：[README](../../README.md)、[独立审阅](../reviews/2026-11-02-external-prefill-gating-scheduler-review.md)。本文采纳 scheduler 相关意见；经济机制与金融政策由 BitRouter 拥有。
 - 实现与证据：[阶段一核心说明](../phase1-core.md)、[阶段一验收报告](../acceptance/2026-11-02-phase1.md)。离线 fixture 验证状态机，不代表真实 vLLM/GPU/TEE 验收。
+- 阶段二：[HTTP/SSE 说明](../phase2-http.md)、[阶段二验收报告](../acceptance/2026-11-02-phase2.md)。本机 mock 的协议完整不代表完整结果已持久化或已交付。
 
 ## 1. Scheduler 的输入、输出和服务语义
 
@@ -248,6 +249,8 @@ Scheduler 维护三类独立状态，**不包含金融状态**：
 
 阶段一另外使用 `INTEGRITY_FAULT`、`EPOCH_FENCED`、`LATE_EVIDENCE` 记录冲突、运维隔离和迟到证据。终止 observation 可携带同批生成 token delta，使进度与终止事实在单次提交中原子记录；外部终止事件只提供生成数量，不暴露 token IDs。结果完整与交接事件由阶段三接入。
 
+阶段二增加 `STREAM_FINISHED` 和可重放的协议摘要；只有正常终止、有效 usage、DONE 与正常 HTTP 流结束同时成立，才标记 `COMPLETE_PROTOCOL`。缺少结果 spool 时仍保持结果 `PENDING`，不产生 `RESULT_DURABLE`。终止后的协议不完整不撤回已验证终止；终止前错误则 UNKNOWN 停派。Runner 取消或核心错误触发持久化中断停派。
+
 ## 9. 失败与恢复协议
 
 | 情况 | Scheduler 行为 |
@@ -328,7 +331,7 @@ RESULT_DURABLE(execution_id, digest, usage, artifact_ref)
 ### 13.1 实现顺序
 
 1. **已实现并本地验收：** scheduler 契约、单写入者状态机、持久化 journal 与重放；使用固定顺序的计划 fixture，不实现竞价或清算。验收范围与限制见阶段一报告。
-2. 接 mock vLLM/SSE，验证门控、并发、重复、背压、错误及崩溃窗口。
+2. **已实现并本地验收：** 接本机 mock vLLM HTTP/SSE，验证门控、实际请求重叠、去重、背压、错误、取消和写入失败窗口；旧阶段一 journal 可升级读取。未验证真实 vLLM/GPU。
 3. 实现有界结果 spool、durable handoff ACK 和恢复 runbook。
 4. 编写 BitRouter 适配层，对齐其现有计划与事件/结果接口；financial behavior 仍由 BitRouter 的既有实现承担。
 5. 接真实 pinned vLLM，验证输入一致性、SSE 信号及 decode 重叠，保存目标 GPU 的校准 profile。

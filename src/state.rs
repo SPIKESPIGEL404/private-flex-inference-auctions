@@ -1,5 +1,6 @@
 use crate::{
-    Error, ExecutionPlan, ExecutionRequest, Result, SchedulerConfig, canonical_bytes, digest, id,
+    Error, ExecutionPlan, ExecutionRequest, ProtocolStatus, Result, SchedulerConfig, StreamReport,
+    canonical_bytes, digest, id,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -128,6 +129,8 @@ pub struct ExecutionView {
     pub result: ResultState,
     pub fenced: bool,
     pub generated_tokens: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream_report: Option<StreamReport>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -181,7 +184,8 @@ pub struct DispatchIntent {
     pub request: ExecutionRequest,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BlockReason {
     NoPlan,
     MissingPredecessor,
@@ -211,6 +215,7 @@ pub enum EventKind {
     IntegrityFault,
     EpochFenced,
     LateEvidence,
+    StreamFinished,
 }
 
 /// Redacted external feed. Prompt/output token IDs and signatures stay private.
@@ -231,6 +236,8 @@ pub struct ExecutionEvent {
     pub generated_token_count: Option<u64>,
     pub terminal_outcome: Option<TerminalOutcome>,
     pub reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream_report: Option<StreamReport>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -244,6 +251,8 @@ pub(crate) struct RuntimeExecution {
     pub fenced: bool,
     pub generated_tokens: u64,
     pub observations: BTreeMap<u64, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream_report: Option<StreamReport>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -289,6 +298,12 @@ pub(crate) enum Action {
     },
     EpochFenced {
         engine_epoch: String,
+        evidence_ref: String,
+    },
+    StreamFinished {
+        report: StreamReport,
+    },
+    TransportInterrupted {
         evidence_ref: String,
     },
 }
@@ -387,6 +402,7 @@ impl State {
                     result: r.result,
                     fenced: r.fenced,
                     generated_tokens: r.generated_tokens,
+                    stream_report: r.stream_report.clone(),
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -538,6 +554,7 @@ impl State {
                             fenced: false,
                             generated_tokens: 0,
                             observations: BTreeMap::new(),
+                            stream_report: None,
                         },
                     );
                 }
@@ -698,6 +715,57 @@ impl State {
                 }
                 self.fenced_epochs.insert(engine_epoch.clone());
             }
+            Action::TransportInterrupted { evidence_ref } => {
+                id(evidence_ref)?;
+                self.mode = Mode::RecoveryRequired;
+                for r in self.executions.values_mut() {
+                    if matches!(
+                        r.dispatch,
+                        DispatchState::DispatchIntent | DispatchState::Streaming
+                    ) {
+                        r.dispatch = DispatchState::Unknown;
+                    }
+                }
+            }
+            Action::StreamFinished { report } => {
+                let q = self.request(&report.execution_id)?;
+                let expected_prompt = q.prompt_token_ids.len() as u64;
+                let r = self
+                    .executions
+                    .get_mut(&report.execution_id)
+                    .ok_or(Error::NotFound)?;
+                if r.epoch.as_ref() != Some(&report.engine_epoch)
+                    || r.stream_report.is_some()
+                    || !matches!(r.dispatch, DispatchState::Terminal | DispatchState::Unknown)
+                    || report.generated_tokens != r.generated_tokens
+                    || report.text_bytes > report.wire_bytes
+                {
+                    return Err(Error::Transition(
+                        "stream summary identity, count or terminal state",
+                    ));
+                }
+                if let Some(usage) = &report.usage
+                    && (usage.prompt_tokens != expected_prompt
+                        || usage.completion_tokens != r.generated_tokens
+                        || usage.prompt_tokens.checked_add(usage.completion_tokens)
+                            != Some(usage.total_tokens))
+                {
+                    return Err(Error::Invalid("stream usage"));
+                }
+                if report.protocol == ProtocolStatus::CompleteProtocol
+                    && (r.dispatch != DispatchState::Terminal
+                        || r.fenced
+                        || r.result == ResultState::Unavailable
+                        || report.usage.is_none()
+                        || report.response_id.as_ref()
+                            != Some(&format!("cmpl-{}", report.execution_id)))
+                {
+                    return Err(Error::Transition(
+                        "complete protocol lacks verified evidence",
+                    ));
+                }
+                r.stream_report = Some(report.clone());
+            }
         }
         Ok(())
     }
@@ -725,6 +793,7 @@ impl State {
             generated_token_count: None,
             terminal_outcome: None,
             reason: None,
+            stream_report: None,
         };
         match action {
             Action::SessionOpened => {
@@ -794,6 +863,20 @@ impl State {
                         e.affected_executions.push(self.binding(execution_id)?);
                     }
                 }
+            }
+            Action::TransportInterrupted { evidence_ref } => {
+                e.evidence_ref = Some(evidence_ref.clone());
+                e.reason = Some("TRANSPORT_INTERRUPTED".into());
+                for (execution_id, r) in &self.executions {
+                    if r.dispatch == DispatchState::Unknown {
+                        e.affected_executions.push(self.binding(execution_id)?);
+                    }
+                }
+            }
+            Action::StreamFinished { report } => {
+                e.kind = EventKind::StreamFinished;
+                e.binding = Some(self.binding(&report.execution_id)?);
+                e.stream_report = Some(report.clone());
             }
         }
         if let Some(b) = &e.binding {

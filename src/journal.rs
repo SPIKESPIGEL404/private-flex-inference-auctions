@@ -27,6 +27,34 @@ struct RecordHash<'a> {
 }
 
 impl Scheduler {
+    pub(crate) fn config(&self) -> &SchedulerConfig {
+        &self.config
+    }
+
+    pub(crate) fn transport_interrupted(&mut self, evidence_ref: String) -> Result<()> {
+        self.available()?;
+        self.commit(Action::TransportInterrupted { evidence_ref })
+    }
+
+    pub fn finish_stream(&mut self, report: StreamReport) -> Result<ObservationOutcome> {
+        self.available()?;
+        let runtime = self
+            .state
+            .executions
+            .get(&report.execution_id)
+            .ok_or(Error::NotFound)?;
+        if let Some(previous) = &runtime.stream_report {
+            if previous == &report {
+                return Ok(ObservationOutcome::AlreadyRecorded);
+            }
+            self.commit(Action::IntegrityFault {
+                reason: "STREAM_REPORT_CONFLICT".into(),
+            })?;
+            return Err(Error::ObservationConflict);
+        }
+        self.commit(Action::StreamFinished { report })?;
+        Ok(ObservationOutcome::Recorded)
+    }
     pub fn open(path: impl AsRef<Path>, config: SchedulerConfig) -> Result<Self> {
         config.validate()?;
         let path = private_path(path.as_ref())?;

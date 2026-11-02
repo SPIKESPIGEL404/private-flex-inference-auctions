@@ -1,0 +1,88 @@
+{
+  "b_terminal_before_a_terminal": true,
+  "http_requests": 3,
+  "loopback_http_executed": true,
+  "phase_one_commit": "b5bcc26",
+  "physical_spool_implemented": false,
+  "real_vllm_or_gpu_executed": false,
+  "reopen_reposts": 0,
+  "reopen_requires_recovery": true,
+  "report": {
+    "blocked": "NO_PLAN",
+    "dispatch_order": [
+      "exec-1-1",
+      "exec-1-2",
+      "exec-2-1"
+    ],
+    "final_snapshot": {
+      "capacity": {
+        "inflight_requests": 0,
+        "owner_spool_bytes": {
+          "opaque-owner": 1152
+        },
+        "queued_bytes": 0,
+        "queued_requests": 0,
+        "reserved_context_tokens": 0,
+        "reserved_spool_bytes": 1152
+      },
+      "contiguous_through": 2,
+      "engine_epoch": "mock-epoch-1",
+      "integrity_fault": false,
+      "mode": "ACTIVE",
+      "next_plan_seq": 3,
+      "next_rank": 1
+    },
+    "scope": "phase-two-loopback-mock-no-result-spool",
+    "streams": [
+      {
+        "engine_epoch": "mock-epoch-1",
+        "execution_id": "exec-1-1",
+        "generated_tokens": 1,
+        "protocol": {
+          "status": "COMPLETE_PROTOCOL"
+        },
+        "response_id": "cmpl-exec-1-1",
+        "text_bytes": 0,
+        "usage": {
+          "completion_tokens": 1,
+          "prompt_tokens": 3,
+          "total_tokens": 4
+        },
+        "wire_bytes": 540
+      },
+      {
+        "engine_epoch": "mock-epoch-1",
+        "execution_id": "exec-1-2",
+        "generated_tokens": 1,
+        "protocol": {
+          "status": "COMPLETE_PROTOCOL"
+        },
+        "response_id": "cmpl-exec-1-2",
+        "text_bytes": 3,
+        "usage": {
+          "completion_tokens": 1,
+          "prompt_tokens": 3,
+          "total_tokens": 4
+        },
+        "wire_bytes": 383
+      },
+      {
+        "engine_epoch": "mock-epoch-1",
+        "execution_id": "exec-2-1",
+        "generated_tokens": 1,
+        "protocol": {
+          "status": "COMPLETE_PROTOCOL"
+        },
+        "response_id": "cmpl-exec-2-1",
+        "text_bytes": 3,
+        "usage": {
+          "completion_tokens": 1,
+          "prompt_tokens": 3,
+          "total_tokens": 4
+        },
+        "wire_bytes": 383
+      }
+    ]
+  },
+  "snapshot_replay_matches": true
+}

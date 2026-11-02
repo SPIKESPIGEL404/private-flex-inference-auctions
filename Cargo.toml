@@ -13,6 +13,8 @@ serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.154"
 sha2 = "=0.10.9"
 thiserror = "=2.0.21"
+reqwest = { version = "=0.12.28", default-features = false, features = ["json"] }
+tokio = { version = "=1.54.1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
 
 [dev-dependencies]
 tempfile = "=3.27.0"

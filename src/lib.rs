@@ -2,11 +2,17 @@
 //! Observation and recovery methods are trusted-adapter/operator interfaces, not public RPCs.
 mod contracts;
 mod journal;
+mod mock_http;
+mod sse;
 mod state;
+mod stream;
 
 pub use contracts::*;
 pub use journal::Scheduler;
+pub use mock_http::*;
+pub use sse::*;
 pub use state::*;
+pub use stream::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

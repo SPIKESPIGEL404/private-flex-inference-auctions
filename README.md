@@ -4,7 +4,7 @@ A proposed confidential inference auction for **one model provider and multiple 
 
 Built as a NEAR hackathon prototype and a potential integration component for NEAR AI.
 
-> **Status: phase-one core implemented and locally accepted.** This repository contains a Rust scheduler library, a durable SQLite journal, signed synthetic plans, and an offline acceptance walkthrough. HTTP/SSE serving, physical result storage, BitRouter integration, real vLLM/GPU execution, and TEE deployment remain later stages. The demo does not assume access to NEAR AI's internal scheduler.
+> **Status: phases one and two implemented and locally accepted.** This repository contains the Rust scheduler core and a bounded loopback HTTP/SSE mock adapter. Physical result storage, BitRouter integration, real vLLM/GPU execution, and TEE deployment remain later stages. The demo does not assume access to NEAR AI's internal scheduler.
 
 Current design: [External Prefill Gating Scheduler Spec](docs/specs/2026-11-02-external-prefill-gating-scheduler.md). The scheduler receives a committed execution plan from BitRouter, then dispatches the next request after the previous request produces a verified generation signal or reaches a confirmed terminal state, subject to capacity. Decode may overlap; completion order is not guaranteed.
 
@@ -16,7 +16,18 @@ The scheduler owns complete plan registration, immutable execution identities, o
 
 The auction and financial sections below describe system context and external ownership. Their economic correctness and payment policies are outside this repository's implementation and acceptance scope.
 
-## Run phase-one acceptance
+## Run local acceptance
+
+```bash
+bash scripts/accept-phase2.sh
+```
+
+This runs all core and mock HTTP/SSE tests, Clippy, and a self-contained loopback
+mock walkthrough. It uses no external model endpoint or credentials. See the
+[phase-two guide](docs/phase2-http.md) and
+[phase-two acceptance report](docs/acceptance/2026-11-02-phase2.md).
+
+The original offline-only phase-one walkthrough remains available:
 
 ```bash
 bash scripts/accept-phase1.sh
@@ -189,7 +200,7 @@ Validation should cover:
 - Queue wait, time to first output progress, completion time, cache hits, and throughput.
 - Absence of sensitive inference inputs from public logs and metrics; financial fields are not part of the scheduler protocol.
 
-The [phase-one acceptance report](docs/acceptance/2026-11-02-phase1.md) records completed core checks. HTTP/SSE, physical result handoff, actual BitRouter integration, GPU performance, and deployment checks remain planned; the offline walkthrough does not establish them.
+The acceptance reports record completed core and mock HTTP/SSE checks. Physical result handoff, actual BitRouter integration, GPU performance, and deployment checks remain planned; a mock protocol-complete stream is not a durable inference result.
 
 Auction algorithms, VCG correctness, financial policy, buyer-facing delivery, multi-seller matching, hard latency SLAs, distributed failover, and a new TEE control plane are outside this scheduler's scope. NEAR or on-chain integration is separate from per-request dispatch.
 
