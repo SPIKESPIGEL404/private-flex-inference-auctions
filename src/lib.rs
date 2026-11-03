@@ -1,5 +1,5 @@
-//! Durable scheduler core, loopback HTTP adapter, and bounded local result spool.
-//! No real GPU adapter, financial state, or network-facing service APIs.
+//! Durable scheduler, bounded result spool, and pinned vLLM HTTPS adapter.
+//! No financial state or BitRouter-facing service APIs.
 //! Observation and recovery methods are trusted-adapter/operator interfaces, not public RPCs.
 mod contracts;
 mod journal;
@@ -9,6 +9,7 @@ mod spool;
 mod sse;
 mod state;
 mod stream;
+mod vllm;
 
 pub use contracts::*;
 pub use journal::Scheduler;
@@ -17,6 +18,7 @@ pub use spool::*;
 pub use sse::*;
 pub use state::*;
 pub use stream::*;
+pub use vllm::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

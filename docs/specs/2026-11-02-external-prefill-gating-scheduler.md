@@ -1,6 +1,6 @@
 # 外部 Prefill 门控 Scheduler Spec
 
-- **状态：阶段一至三已实现并通过本地验收；BitRouter 与真实引擎集成尚未完成。**
+- **状态：阶段一至三通过本地验收；阶段四通过固定 Chutes vLLM/GPU 的实测配置验收，BitRouter 接入尚未实现。**
 - 日期：2026-11-02
 - 本轮范围：实现可独立运行的 scheduler 组件，复用 BitRouter 已有的 auction 与 settlement。
 - 执行方向：前一请求出现可信生成 token 或明确终止证据后，才允许派发下一请求；decode 可并发，不修改 vLLM 核心。
@@ -9,6 +9,7 @@
 - 实现与证据：[阶段一核心说明](../phase1-core.md)、[阶段一验收报告](../acceptance/2026-11-02-phase1.md)。离线 fixture 验证状态机，不代表真实 vLLM/GPU/TEE 验收。
 - 阶段二：[HTTP/SSE 说明](../phase2-http.md)、[阶段二验收报告](../acceptance/2026-11-02-phase2.md)。本机 mock 的协议完整不代表完整结果已持久化或已交付。
 - 阶段三：[结果 spool 与交接](../phase3-spool.md)、[阶段三验收报告](../acceptance/2026-11-02-phase3.md)、[恢复 runbook](../runbooks/scheduler-recovery.md)。已验证本地文件与独立 mock sink，尚未接实际 BitRouter/vLLM/GPU/TEE。
+- 阶段四：[真实 vLLM 适配说明](../phase4-vllm.md)、[验收报告](../acceptance/2026-11-02-phase4.md)、[校准 profile](../acceptance/phase4-runtime-profile.json)。39 次校准/缓存生成、真实断流和旧实例隔离后仅恢复 next-unsent；未集成 BitRouter，未验证端到端 TEE。
 
 ## 1. Scheduler 的输入、输出和服务语义
 
@@ -334,7 +335,7 @@ RESULT_DURABLE(execution_id, digest, usage, artifact_ref)
 1. **已实现并本地验收：** scheduler 契约、单写入者状态机、持久化 journal 与重放；使用固定顺序的计划 fixture，不实现竞价或清算。验收范围与限制见阶段一报告。
 2. **已实现并本地验收：** 接本机 mock vLLM HTTP/SSE，验证门控、实际请求重叠、去重、背压、错误、取消和写入失败窗口；旧阶段一 journal 可升级读取。未验证真实 vLLM/GPU。
 3. **已实现并本地验收：** 有界物理结果 spool、身份/摘要绑定的 durable handoff ACK、保留期与可恢复清理、恢复 runbook；验证分配/写入/sync/journal/ACK/删除失败和进程退出。接收端是独立本地 mock sink，实际 BitRouter 交接仍待阶段五。
-4. **下一阶段：真实 vLLM 适配与验收。** 接固定版本的真实 vLLM，验证最终 token-ID 输入一致性、SSE 信号、外部门控与 decode 重叠、结果 spool 和故障恢复；在目标 GPU 上比较 1、2、4 在途请求，保存可复现的校准 profile。使用已签名计划 fixture 和阶段三的独立 durable mock sink 驱动完整执行/交接流程，不依赖 BitRouter 适配完成。
+4. **已实现并按实测范围验收：真实 vLLM 适配与 GPU 校准。** 已在固定 Chutes 镜像、Qwen revision 和单 RTX PRO 6000 上验证最终 token IDs、SSE 身份绑定、门控与 decode 重叠、spool / durable sink，以及真实断流和旧实例隔离恢复；1、2、4 在途各三轮与 namespace 检查通过。保存原始证据及校准 profile；范围为 1737-token 合成输入和输出≤512，未对完整 8192 输入 / 32K aggregate context 做压力校准，不建立生产默认或 SLA。
 5. **随后讨论并实现：BitRouter 适配。** 基于阶段四验证过的执行契约，先讨论并对齐现有 BitRouter 的授权、连续计划流、事件消费、owner 映射和持久化结果 ACK，再编写适配层并验收真实交接；financial behavior 仍由 BitRouter 的既有实现承担。
 
 ### 13.2 必须通过的验收

@@ -46,6 +46,7 @@ pub enum StreamFailure {
     MissingDone,
     CoreRejected,
     WorkerInterrupted,
+    EngineIdentity,
 }
 
 /// Protocol facts only: COMPLETE_PROTOCOL is not RESULT_DURABLE or delivery.

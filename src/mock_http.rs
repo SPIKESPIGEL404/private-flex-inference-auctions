@@ -1,7 +1,11 @@
 //! Loopback-only HTTP acceptance adapter, with optional physical result spool.
 use crate::*;
 use serde::{Deserialize, Serialize};
-use std::{net::IpAddr, time::Duration};
+use std::{
+    net::IpAddr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinSet,
@@ -28,6 +32,7 @@ pub struct MockHttpConfig {
 pub struct MockHttpRunner {
     config: MockHttpConfig,
     client: reqwest::Client,
+    session: Option<VllmSession>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -37,12 +42,33 @@ pub struct MockRunReport {
     pub streams: Vec<StreamReport>,
     pub final_snapshot: SchedulerSnapshot,
     pub blocked: Option<BlockReason>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub measurements: Vec<StreamMeasurement>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preflight_us: Option<u64>,
+}
+
+/// Monotonic microseconds from runner start. Includes transport and durable I/O;
+/// these are NOT GPU-only timings and are not part of the replayed journal.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StreamMeasurement {
+    pub execution_id: String,
+    pub dispatch_at_us: u64,
+    pub reservation_and_intent_us: u64,
+    pub headers_at_us: Option<u64>,
+    pub first_token_received_at_us: Option<u64>,
+    pub first_progress_committed_at_us: Option<u64>,
+    pub terminal_committed_at_us: Option<u64>,
+    pub finished_at_us: u64,
+}
+fn micros(clock: Instant) -> u64 {
+    clock.elapsed().as_micros().min(u64::MAX as u128) as u64
 }
 
 struct Message {
     observation: Observation,
     text_delta: String,
-    ack: oneshot::Sender<bool>,
+    ack: oneshot::Sender<Option<u64>>,
 }
 
 struct RunGuard<'a> {
@@ -86,38 +112,39 @@ impl MockHttpRunner {
         for s in [&config.served_model, &config.model_profile_id] {
             crate::contracts::id(s)?;
         }
-        let times = [
-            config.connect_timeout_ms,
-            config.first_progress_timeout_ms,
-            config.idle_timeout_ms,
-            config.total_timeout_ms,
-        ];
-        if times.contains(&0)
-            || times.iter().any(|&t| t > 3_600_000)
-            || config.first_progress_timeout_ms > config.total_timeout_ms
-            || config.max_line_bytes == 0
-            || config.max_line_bytes > config.max_event_bytes
-            || config.max_event_bytes as u64 > config.max_stream_bytes
-            || config.max_stream_bytes > 16 * 1024 * 1024
-            || !(1..=1024).contains(&config.max_live_streams)
-            || !(1..=1024).contains(&config.event_queue_capacity)
-        {
-            return Err(Error::Invalid("mock transport limits"));
-        }
-        let client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .retry(reqwest::retry::never())
-            .no_proxy()
-            .http1_only()
-            .pool_max_idle_per_host(0)
-            .no_gzip()
-            .no_brotli()
-            .no_deflate()
-            .no_zstd()
-            .connect_timeout(Duration::from_millis(config.connect_timeout_ms))
-            .build()
-            .map_err(|_| Error::Invalid("HTTP client configuration"))?;
-        Ok(Self { config, client })
+        validate_limits(&config)?;
+        let client = crate::vllm::http_client(config.connect_timeout_ms, None)?;
+        Ok(Self {
+            config,
+            client,
+            session: None,
+        })
+    }
+
+    pub(crate) fn client(&self) -> &reqwest::Client {
+        &self.client
+    }
+
+    pub(crate) fn with_session(
+        config: MockHttpConfig,
+        client: reqwest::Client,
+        session: VllmSession,
+    ) -> Result<Self> {
+        validate_limits(&config)?;
+        session.validate()?;
+        Ok(Self {
+            config,
+            client,
+            session: Some(session),
+        })
+    }
+
+    /// Real wire/profile semantics against a loopback fixture, never remote HTTP.
+    pub fn new_profiled_mock(config: MockHttpConfig, session: VllmSession) -> Result<Self> {
+        session.validate()?;
+        let mut runner = Self::new(config)?;
+        runner.session = Some(session);
+        Ok(runner)
     }
 
     pub async fn run_until_idle(&self, scheduler: &mut Scheduler) -> Result<MockRunReport> {
@@ -130,6 +157,8 @@ impl MockHttpRunner {
         }
         let vocab_size = scheduler.config().model.vocab_size;
         let max_tokens = scheduler.config().max_observation_tokens;
+        let clock = Instant::now();
+        let measurements = Arc::new(Mutex::new(Vec::new()));
         let mut guard = RunGuard {
             scheduler,
             completed: false,
@@ -140,15 +169,20 @@ impl MockHttpRunner {
         let mut reports = Vec::new();
         let mut blocked = None;
         loop {
-            // Persist pending failures/progress before considering another dispatch.
-            while let Ok(message) = rx.try_recv() {
-                apply_message(guard.scheduler, message)?;
+            // Commit the batch already queued at this decision boundary. A
+            // continuously replenished decode queue must not starve new dispatch.
+            let pending = rx.len();
+            for _ in 0..pending {
+                if let Ok(message) = rx.try_recv() {
+                    apply_message(guard.scheduler, message, clock)?;
+                }
             }
             while let Some(joined) = tasks.try_join_next() {
                 finish_task(guard.scheduler, joined, &mut reports)?;
             }
             if guard.scheduler.snapshot()?.mode == Mode::Active {
                 while tasks.len() < self.config.max_live_streams {
+                    let claim_clock = Instant::now();
                     match guard.scheduler.claim_next()? {
                         ClaimOutcome::Blocked(reason) => {
                             blocked = Some(reason);
@@ -164,6 +198,12 @@ impl MockHttpRunner {
                                 tx.clone(),
                                 vocab_size,
                                 max_tokens,
+                                RunContext {
+                                    session: self.session.clone(),
+                                    clock,
+                                    measurements: measurements.clone(),
+                                    reservation_and_intent_us: micros(claim_clock),
+                                },
                             );
                             tasks.spawn(worker.run());
                         }
@@ -175,7 +215,9 @@ impl MockHttpRunner {
             if tasks.is_empty() {
                 guard.completed = true;
                 return Ok(MockRunReport {
-                    scope: if guard.scheduler.spool_enabled() {
+                    scope: if self.session.is_some() {
+                        "phase-four-loopback-profiled-mock"
+                    } else if guard.scheduler.spool_enabled() {
                         "phase-three-loopback-mock-with-result-spool"
                     } else {
                         "phase-two-loopback-mock-no-result-spool"
@@ -185,18 +227,42 @@ impl MockHttpRunner {
                     streams: reports,
                     final_snapshot: guard.scheduler.snapshot()?,
                     blocked,
+                    measurements: measurements.lock().unwrap().clone(),
+                    preflight_us: None,
                 });
             }
             tokio::select! {
                 biased;
-                Some(message) = rx.recv() => apply_message(guard.scheduler, message)?,
+                Some(message) = rx.recv() => apply_message(guard.scheduler, message, clock)?,
                 Some(joined) = tasks.join_next() => finish_task(guard.scheduler, joined, &mut reports)?,
             }
         }
     }
 }
 
-fn apply_message(scheduler: &mut Scheduler, message: Message) -> Result<()> {
+fn validate_limits(config: &MockHttpConfig) -> Result<()> {
+    let times = [
+        config.connect_timeout_ms,
+        config.first_progress_timeout_ms,
+        config.idle_timeout_ms,
+        config.total_timeout_ms,
+    ];
+    if times.contains(&0)
+        || times.iter().any(|&t| t > 3_600_000)
+        || config.first_progress_timeout_ms > config.total_timeout_ms
+        || config.max_line_bytes == 0
+        || config.max_line_bytes > config.max_event_bytes
+        || config.max_event_bytes as u64 > config.max_stream_bytes
+        || config.max_stream_bytes > 16 * 1024 * 1024
+        || !(1..=1024).contains(&config.max_live_streams)
+        || !(1..=1024).contains(&config.event_queue_capacity)
+    {
+        return Err(Error::Invalid("mock transport limits"));
+    }
+    Ok(())
+}
+
+fn apply_message(scheduler: &mut Scheduler, message: Message, clock: Instant) -> Result<()> {
     let result = if scheduler.spool_enabled() {
         scheduler.observe_delta(message.observation, &message.text_delta)
     } else {
@@ -204,11 +270,11 @@ fn apply_message(scheduler: &mut Scheduler, message: Message) -> Result<()> {
     };
     match result {
         Ok(_) => {
-            let _ = message.ack.send(true);
+            let _ = message.ack.send(Some(micros(clock)));
             Ok(())
         }
         Err(e) => {
-            let _ = message.ack.send(false);
+            let _ = message.ack.send(None);
             Err(e)
         }
     }
@@ -250,8 +316,20 @@ struct Worker {
     gate_accepted: bool,
     wire_bytes: u64,
     max_observation_tokens: u64,
+    session: Option<VllmSession>,
+    identity_seen: bool,
+    clock: Instant,
+    measurements: Arc<Mutex<Vec<StreamMeasurement>>>,
+    timing: StreamMeasurement,
+    last_commit_at_us: Option<u64>,
 }
 
+struct RunContext {
+    session: Option<VllmSession>,
+    clock: Instant,
+    measurements: Arc<Mutex<Vec<StreamMeasurement>>>,
+    reservation_and_intent_us: u64,
+}
 impl Worker {
     fn new(
         client: reqwest::Client,
@@ -260,8 +338,29 @@ impl Worker {
         tx: mpsc::Sender<Message>,
         vocab_size: u64,
         max_observation_tokens: u64,
+        context: RunContext,
     ) -> Self {
-        let decoder = CompletionDecoder::new(&intent.request, &config.served_model, vocab_size);
+        let RunContext {
+            session,
+            clock,
+            measurements,
+            reservation_and_intent_us,
+        } = context;
+        let decoder = if session.is_some() {
+            CompletionDecoder::new_pinned(&intent.request, &config.served_model, vocab_size)
+        } else {
+            CompletionDecoder::new(&intent.request, &config.served_model, vocab_size)
+        };
+        let timing = StreamMeasurement {
+            execution_id: intent.binding.execution_id.clone(),
+            dispatch_at_us: micros(clock),
+            reservation_and_intent_us,
+            headers_at_us: None,
+            first_token_received_at_us: None,
+            first_progress_committed_at_us: None,
+            terminal_committed_at_us: None,
+            finished_at_us: 0,
+        };
         Self {
             client,
             config,
@@ -275,6 +374,12 @@ impl Worker {
             gate_accepted: false,
             wire_bytes: 0,
             max_observation_tokens,
+            session,
+            identity_seen: false,
+            clock,
+            measurements,
+            timing,
+            last_commit_at_us: None,
         }
     }
 
@@ -299,9 +404,10 @@ impl Worker {
         {
             return false;
         }
-        if received.await != Ok(true) {
+        let Ok(Some(committed_at)) = received.await else {
             return false;
-        }
+        };
+        self.last_commit_at_us = Some(committed_at);
         self.source_seq += 1;
         true
     }
@@ -321,7 +427,9 @@ impl Worker {
         self.report(ProtocolStatus::IncompleteProtocol(failure))
     }
 
-    fn report(self, protocol: ProtocolStatus) -> StreamReport {
+    fn report(mut self, protocol: ProtocolStatus) -> StreamReport {
+        self.timing.finished_at_us = micros(self.clock);
+        self.measurements.lock().unwrap().push(self.timing);
         StreamReport {
             execution_id: self.intent.binding.execution_id,
             engine_epoch: self.intent.binding.engine_epoch.unwrap_or_default(),
@@ -342,7 +450,7 @@ impl Worker {
         let total = start + Duration::from_millis(self.config.total_timeout_ms);
         let first = start + Duration::from_millis(self.config.first_progress_timeout_ms);
         let request = &self.intent.request;
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "model": self.config.served_model, "prompt": request.prompt_token_ids,
             "request_id": request.execution_id, "max_tokens": request.max_output_tokens,
             "n": 1, "stream": true, "stream_options": {"include_usage": true, "continuous_usage_stats": false},
@@ -354,6 +462,9 @@ impl Worker {
             "seed": request.sampling_config.seed, "stop_token_ids": request.sampling_config.stop_token_ids,
             "priority": 0
         });
+        if let Some(session) = &self.session {
+            body = serde_json::json!({"stream":true,"request_id":request.execution_id,"_flex":{"engine_epoch":session.engine_epoch,"profile_digest":session.profile_digest,"binding":self.intent.binding,"request":self.intent.request}});
+        }
         let send = self
             .client
             .post(&self.config.endpoint)
@@ -376,6 +487,7 @@ impl Worker {
                     .await;
             }
         };
+        self.timing.headers_at_us = Some(micros(self.clock));
         if response.status() != reqwest::StatusCode::OK {
             let status = response.status().as_u16();
             return self.failure(StreamFailure::HttpStatus(status)).await;
@@ -438,6 +550,30 @@ impl Worker {
             let exceeded = self.wire_bytes > self.config.max_stream_bytes;
             let feed = framing.feed(&chunk[..chunk.len().min(remaining as usize)]);
             for event in feed.events {
+                if let Some(session) = &self.session {
+                    if event.event_type == "flex.identity" {
+                        let expected = StreamIdentity {
+                            engine_epoch: session.engine_epoch.clone(),
+                            profile_digest: session.profile_digest.clone(),
+                            binding_digest: digest(
+                                "flex-scheduler/result-binding/v1",
+                                &self.intent.binding,
+                            )
+                            .unwrap_or_default(),
+                        };
+                        if self.identity_seen
+                            || serde_json::from_slice::<StreamIdentity>(&event.data).ok()
+                                != Some(expected)
+                        {
+                            return self.failure(StreamFailure::EngineIdentity).await;
+                        }
+                        self.identity_seen = true;
+                        continue;
+                    }
+                    if !self.identity_seen && !event.data.is_empty() {
+                        return self.failure(StreamFailure::EngineIdentity).await;
+                    }
+                }
                 let decoded = match self.decoder.accept(event) {
                     Ok(c) => c,
                     Err(f) => return self.failure(f).await,
@@ -456,11 +592,20 @@ impl Worker {
                     if tokens > self.max_observation_tokens {
                         return self.failure(StreamFailure::TokenEvidence).await;
                     }
+                    if tokens > 0 && self.timing.first_token_received_at_us.is_none() {
+                        self.timing.first_token_received_at_us = Some(micros(self.clock));
+                    }
                     let text_bytes = decoded.text_delta.len() as u64;
                     if !self.emit(observation, decoded.text_delta).await {
                         return self.report(ProtocolStatus::IncompleteProtocol(
                             StreamFailure::CoreRejected,
                         ));
+                    }
+                    if tokens > 0 && self.timing.first_progress_committed_at_us.is_none() {
+                        self.timing.first_progress_committed_at_us = self.last_commit_at_us;
+                    }
+                    if terminal {
+                        self.timing.terminal_committed_at_us = self.last_commit_at_us;
                     }
                     self.accepted_tokens += tokens;
                     self.accepted_text_bytes += text_bytes;

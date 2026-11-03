@@ -4,11 +4,11 @@ A proposed confidential inference auction for **one model provider and multiple 
 
 Built as a NEAR hackathon prototype and a potential integration component for NEAR AI.
 
-> **Status: phases one through three implemented and locally accepted.** This repository contains the Rust scheduler core, a bounded loopback HTTP/SSE mock adapter, and a physically reserved result spool with durable handoff ACK and recoverable cleanup. Real vLLM/GPU execution, BitRouter integration, and TEE deployment remain later stages. The demo does not assume access to NEAR AI's internal scheduler.
+> **Status: phases one through four implemented and accepted within their documented scope.** The Rust scheduler, HTTP/SSE transport and physical result spool passed local checks; the pinned Chutes vLLM/GPU adapter passed real generation, calibration and isolation recovery checks. BitRouter integration and end-to-end TEE verification remain later work. See the [phase-four acceptance report](docs/acceptance/2026-11-02-phase4.md).
 
 Current design: [External Prefill Gating Scheduler Spec](docs/specs/2026-11-02-external-prefill-gating-scheduler.md). The scheduler receives a committed execution plan from BitRouter, then dispatches the next request after the previous request produces a verified generation signal or reaches a confirmed terminal state, subject to capacity. Decode may overlap; completion order is not guaranteed.
 
-Next is **phase four: real vLLM adaptation and GPU calibration**, using signed plan fixtures and an independent durable mock sink. **Phase five: discuss and align BitRouter integration, then implement it** follows the engine acceptance work.
+**Phase four is accepted for the measured Chutes configuration and synthetic workload.** Next is **phase five: discuss and align BitRouter integration, then implement it**.
 
 ## Current implementation scope
 
@@ -21,10 +21,12 @@ The auction and financial sections below describe system context and external ow
 ## Run local acceptance
 
 ```bash
-bash scripts/accept-phase3.sh
+CHUTES_PYTHON=/path/to/chutes-venv/bin/python bash scripts/accept-phase4.sh
 ```
 
-This runs all core, HTTP/SSE and physical spool tests, Clippy, and a walkthrough
+This checks the core, transports, spool and Chutes deployment contracts without GPU calls. Paid live acceptance and recovery require explicit arguments; see the [phase-four guide](docs/phase4-vllm.md), [report](docs/acceptance/2026-11-02-phase4.md), and [calibration record](docs/acceptance/phase4-runtime-profile.json).
+
+`bash scripts/accept-phase3.sh` runs all core, HTTP/SSE and physical spool tests, Clippy, and a walkthrough
 with an independent durable mock sink, lost ACK, backpressure and cleanup. It
 uses no external model endpoint or credentials. See the
 [phase-three guide](docs/phase3-spool.md),
@@ -208,7 +210,7 @@ Validation should cover:
 - Queue wait, time to first output progress, completion time, cache hits, and throughput.
 - Absence of sensitive inference inputs from public logs and metrics; financial fields are not part of the scheduler protocol.
 
-The acceptance reports record completed core and mock HTTP/SSE checks. Physical result handoff, actual BitRouter integration, GPU performance, and deployment checks remain planned; a mock protocol-complete stream is not a durable inference result.
+The acceptance reports record completed core, mock HTTP/SSE, physical result spool and independent durable sink checks. Actual BitRouter integration and production deployment checks remain planned. Real vLLM/GPU validation is tracked separately in the [phase-four guide](docs/phase4-vllm.md).
 
 Auction algorithms, VCG correctness, financial policy, buyer-facing delivery, multi-seller matching, hard latency SLAs, distributed failover, and a new TEE control plane are outside this scheduler's scope. NEAR or on-chain integration is separate from per-request dispatch.
 

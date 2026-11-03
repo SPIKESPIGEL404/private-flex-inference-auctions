@@ -178,6 +178,8 @@ pub struct CompletionDecoder {
     pub done: bool,
     pub usage: Option<Usage>,
     pub response_id: Option<String>,
+    require_prompt_ids: bool,
+    prompt_verified: bool,
 }
 
 impl CompletionDecoder {
@@ -194,7 +196,15 @@ impl CompletionDecoder {
             done: false,
             usage: None,
             response_id: None,
+            require_prompt_ids: false,
+            prompt_verified: false,
         }
+    }
+
+    pub fn new_pinned(request: &ExecutionRequest, model: &str, vocab_size: u64) -> Self {
+        let mut decoder = Self::new(request, model, vocab_size);
+        decoder.require_prompt_ids = true;
+        decoder
     }
 
     pub fn accept(&mut self, event: SseEvent) -> Result<DecodedChunk, StreamFailure> {
@@ -241,6 +251,7 @@ impl CompletionDecoder {
         let mut generated = self.generated_tokens;
         let mut text_bytes = self.text_bytes;
         let mut terminal = self.terminal;
+        let mut prompt_verified = self.prompt_verified;
         if let Some(choice) = chunk.choices.into_iter().next() {
             if choice.error.is_some() {
                 return Err(StreamFailure::ErrorEvent);
@@ -258,7 +269,14 @@ impl CompletionDecoder {
             {
                 return Err(StreamFailure::PromptMismatch);
             }
+            prompt_verified |= choice.prompt_token_ids.is_some();
             let ids = choice.token_ids.unwrap_or_default();
+            if self.require_prompt_ids
+                && !prompt_verified
+                && (!ids.is_empty() || choice.finish_reason.is_some())
+            {
+                return Err(StreamFailure::PromptMismatch);
+            }
             if ids.iter().any(|&t| u64::from(t) >= self.vocab_size)
                 || (!choice.text.is_empty() && ids.is_empty())
             {
@@ -307,6 +325,7 @@ impl CompletionDecoder {
         self.generated_tokens = generated;
         self.text_bytes = text_bytes;
         self.terminal = terminal;
+        self.prompt_verified = prompt_verified;
         self.response_id = Some(chunk.id);
         if chunk.usage.is_some() {
             self.usage = chunk.usage.map(Into::into);

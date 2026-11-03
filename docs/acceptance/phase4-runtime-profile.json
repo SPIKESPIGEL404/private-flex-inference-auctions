@@ -1,0 +1,64 @@
+{
+  "schema": "flex-scheduler/phase4-calibration-record/v1",
+  "profile": {
+    "chat_template_digest": "a35f47cfd800d158b8f1fa3332c35acae349b899c765a7f98de8cdd1f5d72467",
+    "engine_args_digest": "15170c6a9fed9e0ec69a55f3fd37278f42fd404804ff441dc13be5f4da1845a8",
+    "gpu_name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "image_ref": "6e46a33c-329a-5b55-a1dd-c9a5c9866943",
+    "max_live_requests": 8,
+    "max_model_len": 32768,
+    "max_output_tokens": 512,
+    "max_prompt_tokens": 8192,
+    "model_revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+    "profile_id": "chutes-qwen38-27b-flex-v1",
+    "result_bytes_per_output_token": 780,
+    "result_overhead_bytes": 72,
+    "scheduler_only": true,
+    "served_model": "Qwen/Qwen3.8-27B-FP8",
+    "tokenizer_digest": "aafd5fc41c09711a07d61de4badc4e570707a5d42065c6cdf36366eef6d619c3",
+    "vllm_version": "0.1.dev19754+g3a0914114",
+    "vocab_size": 248320
+  },
+  "profile_digest": "edd4c7316dbf5ee3fb04e9c260611d56a1878552a9a6d16cb81c1d558e906ad3",
+  "tested_inflight_limits": [
+    1,
+    2,
+    4
+  ],
+  "best_measured_inflight": 4,
+  "workload": {
+    "prompt_tokens": 1737,
+    "calibration_output_limits": [
+      512,
+      128,
+      256,
+      256
+    ],
+    "trials_per_limit": 3,
+    "calibration_requests": 36,
+    "cache_check_requests": 3
+  },
+  "tested_scheduler_limits": {
+    "max_inflight_requests": 4,
+    "max_reserved_context_tokens": 32768,
+    "max_spool_bytes": 16777216,
+    "max_owner_spool_bytes": 16777216,
+    "max_queued_bytes": 8388608,
+    "max_plan_bytes": 16777216,
+    "max_observation_tokens": 1024
+  },
+  "spool_policy": {
+    "acknowledged_retention_ms": 0,
+    "max_artifact_bytes": 8388608,
+    "max_physical_bytes": 33554432,
+    "max_owner_physical_bytes": 33554432
+  },
+  "transport_timeouts_ms": {
+    "connect": 10000,
+    "first_progress": 60000,
+    "idle": 30000,
+    "total": 180000
+  },
+  "production_default_established": false,
+  "activation_requires_fresh_engine_epoch": true
+}

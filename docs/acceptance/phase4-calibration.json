@@ -1,0 +1,230 @@
+{
+  "scope": "one pinned GPU, synthetic 1737-token prompt, outputs 512/128/256/256, three trials per limit",
+  "profile_digest": "edd4c7316dbf5ee3fb04e9c260611d56a1878552a9a6d16cb81c1d558e906ad3",
+  "comparison": [
+    {
+      "max_inflight_requests": 1,
+      "trials": 3,
+      "completed_requests": 12,
+      "output_tokens_per_second": {
+        "samples": 3,
+        "min": 27.51415368542672,
+        "median": 28.26618713767213,
+        "mean": 28.12495269689478,
+        "max": 28.594517267585488
+      },
+      "batch_elapsed_seconds": {
+        "samples": 3,
+        "min": 40.287443541,
+        "median": 40.755408375,
+        "mean": 40.97073723566667,
+        "max": 41.869359791
+      },
+      "client_dispatch_to_first_token_ms": {
+        "samples": 12,
+        "min": 1824.252,
+        "median": 1991.2795,
+        "mean": 2032.5909166666668,
+        "max": 2455.802
+      },
+      "first_event_queue_spool_and_journal_ms": {
+        "samples": 12,
+        "min": 13.716,
+        "median": 20.207,
+        "mean": 20.405916666666666,
+        "max": 29.071
+      },
+      "gate_commit_to_next_dispatch_ms": {
+        "samples": 9,
+        "min": 3275.892,
+        "median": 6555.902,
+        "mean": 7745.918555555556,
+        "max": 13285.676
+      },
+      "capacity_wait_after_gate_ms": {
+        "samples": 9,
+        "min": 3260.911,
+        "median": 6541.075,
+        "mean": 7730.354333333334,
+        "max": 13269.672
+      },
+      "capacity_ready_to_dispatch_ms": {
+        "samples": 9,
+        "min": 14.61,
+        "median": 14.986,
+        "mean": 15.564222222222222,
+        "max": 16.906
+      },
+      "reservation_and_intent_ms": {
+        "samples": 12,
+        "min": 14.018,
+        "median": 15.163,
+        "mean": 16.473333333333333,
+        "max": 21.735
+      },
+      "registration_commit_ms": {
+        "samples": 3,
+        "min": 23.975,
+        "median": 24.754,
+        "mean": 24.880666666666666,
+        "max": 25.913
+      },
+      "native_peak_running": 1.0,
+      "native_peak_kv_cache_usage": 0.006908462867012077,
+      "native_preemptions": 0.0,
+      "native_ttft_mean_ms": 200.22356510162354
+    },
+    {
+      "max_inflight_requests": 2,
+      "trials": 3,
+      "completed_requests": 12,
+      "output_tokens_per_second": {
+        "samples": 3,
+        "min": 38.95722702246224,
+        "median": 40.264396814581325,
+        "mean": 40.1397002679311,
+        "max": 41.19747696674972
+      },
+      "batch_elapsed_seconds": {
+        "samples": 3,
+        "min": 27.962877458,
+        "median": 28.610884333,
+        "mean": 28.714885000000002,
+        "max": 29.570893209
+      },
+      "client_dispatch_to_first_token_ms": {
+        "samples": 12,
+        "min": 1759.926,
+        "median": 1981.9544999999998,
+        "mean": 2004.5656666666666,
+        "max": 2558.411
+      },
+      "first_event_queue_spool_and_journal_ms": {
+        "samples": 12,
+        "min": 11.404,
+        "median": 19.2615,
+        "mean": 19.880083333333335,
+        "max": 32.966
+      },
+      "gate_commit_to_next_dispatch_ms": {
+        "samples": 9,
+        "min": 15.924,
+        "median": 3836.599,
+        "mean": 3687.0312222222224,
+        "max": 7523.038
+      },
+      "capacity_wait_after_gate_ms": {
+        "samples": 9,
+        "min": 0.0,
+        "median": 3817.61,
+        "mean": 3653.994222222222,
+        "max": 7507.019
+      },
+      "capacity_ready_to_dispatch_ms": {
+        "samples": 9,
+        "min": 15.924,
+        "median": 27.055,
+        "mean": 33.037,
+        "max": 55.804
+      },
+      "reservation_and_intent_ms": {
+        "samples": 12,
+        "min": 11.299,
+        "median": 15.358,
+        "mean": 16.411916666666666,
+        "max": 24.557
+      },
+      "registration_commit_ms": {
+        "samples": 3,
+        "min": 23.887,
+        "median": 24.216,
+        "mean": 24.355,
+        "max": 24.962
+      },
+      "native_peak_running": 2.0,
+      "native_peak_kv_cache_usage": 0.007772020725388629,
+      "native_preemptions": 0.0,
+      "native_ttft_mean_ms": 211.3002339998881
+    },
+    {
+      "max_inflight_requests": 4,
+      "trials": 3,
+      "completed_requests": 12,
+      "output_tokens_per_second": {
+        "samples": 3,
+        "min": 50.386240749594876,
+        "median": 51.75060380835704,
+        "mean": 51.74661794433674,
+        "max": 53.103009275058305
+      },
+      "batch_elapsed_seconds": {
+        "samples": 3,
+        "min": 21.693685833,
+        "median": 22.260609833,
+        "mean": 22.27256008333333,
+        "max": 22.863384584
+      },
+      "client_dispatch_to_first_token_ms": {
+        "samples": 12,
+        "min": 1876.023,
+        "median": 1984.3175,
+        "mean": 2072.147,
+        "max": 2575.448
+      },
+      "first_event_queue_spool_and_journal_ms": {
+        "samples": 12,
+        "min": 9.858,
+        "median": 16.259999999999998,
+        "mean": 19.969916666666666,
+        "max": 42.392
+      },
+      "gate_commit_to_next_dispatch_ms": {
+        "samples": 9,
+        "min": 10.827,
+        "median": 12.972,
+        "mean": 14.093666666666667,
+        "max": 21.013
+      },
+      "capacity_wait_after_gate_ms": {
+        "samples": 9,
+        "min": 0.0,
+        "median": 0.0,
+        "mean": 0.0,
+        "max": 0.0
+      },
+      "capacity_ready_to_dispatch_ms": {
+        "samples": 9,
+        "min": 10.827,
+        "median": 12.972,
+        "mean": 14.093666666666667,
+        "max": 21.013
+      },
+      "reservation_and_intent_ms": {
+        "samples": 12,
+        "min": 10.199,
+        "median": 13.479,
+        "mean": 14.353916666666667,
+        "max": 21.276
+      },
+      "registration_commit_ms": {
+        "samples": 3,
+        "min": 24.252,
+        "median": 24.81,
+        "mean": 27.012333333333334,
+        "max": 31.975
+      },
+      "native_peak_running": 3.0,
+      "native_peak_kv_cache_usage": 0.011226252158894612,
+      "native_preemptions": 0.0,
+      "native_ttft_mean_ms": 217.85648663838705
+    }
+  ],
+  "best_measured_inflight": 4,
+  "production_default_established": false,
+  "limitations": [
+    "client clocks include network and durable I/O",
+    "first generated token is not exact prefill-complete",
+    "small sample; no TTFT SLA",
+    "8192-token input cap and 32K aggregate context were not stress-calibrated"
+  ]
+}
