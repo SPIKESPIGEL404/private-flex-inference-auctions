@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "plan_id": "plan-2",
+  "stream_id": "fixture-stream",
+  "plan_seq": 2,
+  "predecessor_plan_hash": "cb72dd79c5198377348ecf6f1629ba8f6d793bd8b4240db054f28f05ba33d9e7",
+  "upstream_commit_ref": "bitrouter-fixture-commit-2",
+  "target_scheduler_id": "fixture-scheduler",
+  "model_profile_id": "fixture-only-no-gpu",
+  "scheduler_policy_version": "external-gate-v1",
+  "manifest_hash": "4e77e21d16e5b14bd253892ccb08a25baf50e3623dfb6cb6876824d8d6cf8c90",
+  "request_count": 1,
+  "authorization_ref": "fixture-authorization-2",
+  "authorization_binding": {
+    "issuer_id": "fixture-issuer",
+    "signature": "fbf7726fa1d49dec4440bed596c21ba70b59f6f1425d314408a0267a4cab9b5b1c0468755fd4d25fb9b8211fa396b0cda4897ba7d3b756239609d359e7dd1b06"
+  },
+  "ordered_requests": [
+    {
+      "grant_id": "grant-2-1",
+      "execution_id": "exec-2-1",
+      "request_ref": "request-2-1",
+      "owner_ref": "opaque-owner",
+      "rank": 1,
+      "request_digest": "ababd8133c1fb7c74325138aa300d3a017f840e968c1abe65c35ba22709919bd",
+      "prompt_token_ids": [
+        1,
+        2,
+        3
+      ],
+      "sampling_config": {
+        "temperature_milli": 0,
+        "top_p_millionths": 1000000,
+        "top_k": 50,
+        "seed": 42,
+        "stop_token_ids": [
+          0
+        ]
+      },
+      "max_output_tokens": 8,
+      "cache_namespace": "public-synthetic-fixture",
+      "context_reservation": 11,
+      "max_result_bytes": 384
+    }
+  ]
+}

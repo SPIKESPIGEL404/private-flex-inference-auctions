@@ -4,7 +4,50 @@ A proposed confidential inference auction for **one model provider and multiple 
 
 Built as a NEAR hackathon prototype and a potential integration component for NEAR AI.
 
-> **Status: design stage.** This README describes the intended MVP. The repository does not yet contain a runnable implementation or a verified TEE deployment. The initial demo will host its own model with vLLM; it does not assume access to NEAR AI's internal scheduler.
+> **Status: phases one through four implemented and accepted within their documented scope.** The Rust scheduler, HTTP/SSE transport and physical result spool passed local checks; the pinned Chutes vLLM/GPU adapter passed real generation, calibration and isolation recovery checks. BitRouter integration and end-to-end TEE verification remain later work. See the [phase-four acceptance report](docs/acceptance/2026-11-02-phase4.md).
+
+Current design: [External Prefill Gating Scheduler Spec](docs/specs/2026-11-02-external-prefill-gating-scheduler.md). The scheduler receives a committed execution plan from BitRouter, then dispatches the next request after the previous request produces a verified generation signal or reaches a confirmed terminal state, subject to capacity. Decode may overlap; completion order is not guaranteed.
+
+**Phase four is accepted for the measured Chutes configuration and synthetic workload.** Next is **phase five: discuss and align BitRouter integration, then implement it**.
+
+## Current implementation scope
+
+This work focuses on the scheduler. It reuses the user's existing BitRouter auction and settlement capabilities through an adapter; it does not reimplement allocation, VCG pricing, balances, holds, charges, refunds, or buyer receipts. The integration contracts in the spec are proposed contracts to align with BitRouter, rather than claims about its current API.
+
+The scheduler owns complete plan registration, immutable execution identities, ordered dispatch, external prefill gating, capacity backpressure, the vLLM HTTP/SSE adapter, durable execution events, recovery, and a bounded result spool with handoff to BitRouter. It can run as a separate service and does not require a shared database with BitRouter.
+
+The auction and financial sections below describe system context and external ownership. Their economic correctness and payment policies are outside this repository's implementation and acceptance scope.
+
+## Run local acceptance
+
+```bash
+CHUTES_PYTHON=/path/to/chutes-venv/bin/python bash scripts/accept-phase4.sh
+```
+
+This checks the core, transports, spool and Chutes deployment contracts without GPU calls. Paid live acceptance and recovery require explicit arguments; see the [phase-four guide](docs/phase4-vllm.md), [report](docs/acceptance/2026-11-02-phase4.md), and [calibration record](docs/acceptance/phase4-runtime-profile.json).
+
+`bash scripts/accept-phase3.sh` runs all core, HTTP/SSE and physical spool tests, Clippy, and a walkthrough
+with an independent durable mock sink, lost ACK, backpressure and cleanup. It
+uses no external model endpoint or credentials. See the
+[phase-three guide](docs/phase3-spool.md),
+[acceptance report](docs/acceptance/2026-11-02-phase3.md), and
+[recovery runbook](docs/runbooks/scheduler-recovery.md).
+
+The HTTP-only phase-two walkthrough remains available with
+`bash scripts/accept-phase2.sh`; see its [guide](docs/phase2-http.md) and
+[acceptance report](docs/acceptance/2026-11-02-phase2.md).
+
+The original offline-only phase-one walkthrough remains available:
+
+```bash
+bash scripts/accept-phase1.sh
+```
+
+This runs formatting checks, core acceptance tests, Clippy with warnings denied,
+and the offline fixture walkthrough using a fresh temporary journal. The fixture
+contains public synthetic data and never sends inference requests. See the
+[core implementation guide](docs/phase1-core.md) and
+[phase-one acceptance report](docs/acceptance/2026-11-02-phase1.md).
 
 ## What buyers purchase
 
@@ -19,16 +62,16 @@ A zero priority bid can still receive service in an admitted batch. When there i
 
 The MVP uses a base quote fixed for an agreed request size class and output limit, independent of auction order. This keeps cache-dependent billing from changing the incentives of the priority auction. Lower Flex prices would require a seller-provided discount or cheaper capacity; an auction alone does not reduce inference costs.
 
-## Two core modules
+## System boundaries
 
 | Module | Responsibilities |
 | --- | --- |
-| **TEE Auction Gateway, using BitRouter as a foundation** | Authenticate buyers, decrypt sealed submissions, enforce budgets, freeze batches, compute schedules and payments, maintain the private ledger, authorize execution, and return private receipts. |
-| **vLLM scheduling adapter** | Admit committed batches, apply their frozen order, coordinate with running requests, and report execution events, usage, and results. |
+| **BitRouter: external auction and settlement dependency** | Authenticate buyers, process sealed submissions and budgets, freeze and price allocations, authorize execution, deliver results, and maintain financial obligations and receipts. These capabilities are reused through integration. |
+| **Scheduler: this repository's implementation scope** | Register complete execution plans locally, dispatch requests in frozen order using external prefill gating, bound in-flight work, record execution facts, and hand results to BitRouter. |
 
-**The gateway decides allocation and price. The scheduling adapter fulfills that allocation.** vLLM receives the request, execution identity, limits, and scheduling order. It does not need raw bids or account budgets.
+**BitRouter decides allocation and price. The scheduler fulfills the execution plan.** The scheduler receives order, input bindings, limits, and authorization proof without bids or financial details. vLLM receives the inference request, execution identity, and limits; order is enforced through dispatch timing.
 
-The initial deployment places both modules inside one attested confidential VM, backed by a confidential GPU. An optional external ingress only forwards encrypted traffic.
+The proposed initial deployment places the trusted components inside one attested confidential VM, backed by a confidential GPU. They need not share a service or process. An optional external ingress only forwards encrypted traffic; deployment verification remains a separate integration requirement.
 
 ```mermaid
 flowchart TB
@@ -60,8 +103,8 @@ flowchart TB
 3. **Check funding and admit.** Inside the TEE, the gateway validates the request and reserves enough test credits for the base charge and the authorized priority-payment bound. Unfunded requests remain outside the auction.
 4. **Freeze the batch.** Queued requests enter a batch under the published rule. Membership, request contents, identities, and bids are fixed before clearing. Later arrivals enter a later batch.
 5. **Clear the auction.** The gateway computes the schedule and each buyer's payment, then commits the allocation, financial obligations, and execution grants.
-6. **Execute the allocation.** The adapter registers the complete batch before making it eligible for scheduling. New bids cannot rewrite committed grants or jump ahead of earlier committed batches.
-7. **Deliver and settle.** The gateway records execution facts, validates and stores the complete result for the buyer, settles once under the frozen terms, and releases unused holds. Each buyer receives only its own receipt and result.
+6. **Execute the allocation.** The scheduler registers the complete execution plan before making it eligible for dispatch. It waits for the previous request's verified generation signal or confirmed terminal state before dispatching the next request, subject to capacity. Later plans cannot jump ahead of earlier committed positions.
+7. **Hand off, deliver, and settle.** The scheduler reports execution facts and hands off the durable result. BitRouter owns final buyer delivery and applies its existing settlement policy. Each buyer receives only its own receipt and result.
 
 An execution grant binds the original request, buyer, model, round, scheduling rank, limits, and payment terms. Retries and duplicate reports refer to that identity.
 
@@ -105,7 +148,7 @@ For example, with three unrelated requests from three buyers, bids of 10, 6, and
 
 Amounts here are illustrative credit units, excluding the base service charge. Priority bids and payments include any priority-related platform charge; the gateway does not add an undisclosed fee afterward.
 
-The initial implementation can recompute the counterfactual once per buyer for small batches. Faster payment computation can follow measured performance needs.
+Counterfactual calculation belongs to BitRouter's auction module. The scheduler consumes its committed order and does not compute or validate VCG payments.
 
 Truthful-bidding guarantees apply to the paper's fixed-request, fixed-batch, linear priority-value model. They do not establish resistance to fake identities, fabricated requests, strategic arrival times, or seller manipulation. Scheduling priority is also not a guaranteed time-to-first-token or completion deadline.
 
@@ -136,7 +179,7 @@ These are separate concepts, checked inside the gateway:
 | `spending_limit` | A buyer's cumulative spending restriction across requests. |
 | Funded balance | Credits actually available in the ledger; a declared budget does not create funds. |
 
-The MVP uses test credits and one ledger writer. It borrows BitRouter Market's separation of authorization, reservation, execution, delivery, and settlement.
+Balances, credits, and financial obligations remain owned by BitRouter. The scheduler preserves the separation between execution authorization, execution responsibility, result handoff, and financial closure.
 
 - A committed allocation retains its original execution identity.
 - A timeout or lost response is an unresolved execution outcome, not proof that nothing ran.
@@ -148,32 +191,32 @@ Encrypted storage alone does not prevent rollback or forked state. The MVP must 
 
 ## MVP scope and validation
 
-The first version targets one seller, one model, one GPU, one auction writer, small scheduling batches, bounded output lengths, and test-credit accounting. A thin client and demo UI expose the buyer flow.
+The scheduler MVP targets one model, one GPU, one vLLM instance, one ordered input-plan stream, one scheduling writer, and bounded output lengths. A fixed-plan producer can exercise it before the existing BitRouter integration is connected; no auction or financial simulator is required.
 
-The demo compares the same workloads under:
+An integrated benchmark can compare the same workloads under orders supplied by BitRouter:
 
 | Policy | What it demonstrates |
 | --- | --- |
-| FIFO | Baseline behavior without bidding. |
-| Bid-only ordering | Priority allocation without prefix grouping. |
-| Average-bid DFS with VCG | Cache-aware allocation and calculated priority payments inside the TEE. |
+| FIFO | Execution baseline for an externally supplied FIFO plan. |
+| Bid-only ordering | Execution of an externally supplied priority plan. |
+| Average-bid DFS | Execution of an externally supplied cache-aware plan; VCG remains outside the scheduler. |
 
 Validation should cover:
 
-- Allocation and payment correctness against a small reference implementation.
-- Budget enforcement, duplicate submission handling, and unresolved execution recovery.
-- Agreement between committed order and actual scheduler events.
-- Queue wait, time to first token, completion time, cache hits, and throughput.
-- Client rejection of an unapproved deployment or mismatched attestation-bound key.
-- Absence of plaintext bids and budgets from externally accessible logs, storage, and operator interfaces.
+- Complete plan registration, authorization binding, sequence continuity, and duplicate plan/event handling.
+- Bounded request/context/result capacity and unresolved execution recovery.
+- Agreement between committed order and recorded dispatch, generation-progress, and terminal events under the external gating contract.
+- Durable result handoff, replay after BitRouter disconnects, and safe resume after old-writer/engine isolation.
+- Queue wait, time to first output progress, completion time, cache hits, and throughput.
+- Absence of sensitive inference inputs from public logs and metrics; financial fields are not part of the scheduler protocol.
 
-These are planned checks, not completed results.
+The acceptance reports record completed core, mock HTTP/SSE, physical result spool and independent durable sink checks. Actual BitRouter integration and production deployment checks remain planned. Real vLLM/GPU validation is tracked separately in the [phase-four guide](docs/phase4-vllm.md).
 
-Multi-seller matching, production payments, hard latency SLAs, and distributed failover are outside the initial scope. NEAR testnet settlement or batch commitments may be added after the local transaction loop works; they are not part of per-request scheduling.
+Auction algorithms, VCG correctness, financial policy, buyer-facing delivery, multi-seller matching, hard latency SLAs, distributed failover, and a new TEE control plane are outside this scheduler's scope. NEAR or on-chain integration is separate from per-request dispatch.
 
 ## Relationship to BitRouter and NEAR AI
 
-BitRouter provides the intended foundation for ingress and request-lifecycle integration. The auction adds an explicit policy for allocating priority; it does not reinterpret an existing total-charge limit as a bid or require importing the entire multi-provider market.
+BitRouter supplies the existing auction and settlement side of the integration. This repository contributes a scheduler that consumes frozen execution plans and returns execution/result evidence, without importing the entire multi-provider market or redefining its financial policies.
 
 The self-hosted vLLM demo validates a seller-side component that could later integrate with NEAR AI. Any NEAR AI or on-chain integration will be documented according to what is actually implemented.
 

@@ -1,0 +1,10 @@
+/target/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.writer.lock
+*.spool/
+__pycache__/
+*.pyc
+.phase4-runs/
+.phase4-tools/

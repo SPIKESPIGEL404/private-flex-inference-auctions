@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "plan_id": "plan-1",
+  "stream_id": "fixture-stream",
+  "plan_seq": 1,
+  "predecessor_plan_hash": "GENESIS",
+  "upstream_commit_ref": "bitrouter-fixture-commit-1",
+  "target_scheduler_id": "fixture-scheduler",
+  "model_profile_id": "fixture-only-no-gpu",
+  "scheduler_policy_version": "external-gate-v1",
+  "manifest_hash": "cb72dd79c5198377348ecf6f1629ba8f6d793bd8b4240db054f28f05ba33d9e7",
+  "request_count": 2,
+  "authorization_ref": "fixture-authorization-1",
+  "authorization_binding": {
+    "issuer_id": "fixture-issuer",
+    "signature": "1215158a69509f25be94d06bfc08e5ebb5ac0ff98933dbdc92fed5e659f510fd01ae266b5d8bb7c9196304a19d0bd1db41386c9770537162011fe8e2dca04f01"
+  },
+  "ordered_requests": [
+    {
+      "grant_id": "grant-1-1",
+      "execution_id": "exec-1-1",
+      "request_ref": "request-1-1",
+      "owner_ref": "opaque-owner",
+      "rank": 1,
+      "request_digest": "696e19da7bcdade1874c8c11b4d4e41a84b199e9c71107d2352d9879024c5441",
+      "prompt_token_ids": [
+        1,
+        2,
+        3
+      ],
+      "sampling_config": {
+        "temperature_milli": 0,
+        "top_p_millionths": 1000000,
+        "top_k": 50,
+        "seed": 42,
+        "stop_token_ids": [
+          0
+        ]
+      },
+      "max_output_tokens": 8,
+      "cache_namespace": "public-synthetic-fixture",
+      "context_reservation": 11,
+      "max_result_bytes": 384
+    },
+    {
+      "grant_id": "grant-1-2",
+      "execution_id": "exec-1-2",
+      "request_ref": "request-1-2",
+      "owner_ref": "opaque-owner",
+      "rank": 2,
+      "request_digest": "8b41a2680e05b8f0c5b1b7b2b5304284d529b5214f9bbf4a9f82db59719a696e",
+      "prompt_token_ids": [
+        1,
+        2,
+        3
+      ],
+      "sampling_config": {
+        "temperature_milli": 0,
+        "top_p_millionths": 1000000,
+        "top_k": 50,
+        "seed": 42,
+        "stop_token_ids": [
+          0
+        ]
+      },
+      "max_output_tokens": 8,
+      "cache_namespace": "public-synthetic-fixture",
+      "context_reservation": 11,
+      "max_result_bytes": 384
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "profile": {
+    "profile_id": "fixture-only-no-gpu",
+    "served_model": "mock-model",
+    "model_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "vllm_version": "fixture-1",
+    "image_ref": "fixture-image",
+    "engine_args_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+    "tokenizer_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+    "chat_template_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+    "gpu_name": "fixture-no-gpu",
+    "vocab_size": 1024,
+    "max_prompt_tokens": 64,
+    "max_output_tokens": 32,
+    "max_model_len": 128,
+    "result_bytes_per_output_token": 32,
+    "result_overhead_bytes": 128,
+    "max_live_requests": 8,
+    "scheduler_only": true
+  },
+  "profile_digest": "050f682d04df79c95d138ce7c7e18bfd89ba9eeb9b93d1791a02dc481ed13df3",
+  "engine_epoch": "mock-epoch-1",
+  "accepting": true
+}

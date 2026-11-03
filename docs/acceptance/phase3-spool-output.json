@@ -1,0 +1,109 @@
+{
+  "artifacts": [
+    {
+      "binding": {
+        "engine_epoch": "mock-epoch-1",
+        "execution_id": "exec-1-1",
+        "grant_id": "grant-1-1",
+        "manifest_hash": "ccae1f19caaa5b298af908b3fa569661cb2e4b888932793393e2c2f965360db7",
+        "plan_id": "plan-1",
+        "plan_seq": 1,
+        "request_digest": "696e19da7bcdade1874c8c11b4d4e41a84b199e9c71107d2352d9879024c5441"
+      },
+      "metadata": {
+        "artifact_ref": "spool:4f7d0e7e14fe8e38a79f086c2f01f58e923c0fb0715cffe357524b05b8165061",
+        "digest": "cb76b87b01989f45be1795f54b4f4d1314b0c52c651cb800ebe76ba20cad3ef4",
+        "records": 1,
+        "usage": {
+          "completion_tokens": 1,
+          "prompt_tokens": 3,
+          "total_tokens": 4
+        },
+        "used_bytes": 87
+      }
+    },
+    {
+      "binding": {
+        "engine_epoch": "mock-epoch-1",
+        "execution_id": "exec-1-2",
+        "grant_id": "grant-1-2",
+        "manifest_hash": "ccae1f19caaa5b298af908b3fa569661cb2e4b888932793393e2c2f965360db7",
+        "plan_id": "plan-1",
+        "plan_seq": 1,
+        "request_digest": "8b41a2680e05b8f0c5b1b7b2b5304284d529b5214f9bbf4a9f82db59719a696e"
+      },
+      "metadata": {
+        "artifact_ref": "spool:a6ed1f4e03c9c3763df553b42a5b25d233376443385180ce3b9f5c11d97a2416",
+        "digest": "f587b29ad8603567c05611c451b6dc306ebaaac200fdfa254e3c7730d1841ccd",
+        "records": 1,
+        "usage": {
+          "completion_tokens": 1,
+          "prompt_tokens": 3,
+          "total_tokens": 4
+        },
+        "used_bytes": 87
+      }
+    },
+    {
+      "binding": {
+        "engine_epoch": "mock-epoch-2",
+        "execution_id": "exec-1-3",
+        "grant_id": "grant-1-3",
+        "manifest_hash": "ccae1f19caaa5b298af908b3fa569661cb2e4b888932793393e2c2f965360db7",
+        "plan_id": "plan-1",
+        "plan_seq": 1,
+        "request_digest": "debaa492b5c2a993c5e849961d1eb19be003aecfccd31e8ff50c56ae70681992"
+      },
+      "metadata": {
+        "artifact_ref": "spool:8a2c15cd034187bd8b2c8d1a4f081470427f8327a9b5f4044beeb59bcc59db31",
+        "digest": "3b157eb0390c9040cd48b77195b95c2e33766dec2a1426f6f9ebc29cc5ff1484",
+        "records": 1,
+        "usage": {
+          "completion_tokens": 1,
+          "prompt_tokens": 3,
+          "total_tokens": 4
+        },
+        "used_bytes": 87
+      }
+    }
+  ],
+  "cleaned_results": 3,
+  "dispatch_order": [
+    "exec-1-1",
+    "exec-1-2",
+    "exec-1-3"
+  ],
+  "duplicate_ack_extends_retention": false,
+  "durable_results": 3,
+  "final_snapshot": {
+    "capacity": {
+      "inflight_requests": 0,
+      "owner_physical_spool_bytes": {},
+      "owner_spool_bytes": {},
+      "physical_spool_bytes": 0,
+      "queued_bytes": 0,
+      "queued_requests": 0,
+      "reserved_context_tokens": 0,
+      "reserved_spool_bytes": 0
+    },
+    "contiguous_through": 1,
+    "engine_epoch": "mock-epoch-2",
+    "integrity_fault": false,
+    "mode": "RECOVERY_REQUIRED",
+    "next_plan_seq": 2,
+    "next_rank": 1
+  },
+  "handed_off_results": 3,
+  "http_requests": 3,
+  "initial_backpressure": "PHYSICAL_SPOOL_CAPACITY",
+  "peak_physical_slot_bytes": 8192,
+  "phase_two_commit": "085a09b",
+  "real_bitrouter_or_tee_integrated": false,
+  "real_vllm_or_gpu_executed": false,
+  "reopen_reposts": 0,
+  "scope": "local-loopback-mock-with-physical-spool-and-independent-mock-sink",
+  "sink_results_readable_after_cleanup": true,
+  "sink_synced_before_ack": true,
+  "snapshot_replay_matches": true,
+  "unacknowledged_age_cleanup_count": 0
+}
