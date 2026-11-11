@@ -1,0 +1,12 @@
+{
+  "independent_audit": "passed",
+  "signed_plans_and_config_hashes": true,
+  "journal_hash_chains": true,
+  "journal_gate_order": true,
+  "exact_spool_prefixes_and_artifacts_reconstructed": true,
+  "native_metrics_independently_parsed": true,
+  "one_intent_per_execution": true,
+  "calibration_results": 39,
+  "durable_acked_cleaned_results": 40,
+  "real_interruption_and_isolation_recovery_verified": true
+}

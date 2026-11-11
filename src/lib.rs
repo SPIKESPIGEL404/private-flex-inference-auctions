@@ -1,0 +1,59 @@
+//! Durable scheduler, bounded result spool, and pinned vLLM HTTPS adapter.
+//! No financial state or BitRouter-facing service APIs.
+//! Observation and recovery methods are trusted-adapter/operator interfaces, not public RPCs.
+mod contracts;
+mod journal;
+mod mock_http;
+mod results;
+mod spool;
+mod sse;
+mod state;
+mod stream;
+mod vllm;
+
+pub use contracts::*;
+pub use journal::Scheduler;
+pub use mock_http::*;
+pub use spool::*;
+pub use sse::*;
+pub use state::*;
+pub use stream::*;
+pub use vllm::*;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("invalid input: {0}")]
+    Invalid(&'static str),
+    #[error("authorization rejected")]
+    Unauthorized,
+    #[error("a scheduler writer already holds this journal")]
+    WriterLocked,
+    #[error("journal integrity check failed: {0}")]
+    Corrupt(&'static str),
+    #[error("configured identity or profile differs from the journal")]
+    ConfigMismatch,
+    #[error("scheduler is not active")]
+    NotActive,
+    #[error("scheduler is unavailable after a persistence error; reopen and reconcile")]
+    Poisoned,
+    #[error("immutable plan identity conflict; dispatch paused")]
+    PlanConflict,
+    #[error("execution identity already belongs to another plan")]
+    DuplicateExecution,
+    #[error("backpressure: {0}")]
+    Backpressure(&'static str),
+    #[error("execution not found")]
+    NotFound,
+    #[error("invalid state transition: {0}")]
+    Transition(&'static str),
+    #[error("observation identity conflict; dispatch paused")]
+    ObservationConflict,
+    #[error("I/O failure: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("SQLite failure: {0}")]
+    Sqlite(#[from] rusqlite::Error),
+    #[error("JSON encoding failure")]
+    Json(#[from] serde_json::Error),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;

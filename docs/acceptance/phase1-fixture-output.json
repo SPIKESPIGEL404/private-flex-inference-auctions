@@ -1,0 +1,30 @@
+{
+  "dispatch_order": [
+    "exec-1-1",
+    "exec-1-2",
+    "exec-2-1"
+  ],
+  "events": 14,
+  "http_or_gpu_executed": false,
+  "physical_spool_implemented": false,
+  "scope": "phase-one-offline-core-only",
+  "snapshot": {
+    "capacity": {
+      "inflight_requests": 0,
+      "owner_spool_bytes": {
+        "opaque-owner": 1152
+      },
+      "queued_bytes": 0,
+      "queued_requests": 0,
+      "reserved_context_tokens": 0,
+      "reserved_spool_bytes": 1152
+    },
+    "contiguous_through": 2,
+    "engine_epoch": "fixture-epoch-2",
+    "integrity_fault": false,
+    "mode": "ACTIVE",
+    "next_plan_seq": 3,
+    "next_rank": 1
+  },
+  "snapshot_replay_matches": true
+}

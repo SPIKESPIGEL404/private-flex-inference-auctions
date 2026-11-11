@@ -1,0 +1,15 @@
+{
+  "chute_version": "51211bfc-e891-54c0-b016-daef4e3c9d15",
+  "instances": [
+    {
+      "instance_id": "9a2019a4-b4e9-4c3e-b90f-946e27168846",
+      "active": true,
+      "verified": true
+    }
+  ],
+  "engine_epoch": "chutes-91600c0b529045f8a753407c21e8a858",
+  "active_requests": [],
+  "new_epoch_execution_count": 1,
+  "source_credential_scan": "passed",
+  "recorded_at_utc": "2026-11-03T00:25:23.167681+00:00"
+}

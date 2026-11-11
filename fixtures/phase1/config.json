@@ -1,0 +1,29 @@
+{
+  "scheduler_id": "fixture-scheduler",
+  "stream_id": "fixture-stream",
+  "scheduler_policy_version": "external-gate-v1",
+  "model": {
+    "profile_id": "fixture-only-no-gpu",
+    "tokenizer_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+    "chat_template_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+    "max_prompt_tokens": 64,
+    "max_output_tokens": 32,
+    "max_model_len": 128,
+    "vocab_size": 1024,
+    "result_bytes_per_output_token": 32,
+    "result_overhead_bytes": 128
+  },
+  "authorized_issuers": {
+    "fixture-issuer": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c"
+  },
+  "max_inflight_requests": 2,
+  "max_reserved_context_tokens": 64,
+  "max_spool_bytes": 8192,
+  "max_owner_spool_bytes": 4096,
+  "max_queued_requests": 20,
+  "max_queued_bytes": 32768,
+  "max_out_of_order_plans": 4,
+  "max_plan_bytes": 65536,
+  "max_requests_per_plan": 10,
+  "max_observation_tokens": 32
+}
