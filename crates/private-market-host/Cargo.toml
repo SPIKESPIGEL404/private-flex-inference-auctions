@@ -1,0 +1,36 @@
+[package]
+name = "private-market-host"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+license = "MIT"
+publish = false
+
+# Independent build and lockfile: the historical scheduler is not linked.
+[workspace]
+
+[dependencies]
+bitrouter-cloud = { git = "https://github.com/bitrouter/bitrouter-cloud.git", rev = "244177cafa26e8c8b001e61297cf4e7f89ac8de9" }
+bitrouter-market = { git = "https://github.com/bitrouter/bitrouter-cloud.git", rev = "244177cafa26e8c8b001e61297cf4e7f89ac8de9" }
+anyhow = "1"
+axum = "0.8"
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-postgres"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+uuid = { version = "1.23.4", features = ["v4"] }
+url = "2"
+aci-protocol = { git = "https://github.com/Dstack-TEE/private-ai-gateway.git", rev = "0edde219a8ecb970c76c4cb3d1ca557d4fd567b3" }
+dstack-sdk-types = "=0.1.2"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+ed25519-dalek = "2"
+hex = "0.4"
+x509-parser = "0.16"
+
+[profile.dev]
+debug = 0
+
+[lints.rust]
+# Upstream's SQLite-only tooling tests are retained but excluded from this PG host.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("sqlite-tools"))'] }

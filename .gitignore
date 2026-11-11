@@ -1,4 +1,6 @@
 /target/
+**/target/
+.market-runs/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
@@ -8,3 +10,5 @@ __pycache__/
 *.pyc
 .phase4-runs/
 .phase4-tools/
+.market-c-tools/
+**/node_modules/

@@ -1,0 +1,46 @@
+{
+  "batch": "A",
+  "result": "pass",
+  "cloud_commit": "244177cafa26e8c8b001e61297cf4e7f89ac8de9",
+  "provider": "controlled-loopback-native-chat",
+  "attested": false,
+  "real_provider": false,
+  "scheduler_dependency": false,
+  "buyers": 3,
+  "submit_effects": 3,
+  "receipts": [
+    {
+      "provider_micro_usd": 35,
+      "platform_micro_usd": 0,
+      "cash_micro_usd": 35,
+      "remaining_micro_usd": 24965
+    },
+    {
+      "provider_micro_usd": 35,
+      "platform_micro_usd": 0,
+      "cash_micro_usd": 35,
+      "remaining_micro_usd": 24965
+    },
+    {
+      "provider_micro_usd": 35,
+      "platform_micro_usd": 0,
+      "cash_micro_usd": 35,
+      "remaining_micro_usd": 24965
+    }
+  ],
+  "checks": [
+    "isolated-bootstrap",
+    "no-refill",
+    "verified-test-identity",
+    "forged-credential-denial",
+    "native-sse-terminal",
+    "opted-in-usage-and-stop",
+    "buyer-isolation",
+    "event-replay",
+    "idempotent-submit",
+    "conflicting-submit-denial",
+    "single-cash-ledger",
+    "redis-confirmed",
+    "owned-graceful-shutdown"
+  ]
+}

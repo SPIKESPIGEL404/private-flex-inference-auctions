@@ -1,0 +1,205 @@
+{
+  "batch": "C",
+  "result": "pass",
+  "provider": "NEAR AI Cloud",
+  "model": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+  "tokenizer_revision_ref": "Qwen/Qwen3-VL-30B-A3B-Instruct@9c4b90e1e4ba969fd3b5378b57d966d725f1b86c",
+  "tokenizer_files_sha256": {
+    "tokenizer.json": "a5d85b6dcc535e6b93115a9ef287e6132fdbf30270da6218194ba742261173c7",
+    "tokenizer_config.json": "c2da771801886ad9ae98181793ffd3dfb7f1af30f6f7c6a4e15d7dbba52e2399"
+  },
+  "real_provider": true,
+  "attested_market": false,
+  "upstream_calls": 4,
+  "submit_effects": 3,
+  "approved_budget_micro_usd": 9937,
+  "maximum_estimated_upstream_cost_micro_usd": 308,
+  "upstream_invoice_verified": true,
+  "upstream_total_nano_usd": 91080,
+  "upstream_request_costs_nano_usd": [
+    25650,
+    21810,
+    21810,
+    21810
+  ],
+  "calibration": {
+    "usage": {
+      "prompt_tokens": 39,
+      "completion_tokens": 36,
+      "total_tokens": 75
+    },
+    "sse_sha256": "5b0e909344931524468cf80db4a1d631c8c96530aef830d72c835761b6e3bc02",
+    "elapsed_ms": 2139
+  },
+  "buyers": [
+    {
+      "buyer": 0,
+      "usage": {
+        "prompt_tokens": 39,
+        "completion_tokens": 36,
+        "total_tokens": 75,
+        "prompt_tokens_details": {
+          "cached_tokens": 32
+        }
+      },
+      "finish_reason": "stop",
+      "fees": {
+        "seller": "project-near-test-account",
+        "cash_micro_usd": 22,
+        "promo_micro_usd": 0,
+        "platform_micro_usd": 0,
+        "provider_micro_usd": 22,
+        "released_micro_usd": 55
+      },
+      "balance_micro_usd": 24978,
+      "native_result_sha256": "50309a0276d0220afd5e12dddb7df660a0137d515b5a10897de7514b5797ceac"
+    },
+    {
+      "buyer": 1,
+      "usage": {
+        "prompt_tokens": 39,
+        "completion_tokens": 36,
+        "total_tokens": 75,
+        "prompt_tokens_details": {
+          "cached_tokens": 32
+        }
+      },
+      "finish_reason": "stop",
+      "fees": {
+        "seller": "project-near-test-account",
+        "cash_micro_usd": 22,
+        "promo_micro_usd": 0,
+        "platform_micro_usd": 0,
+        "provider_micro_usd": 22,
+        "released_micro_usd": 56
+      },
+      "balance_micro_usd": 24978,
+      "native_result_sha256": "ebb874e73ce96f6ec5a9b3104f59bf385ef595ded476180f6df3c3e01987d8d1"
+    },
+    {
+      "buyer": 2,
+      "usage": {
+        "prompt_tokens": 39,
+        "completion_tokens": 36,
+        "total_tokens": 75,
+        "prompt_tokens_details": {
+          "cached_tokens": 32
+        }
+      },
+      "finish_reason": "stop",
+      "fees": {
+        "seller": "project-near-test-account",
+        "cash_micro_usd": 22,
+        "promo_micro_usd": 0,
+        "platform_micro_usd": 0,
+        "provider_micro_usd": 22,
+        "released_micro_usd": 57
+      },
+      "balance_micro_usd": 24978,
+      "native_result_sha256": "084c6139a53ef68718d00ae723befb40b3cb51618d1eabcecbcf41cfe917dc88"
+    }
+  ],
+  "task_audit": {
+    "audit": "pass",
+    "real_provider_captures": true,
+    "database_verified": true,
+    "inference_calls_made_by_auditor": 0,
+    "upstream_total_nano_usd": 91080,
+    "buyers": 3,
+    "model": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+    "prior_calibration": {
+      "model": "Qwen/Qwen3.8-27B",
+      "upstream_calls": 1,
+      "cost_nano_usd": 62470,
+      "approved_budget_micro_usd": 10000,
+      "sse_sha256": "6f5efd8f7a41766105a8f448c115c9c1f74bdfada72ada6af17b88aed98e529a"
+    },
+    "task_upstream_calls": 5,
+    "task_total_nano_usd": 153550,
+    "task_approved_budget_micro_usd": 10000
+  },
+  "scope": "Local real native Chat; unattested; project seller terms and test credits",
+  "business_regression": {
+    "batch": "B",
+    "result": "pass",
+    "cloud_commit": "244177cafa26e8c8b001e61297cf4e7f89ac8de9",
+    "controlled": true,
+    "real_provider": false,
+    "attested": false,
+    "partial": false,
+    "cases": {
+      "concurrent-funds": "pass",
+      "concurrent-capacity": "pass",
+      "concurrent-idempotency": "pass",
+      "invalid-expired": "pass",
+      "terminal-success": "pass",
+      "terminal-cap": "pass",
+      "terminal-early-cap": "pass",
+      "terminal-refusal": "pass",
+      "terminal-empty": "pass",
+      "terminal-schema": "pass",
+      "terminal-missing-usage": "pass",
+      "schema-instances": "pass",
+      "replacement": "pass",
+      "unknown-crash": "pass",
+      "unknown-disconnect": "pass",
+      "offline-delivery-restart": "pass",
+      "lost-commit-ack": "pass"
+    },
+    "source_tests": {
+      "source_suites": {
+        "cache": 16,
+        "conditional_allocation": 5,
+        "conditional_indexes": 5,
+        "cost": 13,
+        "execution_contract": 7,
+        "execution_coordinator": 10,
+        "formal_orders": 14,
+        "inference_source": 24,
+        "latency": 11,
+        "manual_seller_order": 10,
+        "purchase_adjudication": 14,
+        "purchase_milestones": 9,
+        "purchase_order_contract": 13,
+        "purchase_result": 15,
+        "quote": 7,
+        "scheduler_indexes": 7,
+        "seller_ioc": 10,
+        "seller_service": 8,
+        "throughput": 12,
+        "total_cap_quote": 16,
+        "kernel_unit": 17
+      },
+      "total": 243
+    }
+  },
+  "offline_registration": {
+    "result": "pass",
+    "inference_calls": 0
+  },
+  "independent_review": {
+    "model": "gpt-6-astra",
+    "result": "pass",
+    "open_blocking_findings": 0,
+    "inference_calls": 0,
+    "audit": {
+      "audit": "pass",
+      "real_provider_captures": true,
+      "database_verified": true,
+      "inference_calls_made_by_auditor": 0,
+      "upstream_total_nano_usd": 91080,
+      "buyers": 3,
+      "model": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+      "prior_calibration": {
+        "model": "Qwen/Qwen3.8-27B",
+        "upstream_calls": 1,
+        "cost_nano_usd": 62470,
+        "approved_budget_micro_usd": 10000,
+        "sse_sha256": "6f5efd8f7a41766105a8f448c115c9c1f74bdfada72ada6af17b88aed98e529a"
+      },
+      "task_upstream_calls": 5,
+      "task_total_nano_usd": 153550,
+      "task_approved_budget_micro_usd": 10000
+    }
+  }
+}
