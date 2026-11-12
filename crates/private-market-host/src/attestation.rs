@@ -113,9 +113,9 @@ fn is_policy_digest(value: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, bool)> {
+pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Option<Arc<str>>)> {
     let Some(path) = env::var_os("PRIVATE_MARKET_ATTESTATION_CONFIG") else {
-        return Ok((router, false));
+        return Ok((router, None));
     };
     ensure!(
         is_policy_digest(policy_digest),
@@ -191,6 +191,7 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, bool)
         .report(&Uuid::new_v4().simple().to_string().repeat(2))
         .await
         .context("initialize dstack identity")?;
+    let digest = Arc::<str>::from(identity.digest.as_str());
     let handler = move |Query(challenge): Query<Challenge>| {
         let identity = identity.clone();
         async move {
@@ -209,6 +210,6 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, bool)
         router
             .route("/market/v1/aci/attestation", get(handler.clone()))
             .route("/v1/aci/attestation", get(handler)),
-        true,
+        Some(digest),
     ))
 }

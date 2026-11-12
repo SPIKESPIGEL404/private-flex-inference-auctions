@@ -2,12 +2,13 @@
 // It deliberately omits hardware root verification and never claims real TEE.
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { verifyReportBinding, verifyComposeMeasurement } from '@phala/aci-verifier';
 import { assertBootPolicy, assertMarketPolicy, validatePolicy } from '../connection.mjs';
+import { freshNonce, readSigningKey, signPurchase } from '../purchase-sign.mjs';
 
 const require = createRequire(import.meta.url);
 const dist = dirname(require.resolve('@phala/aci-verifier'));
@@ -47,18 +48,37 @@ try {
         { id: 'id-6', status: 'skip', title: 'channel not yet observed' }],
         verification: binding, verdict: { verified: false, line: 'CONTROLLED ONLY' } } };
   });
-  if (scenario !== 'success') throw new Error('NEGATIVE_SCENARIO_ACCEPTED');
+  if (!['success', 'retry'].includes(scenario)) throw new Error('NEGATIVE_SCENARIO_ACCEPTED');
   const token = (await readFile(config.credentialFile, 'utf8')).trim();
+  const signing = await readSigningKey(config.signingKeyFile);
   const request = await readFile(config.requestFile);
+  const idempotencyKey = 'd-controlled';
+  const headers = { authorization: 'Bearer ' + token, 'content-type': 'application/json',
+    'idempotency-key': idempotencyKey,
+    ...signPurchase({
+      seed: signing.seed,
+      publicKey: signing.publicKey,
+      body: request,
+      idempotencyKey,
+      keyset: connection.identity.workloadKeysetDigest,
+      nonce: freshNonce(),
+      ts: Math.floor(Date.now() / 1000),
+    }).headers };
+  if (config.captureFile && scenario === 'success') {
+    await writeFile(config.captureFile, JSON.stringify({
+      headers, body: request.toString('base64'),
+    }));
+  }
   const response = await connection.fetch(policy.baseURL + '/chat/completions', { method: 'POST', redirect: 'error',
-    headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json', 'idempotency-key': 'd-controlled' }, body: request });
+    headers, body: request });
   assert.equal(response.status, 200);
   assert.match(await response.text(), /\[DONE\]/);
-  console.log(JSON.stringify({ controlled_market_purchase: 'pass', hardware_attestation: false }));
+  console.log(JSON.stringify({ controlled_market_purchase: 'pass', hardware_attestation: false,
+    signed: true, scenario }));
 } catch (error) {
-  if (scenario === 'success' || error.message === 'NEGATIVE_SCENARIO_ACCEPTED') throw error;
+  if (['success', 'retry'].includes(scenario) || error.message === 'NEGATIVE_SCENARIO_ACCEPTED') throw error;
   refused = true;
   assert.notEqual(scenario, 'success');
   console.log(JSON.stringify({ scenario, refused: true, hardware_attestation: false }));
 } finally { await connection?.close(); }
-if (scenario !== 'success') assert.ok(refused);
+if (!['success', 'retry'].includes(scenario)) assert.ok(refused);

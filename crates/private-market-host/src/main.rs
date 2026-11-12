@@ -5,6 +5,7 @@ mod catalog;
 mod fixtures;
 mod live;
 mod provision;
+mod purchase_auth;
 
 use anyhow::{Context, Result, ensure};
 use axum::{Router, routing::get};
@@ -27,12 +28,14 @@ struct Workload {
     token_ids: Vec<u32>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 struct Buyer {
     user: String,
     credential_id: String,
     token: String,
+    /// NEAR-format verifying key: `ed25519:` + base58(32-byte public key).
+    public_key: String,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -97,6 +100,10 @@ fn catalog_policy_digest(path: &Path) -> Result<String> {
 }
 
 fn write_private(path: &Path, value: &impl Serialize) -> Result<()> {
+    write_private_bytes(path, &serde_json::to_vec_pretty(value)?)
+}
+
+fn write_private_bytes(path: &Path, bytes: &[u8]) -> Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     let mut file = fs::OpenOptions::new()
@@ -104,9 +111,31 @@ fn write_private(path: &Path, value: &impl Serialize) -> Result<()> {
         .create_new(true)
         .mode(0o600)
         .open(path)?;
-    file.write_all(&serde_json::to_vec_pretty(value)?)?;
+    file.write_all(bytes)?;
     file.sync_all()?;
     Ok(())
+}
+
+fn issue_buyer_keys(dir: &Path, index: usize) -> Result<String> {
+    use std::io::Read;
+    let mut seed = [0u8; 32];
+    fs::File::open("/dev/urandom")?.read_exact(&mut seed)?;
+    let signing = ed25519_dalek::SigningKey::from_bytes(&seed);
+    let public = signing.verifying_key().to_bytes();
+    let public_key = purchase_auth::encode_public_key(&public);
+    let secret = purchase_auth::encode_secret_key(&seed, &public);
+    let key_dir = dir.join("signing");
+    fs::create_dir_all(&key_dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&key_dir, fs::Permissions::from_mode(0o700))?;
+    }
+    write_private_bytes(
+        &key_dir.join(format!("buyer-{index}.key")),
+        secret.as_bytes(),
+    )?;
+    Ok(public_key)
 }
 
 async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Result<()> {
@@ -141,20 +170,20 @@ async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Res
     ] {
         db.conn().execute_unprepared(text).await?;
     }
-    let buyers: Vec<_> = (0..3)
-        .map(|_| {
-            let id = Uuid::new_v4().to_string();
-            Buyer {
-                user: Uuid::new_v4().to_string(),
-                token: format!(
-                    "brk_{id}.{}{}",
-                    Uuid::new_v4().simple(),
-                    Uuid::new_v4().simple()
-                ),
-                credential_id: id,
-            }
-        })
-        .collect();
+    let mut buyers = Vec::with_capacity(3);
+    for index in 0..3 {
+        let id = Uuid::new_v4().to_string();
+        buyers.push(Buyer {
+            user: Uuid::new_v4().to_string(),
+            token: format!(
+                "brk_{id}.{}{}",
+                Uuid::new_v4().simple(),
+                Uuid::new_v4().simple()
+            ),
+            credential_id: id,
+            public_key: issue_buyer_keys(dir, index)?,
+        });
+    }
     let tx = db.conn().begin().await?;
     for buyer in &buyers {
         let account = Uuid::new_v4().to_string();
@@ -312,15 +341,16 @@ async fn serve(dir: &Path) -> Result<()> {
     let authority = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let authority_url = format!("http://{}", authority.local_addr()?);
     let internal = Uuid::new_v4().to_string();
-    let authority_router = fixtures::authority(state.buyers, internal.clone());
+    let authority_router = fixtures::authority(state.buyers.clone(), internal.clone());
     let resolver = Arc::new(
         RemoteIntrospectionResolver::new(
-            authority_url,
-            internal,
+            authority_url.clone(),
+            internal.clone(),
             Arc::new(PrincipalCache::with_ttl(Duration::ZERO)),
         )
         .with_source_realm(ISSUER.into())?,
     );
+    let process_start = chrono::Utc::now().timestamp();
     let (stop, stopped) = tokio::sync::watch::channel(false);
     let mut tasks = tokio::task::JoinSet::new();
     let mut servers = vec![(authority, authority_router)];
@@ -387,7 +417,23 @@ async fn serve(dir: &Path) -> Result<()> {
                 }),
             )
             .nest("/market", native);
-    let (router, attestation_available) = attestation::mount(router, &policy_digest).await?;
+    let (router, keyset_digest) = attestation::mount(router, &policy_digest).await?;
+    let attestation_available = keyset_digest.is_some();
+    let router = if let Some(digest) = keyset_digest {
+        let guard = purchase_auth::Guard::new(
+            digest,
+            process_start,
+            authority_url,
+            internal,
+            &state.buyers,
+        )?;
+        router.layer(axum::middleware::from_fn_with_state(
+            guard,
+            purchase_auth::layer,
+        ))
+    } else {
+        router
+    };
     let listener = tokio::net::TcpListener::bind(address).await?;
     let url = format!("http://{}", listener.local_addr()?);
     let mut http_stop = stopped.clone();

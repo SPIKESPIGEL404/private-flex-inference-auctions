@@ -61,6 +61,7 @@ class SellerHandler(BaseHTTPRequestHandler):
             assert body["stream"] and body["stream_options"]["include_usage"]
             assert not any(k.startswith("bitrouter_") or k == "background" for k in body)
             assert not any(k.lower().startswith("x-bitrouter-") for k in self.headers)
+            assert not any(k.lower().startswith("x-buyer-") for k in self.headers)
         except AssertionError:
             s.errors.append("native request isolation/identity check failed")
             self.send(400, b'{}')

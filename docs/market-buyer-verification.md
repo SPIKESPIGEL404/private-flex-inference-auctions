@@ -75,8 +75,14 @@ npm ci --ignore-scripts --prefix clients/market-buyer
 node clients/market-buyer/cli.mjs verify --policy /private/market-policy.json
 node clients/market-buyer/cli.mjs buy --policy /private/market-policy.json \
   --credential-file /private/buyer-token \
+  --signing-key-file /private/buyer-ed25519 \
   --request-file /private/purchase.json --idempotency-key buyer-order-1
 ```
+
+The signing key file is the NEAR `ed25519:` secret for the buyer's registered
+public key. Like the credential file, it is read only after Market verification
+succeeds.
+
 
 Policy schema (replace all explanatory values with reviewed real values):
 
@@ -164,3 +170,24 @@ a missing or malformed `acceptedPolicyDigests` list.
 This is bounded local integration evidence. A future hardware run must verify
 the actual deployed source/configuration, production boot profile, TLS custody,
 database/storage boundaries and lifecycle freshness before batch D can pass.
+
+## Signed purchases and replay protection
+
+When the attestation endpoint is enabled, `POST /market/v1/chat/completions`
+also requires an ed25519 purchase signature. The buyer signs the JCS form of a
+fixed statement that binds method, path, body digest, idempotency key, nonce,
+timestamp and the current workload keyset digest. The host verifies that
+signature on the exact wire body before the Market router runs, resolves the
+bearer token through the same introspection authority Market already uses, and
+requires `X-Buyer-Key` to be the public key registered for that user. Timestamps
+outside a 300-second window, timestamps earlier than process start, reused
+`(buyer key, nonce)` pairs, and keyset mismatches are refused. Buyer signing
+headers are stripped before Market handling so they cannot reach the provider.
+There is no flag that disables this check while attestation is configured.
+
+This means a stolen bearer token alone cannot purchase. It does not hide
+purchase caps or other request fields on the wire, and a stolen signing key
+together with the token can still spend. Legitimate retries keep working by
+signing a new nonce with the same idempotency key; Market returns the original
+request without a second purchase. Health output stays `attested: false`. This
+is not hardware acceptance.

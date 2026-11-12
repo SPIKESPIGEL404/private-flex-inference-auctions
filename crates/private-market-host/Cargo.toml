@@ -26,6 +26,7 @@ dstack-sdk-types = "=0.1.2"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 ed25519-dalek = "2"
 hex = "0.4"
+bs58 = "=0.5.1"
 x509-parser = "0.16"
 
 [profile.dev]

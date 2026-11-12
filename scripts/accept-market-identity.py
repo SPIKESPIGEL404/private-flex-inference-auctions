@@ -156,12 +156,19 @@ def main(binary):
             (root / 'policy.json').write_text(json.dumps(policy))
             (root / 'credential').write_text(market.buyers[0]['token'])
             (root / 'request.json').write_text(json.dumps(market.body()))
+            signing0 = market.state / 'signing' / 'buyer-0.key'
+            signing1 = market.state / 'signing' / 'buyer-1.key'
+            assert signing0.is_file() and signing1.is_file()
+            assert market.buyers[0]['public_key'].startswith('ed25519:')
+            capture_file = root / 'capture.json'
             driver = {'policy': policy, 'caFile': str(root / 'ca.crt'), 'credentialFile': str(root / 'credential'),
-                      'requestFile': str(root / 'request.json')}
+                      'requestFile': str(root / 'request.json'), 'signingKeyFile': str(signing0),
+                      'captureFile': str(capture_file)}
             driver_file = root / 'driver.json'
             driver_file.write_text(json.dumps(driver))
             env = dict(os.environ, NODE_EXTRA_CA_CERTS=str(root / 'ca.crt'))
             script = str(ROOT / 'clients/market-buyer/test/controlled-channel.mjs')
+            sign_script = str(ROOT / 'clients/market-buyer/test/signed-purchase.mjs')
             for scenario in ['tamper', 'expired', 'nonce', 'release', 'boot', 'policy']:
                 print(run('node', script, str(driver_file), scenario, env=env))
                 assert sum(p.sensitive_posts for p in proxies) == 0 and market.effects() == 0
@@ -173,9 +180,22 @@ def main(binary):
             # evidence, before even trying to read these nonexistent input files.
             checked = subprocess.run(['node', str(ROOT / 'clients/market-buyer/cli.mjs'), 'buy', '--policy', str(root / 'policy.json'),
                 '--credential-file', str(root / 'missing-credential'), '--request-file', str(root / 'missing-request'),
+                '--signing-key-file', str(root / 'missing-signing'),
                 '--idempotency-key', 'never-send'], env=env, capture_output=True, timeout=45)
             assert checked.returncode != 0 and b'market_identity_verified' not in checked.stderr
             assert sum(p.sensitive_posts for p in proxies) == 0 and market.effects() == 0
+            sign_driver = {
+                'marketUrl': market.url, 'token': market.buyers[0]['token'], 'body': market.body(),
+                'keyset': first_keyset, 'signingKeyFile': str(signing0),
+                'otherSigningKeyFile': str(signing1),
+            }
+            sign_driver_file = root / 'sign-driver.json'
+            for scenario in ['unregistered', 'other-buyer', 'bad-signature', 'body-changed',
+                             'stale-ts', 'before-start', 'keyset-mismatch']:
+                sign_driver['idempotencyKey'] = f'sign-{scenario}'
+                sign_driver_file.write_text(json.dumps(sign_driver))
+                print(run('node', sign_script, str(sign_driver_file), scenario, env=env))
+                assert market.effects() == 0 and sum(p.sensitive_posts for p in proxies) == 0
             driver['policy']['baseURL'] = origin + '/market/v1'
             driver_file.write_text(json.dumps(driver))
             completed = subprocess.run(['node', script, str(driver_file), 'success'], env=env,
@@ -185,6 +205,18 @@ def main(binary):
             assert sum(p.sensitive_posts for p in proxies) == 1 and market.effects() == 1
             assert market.balance() == 24963
             assert market.receipt('d-controlled')['settlement'] == 'committed'
+            assert market.seller.calls and not market.seller.errors
+            capture = json.loads(capture_file.read_text())
+            sign_driver['capture'] = capture
+            sign_driver_file.write_text(json.dumps(sign_driver))
+            print(run('node', sign_script, str(sign_driver_file), 'replay-captured', env=env))
+            assert market.effects() == 1 and market.balance() == 24963
+            retry = subprocess.run(['node', script, str(driver_file), 'retry'], env=env,
+                capture_output=True, text=True, timeout=45)
+            assert retry.returncode == 0, retry.stderr
+            print(retry.stdout)
+            assert sum(p.sensitive_posts for p in proxies) == 2 and market.effects() == 1
+            assert market.balance() == 24963
             market.stop()
             rpc.bad_slot = True
             refused = subprocess.run([binary, 'serve', str(market.state)], env=market.env, capture_output=True, timeout=40)
@@ -197,7 +229,7 @@ def main(binary):
             assert resealed['attestation']['workload_keyset']['subject'] == 'market-policy:' + resealed_digest
             assert resealed_digest != catalog_digest
             assert resealed['workload_keyset_digest'] != first_keyset
-            assert sum(p.sensitive_posts for p in proxies) == 1 and market.effects() == 1
+            assert sum(p.sensitive_posts for p in proxies) == 2 and market.effects() == 1
             market.stop()
             quiet = time.monotonic() + 20
             while other_sessions(market) and time.monotonic() < quiet:
@@ -239,8 +271,10 @@ def main(binary):
             rpc.shutdown()
             rpc.server_close()
     print(json.dumps({'buyer_market_identity': 'controlled-pass', 'hardware_attestation': False,
-        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 10,
-        'controlled_tls_purchases': 1, 'provider_micro_usd': 35, 'platform_micro_usd': 2, 'balance_micro_usd': 24963}))
+        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 18,
+        'signed_purchase_refusals': 8, 'controlled_tls_purchases': 1, 'controlled_tls_posts': 2,
+        'idempotent_signed_retry': True,
+        'provider_micro_usd': 35, 'platform_micro_usd': 2, 'balance_micro_usd': 24963}))
 
 
 if __name__ == '__main__':
