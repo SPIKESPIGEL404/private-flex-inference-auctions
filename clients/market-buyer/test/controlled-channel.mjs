@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { verifyReportBinding, verifyComposeMeasurement } from '@phala/aci-verifier';
-import { assertBootPolicy, validatePolicy } from '../connection.mjs';
+import { assertBootPolicy, assertMarketPolicy, validatePolicy } from '../connection.mjs';
 
 const require = createRequire(import.meta.url);
 const dist = dirname(require.resolve('@phala/aci-verifier'));
@@ -36,6 +36,9 @@ try {
     const bootPolicy = structuredClone(policy);
     if (scenario === 'boot') bootPolicy.acceptedBootMeasurements[0].mrtd = 'ff'.repeat(48);
     assertBootPolicy(report, bootPolicy);
+    const policyCheck = structuredClone(policy);
+    if (scenario === 'policy') policyCheck.acceptedPolicyDigests = ['sha256:' + 'ff'.repeat(32)];
+    assertMarketPolicy(report, policyCheck);
     return { origin, hostname, report, keyset: binding.keyset,
       workloadKeysetDigest: binding.workloadKeysetDigest, composeHash: compose.composeHash,
       tlsSpkiPins: binding.keyset.tls_public_keys.map(k => k.spki_sha256),

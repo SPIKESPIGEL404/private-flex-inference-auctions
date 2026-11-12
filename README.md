@@ -25,8 +25,8 @@ Private deployment and final demo delivery remain batches D/E.
 ## Verify the Market before buying
 
 The optional ACI identity endpoint and Node buyer now support fresh hardware
-evidence, reviewed release/boot policy and actual TLS SPKI binding before sending
-credentials or purchase limits. Local controlled integration is covered without
+evidence, reviewed release/boot policy, the catalog file digest, and actual TLS
+SPKI binding before sending credentials or purchase limits. Local controlled integration is covered without
 deployment; real hardware and confidential deployment acceptance remain pending.
 See the [buyer verification guide](docs/market-buyer-verification.md).
 

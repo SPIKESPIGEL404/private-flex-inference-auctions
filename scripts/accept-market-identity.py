@@ -5,13 +5,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import signal
 import socketserver
 import ssl
 import subprocess
 import sys
 import threading
+import time
 import urllib.request
-from market_b_support import Market, run
+from market_b_support import Market, http, run
 
 ROOT = Path(__file__).resolve().parent.parent
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -92,6 +94,28 @@ def certificate(root, name):
         '-days', '1', '-extfile', str(root / 'ext.cnf'))
 
 
+def file_digest(path):
+    return 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def attestation(url):
+    status, body = http(url + '/market/v1/aci/attestation?nonce=' + '11' * 32)
+    assert status == 200
+    return json.loads(body)
+
+
+def other_sessions(market):
+    return int(market.sql(
+        "SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid <> pg_backend_pid()"
+    ))
+
+
+def append_newline(path):
+    temporary = path.with_name(path.name + '.swap')
+    temporary.write_bytes(path.read_bytes() + b'\n')
+    os.replace(temporary, path)
+
+
 def main(binary):
     os.umask(0o077)
     with Market(binary) as market:
@@ -110,6 +134,12 @@ def main(binary):
             (root / 'attestation.json').write_text(json.dumps(config))
             market.env['PRIVATE_MARKET_ATTESTATION_CONFIG'] = str(root / 'attestation.json')
             market.start()
+            catalog_path = market.state / 'catalog.json'
+            catalog_digest = file_digest(catalog_path)
+            first = attestation(market.url)
+            first_subject = first['attestation']['workload_keyset']['subject']
+            first_keyset = first['workload_keyset_digest']
+            assert first_subject == 'market-policy:' + catalog_digest
             def proxy(name):
                 server = ThreadingHTTPServer(('127.0.0.1', 0), ProxyHandler)
                 server.market_url, server.sensitive_posts = market.url, 0
@@ -121,7 +151,8 @@ def main(binary):
                 return f'https://127.0.0.1:{server.server_address[1]}'
             origin, wrong_origin = proxy('bound'), proxy('wrong')
             policy = {'version': 1, 'baseURL': origin + '/market/v1', 'acceptedComposeHashes': [COMPOSE_HASH],
-                'acceptedBootMeasurements': [{k: '00' * 48 for k in ['mrtd', 'rtmr0', 'rtmr1', 'rtmr2']}]}
+                'acceptedBootMeasurements': [{k: '00' * 48 for k in ['mrtd', 'rtmr0', 'rtmr1', 'rtmr2']}],
+                'acceptedPolicyDigests': [catalog_digest]}
             (root / 'policy.json').write_text(json.dumps(policy))
             (root / 'credential').write_text(market.buyers[0]['token'])
             (root / 'request.json').write_text(json.dumps(market.body()))
@@ -131,7 +162,7 @@ def main(binary):
             driver_file.write_text(json.dumps(driver))
             env = dict(os.environ, NODE_EXTRA_CA_CERTS=str(root / 'ca.crt'))
             script = str(ROOT / 'clients/market-buyer/test/controlled-channel.mjs')
-            for scenario in ['tamper', 'expired', 'nonce', 'release', 'boot']:
+            for scenario in ['tamper', 'expired', 'nonce', 'release', 'boot', 'policy']:
                 print(run('node', script, str(driver_file), scenario, env=env))
                 assert sum(p.sensitive_posts for p in proxies) == 0 and market.effects() == 0
             driver['policy']['baseURL'] = wrong_origin + '/market/v1'
@@ -156,8 +187,51 @@ def main(binary):
             assert market.receipt('d-controlled')['settlement'] == 'committed'
             market.stop()
             rpc.bad_slot = True
-            refused = subprocess.run([binary, 'serve', str(market.state)], env=market.env, capture_output=True, timeout=20)
+            refused = subprocess.run([binary, 'serve', str(market.state)], env=market.env, capture_output=True, timeout=40)
             assert refused.returncode != 0
+            rpc.bad_slot = False
+            append_newline(catalog_path)
+            market.start()
+            resealed = attestation(market.url)
+            resealed_digest = file_digest(catalog_path)
+            assert resealed['attestation']['workload_keyset']['subject'] == 'market-policy:' + resealed_digest
+            assert resealed_digest != catalog_digest
+            assert resealed['workload_keyset_digest'] != first_keyset
+            assert sum(p.sensitive_posts for p in proxies) == 1 and market.effects() == 1
+            market.stop()
+            quiet = time.monotonic() + 20
+            while other_sessions(market) and time.monotonic() < quiet:
+                time.sleep(0.05)
+            assert other_sessions(market) == 0
+            # The first catalog hash runs before the database connect, and launch
+            # runs after it. Replacing the file on that first connection lands
+            # between the sealed digest and Market load.
+            gap_log = root / 'gap.log'
+            changed = False
+            log = gap_log.open('w')
+            proc = subprocess.Popen([binary, 'serve', str(market.state)], env=market.env,
+                stdout=log, stderr=subprocess.STDOUT)
+            try:
+                deadline = time.monotonic() + 40
+                while proc.poll() is None and time.monotonic() < deadline:
+                    if not changed and other_sessions(market) > 0:
+                        append_newline(catalog_path)
+                        changed = True
+                    time.sleep(0.05)
+                if proc.poll() is None:
+                    proc.send_signal(signal.SIGINT)
+                    proc.wait(timeout=20)
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.wait(timeout=10)
+                log.close()
+            gap_text = gap_log.read_text(errors='replace')
+            assert changed and proc.returncode not in (0, None)
+            assert 'catalog identity changed during startup' in gap_text
+            assert '"url"' not in gap_text
+            assert market.buyers[0]['token'] not in gap_text
+            assert market.effects() == 1
         finally:
             for server in proxies:
                 server.shutdown()
@@ -165,7 +239,7 @@ def main(binary):
             rpc.shutdown()
             rpc.server_close()
     print(json.dumps({'buyer_market_identity': 'controlled-pass', 'hardware_attestation': False,
-        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 8,
+        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 10,
         'controlled_tls_purchases': 1, 'provider_micro_usd': 35, 'platform_micro_usd': 2, 'balance_micro_usd': 24963}))
 
 

@@ -13,6 +13,9 @@ export function validatePolicy(value) {
     && url.pathname === '/market/v1', 'policy must name an exact HTTPS /market/v1 endpoint');
   requireValue(Array.isArray(value.acceptedComposeHashes) && value.acceptedComposeHashes.length > 0
     && value.acceptedComposeHashes.every(x => /^[a-f0-9]{64}$/.test(x)), 'reviewed compose hashes are required');
+  requireValue(Array.isArray(value.acceptedPolicyDigests) && value.acceptedPolicyDigests.length > 0
+    && value.acceptedPolicyDigests.every(x => /^sha256:[a-f0-9]{64}$/.test(x)),
+    'reviewed catalog policy digests are required');
   requireValue(Array.isArray(value.acceptedBootMeasurements) && value.acceptedBootMeasurements.length > 0,
     'reviewed production boot measurements are required');
   for (const profile of value.acceptedBootMeasurements) {
@@ -36,6 +39,13 @@ export function assertBootPolicy(report, policy) {
   requireValue(policy.acceptedBootMeasurements.some(profile => Object.entries(fields)
     .every(([name, offset]) => profile[name] === quote.subarray(offset, offset + 48).toString('hex'))),
   'boot measurements are outside the reviewed production allowlist');
+}
+
+/** The keyset subject is the catalog file digest sealed before Market load. */
+export function assertMarketPolicy(report, policy) {
+  const subject = report?.attestation?.workload_keyset?.subject;
+  const match = typeof subject === 'string' ? /^market-policy:(sha256:[a-f0-9]{64})$/.exec(subject) : null;
+  requireValue(match && policy.acceptedPolicyDigests.includes(match[1]), 'market policy digest is not accepted');
 }
 
 async function boundedReport(response) {
@@ -76,6 +86,7 @@ export async function connectMarket(input) {
       const result = await verifyQuote(report);
       requireValue(result.ok && result.status === 'UpToDate', 'hardware quote or current TCB policy failed');
       assertBootPolicy(report, policy);
+      assertMarketPolicy(report, policy);
       return Response.json(report);
     },
   });

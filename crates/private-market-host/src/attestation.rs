@@ -103,10 +103,24 @@ impl Identity {
     }
 }
 
-pub async fn mount(router: Router) -> Result<(Router, bool)> {
+fn is_policy_digest(value: &str) -> bool {
+    let Some(hex) = value.strip_prefix("sha256:") else {
+        return false;
+    };
+    hex.len() == 64
+        && hex
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, bool)> {
     let Some(path) = env::var_os("PRIVATE_MARKET_ATTESTATION_CONFIG") else {
         return Ok((router, false));
     };
+    ensure!(
+        is_policy_digest(policy_digest),
+        "catalog identity changed during startup"
+    );
     let config: Config = live::read(Path::new(&path))?;
     ensure!(
         config.dstack_socket.is_absolute()
@@ -143,7 +157,9 @@ pub async fn mount(router: Router) -> Result<(Router, bool)> {
     let key = ed25519_dalek::SigningKey::from_bytes(&seed);
     let not_after = chrono::Utc::now().timestamp() as u64 + config.keyset_lifetime_seconds;
     let keyset = serde_json::to_value(WorkloadKeyset {
-        subject: None,
+        // Pinned WorkloadKeyset has no extension field. subject is inside the
+        // JCS digest, so report_data binds this catalog file hash.
+        subject: Some(format!("market-policy:{policy_digest}")),
         not_after,
         receipt_signing_keys: vec![KeyedPublicKey {
             key_id: "market-ephemeral-v1".into(),

@@ -81,6 +81,21 @@ fn targets() -> Result<(String, String)> {
 fn sql(query: &str, values: Vec<sea_orm::Value>) -> Statement {
     Statement::from_sql_and_values(DbBackend::Postgres, query, values)
 }
+fn catalog_policy_digest(path: &Path) -> Result<String> {
+    // One generic failure for a missing, oversized, or replaced catalog.
+    // Callers must not attach hashes, paths, or file bytes.
+    let bytes =
+        fs::read(path).map_err(|_| anyhow::anyhow!("catalog identity changed during startup"))?;
+    ensure!(
+        bytes.len() <= 4 * 1024 * 1024,
+        "catalog identity changed during startup"
+    );
+    Ok(format!(
+        "sha256:{}",
+        bitrouter_market::persistence_codec::digest(&bytes)
+    ))
+}
+
 fn write_private(path: &Path, value: &impl Serialize) -> Result<()> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
@@ -249,18 +264,18 @@ async fn serve(dir: &Path) -> Result<()> {
             && state.cutover == required("REDIS_BALANCE_CUTOVER_TOKEN")?,
         "state does not match the configured isolated services and ownership"
     );
+    let catalog_path = dir.join("catalog.json");
     ensure!(
         fs::canonicalize(required("INFERENCE_MARKET_CONFIG_PATH")?)?
-            == fs::canonicalize(dir.join("catalog.json"))?,
+            == fs::canonicalize(&catalog_path)?,
         "catalog must belong to this state directory"
     );
+    // Hash before any Market load. Launch reads the same path on its own.
+    let policy_digest = catalog_policy_digest(&catalog_path)?;
     let is_live = state.registration_sha256.is_some();
     if is_live {
         ensure!(
-            state.catalog_sha256.as_deref()
-                == Some(&bitrouter_market::persistence_codec::digest(&fs::read(
-                    dir.join("catalog.json")
-                )?)),
+            state.catalog_sha256.as_deref() == policy_digest.strip_prefix("sha256:"),
             "live catalog requires completed qualification and its original identity"
         );
     }
@@ -350,6 +365,12 @@ async fn serve(dir: &Path) -> Result<()> {
     let market = launch::start_configured(db.clone(), redis, resolver, ISSUER)
         .await?
         .context("market catalog is required")?;
+    // The Market loaded INFERENCE_MARKET_CONFIG_PATH itself. Refuse to listen
+    // unless that file is still the exact bytes sealed into the keyset subject.
+    ensure!(
+        catalog_policy_digest(&catalog_path)? == policy_digest,
+        "catalog identity changed during startup"
+    );
     // The catalog qualifies Chat only; other native protocols have no product.
     let native = market.router();
     let mode = if is_live {
@@ -366,7 +387,7 @@ async fn serve(dir: &Path) -> Result<()> {
                 }),
             )
             .nest("/market", native);
-    let (router, attestation_available) = attestation::mount(router).await?;
+    let (router, attestation_available) = attestation::mount(router, &policy_digest).await?;
     let listener = tokio::net::TcpListener::bind(address).await?;
     let url = format!("http://{}", listener.local_addr()?);
     let mut http_stop = stopped.clone();
@@ -434,5 +455,33 @@ async fn main() -> Result<()> {
         }
         ("serve", 3) => serve(Path::new(&args[2])).await,
         _ => anyhow::bail!("expected init or serve"),
+    }
+}
+
+#[cfg(test)]
+mod policy_digest {
+    use super::*;
+
+    #[test]
+    fn persistence_codec_digest_is_sha256_of_the_file_bytes() {
+        // FIPS 180-4 / SHA-256("abc"). A buyer can reproduce this with any
+        // independent SHA-256 implementation.
+        assert_eq!(
+            bitrouter_market::persistence_codec::digest(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        let dir = std::env::temp_dir().join(format!("market-policy-{}", Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("catalog.json");
+        fs::write(&path, br#"{"catalog":1}"#).unwrap();
+        let bytes = fs::read(&path).unwrap();
+        assert_eq!(
+            format!(
+                "sha256:{}",
+                bitrouter_market::persistence_codec::digest(&bytes)
+            ),
+            aci_protocol::digest::sha256_hex(&bytes)
+        );
+        fs::remove_dir_all(dir).unwrap();
     }
 }
