@@ -74,11 +74,14 @@ fi
 if [ "${MODE}" = "local" ]; then
   LEAF="${TLS_DIR}/leaf.pem"
 else
-  # Production: dstack-ingress stores Let's Encrypt material. The first PEM in
-  # fullchain.pem is the leaf whose SPKI is sealed into the ACI keyset.
-  LEAF="${PRIVATE_MARKET_TLS_CERT:-${TLS_DIR}/fullchain.pem}"
+  # Production tls-alpn-01: lego writes the real leaf+chain at
+  # /etc/letsencrypt/lego/certificates/<domain>.crt (dstack-ingress tlsalpn.sh /
+  # legoman.py). The HAProxy placeholder under /etc/haproxy/certs/ is NOT the
+  # attested leaf — never point attestation at it.
+  LEAF="${PRIVATE_MARKET_TLS_CERT:-/etc/letsencrypt/lego/certificates/${DOMAIN}.crt}"
 fi
-deadline=$((SECONDS + 300))
+# DNS_SETUP_MODE=wait can block issuance for DNS_SETUP_TIMEOUT (default 1800s).
+deadline=$((SECONDS + 2100))
 while [ ! -f "${LEAF}" ]; do
   if (( SECONDS >= deadline )); then
     echo "TLS leaf not available before Market start" >&2
@@ -86,6 +89,11 @@ while [ ! -f "${LEAF}" ]; do
   fi
   sleep 1
 done
+# Refuse a zero-length or non-cert file so we never seal a placeholder path.
+if ! grep -q "BEGIN CERTIFICATE" "${LEAF}"; then
+  echo "TLS leaf file is not a PEM certificate" >&2
+  exit 1
+fi
 
 if [ "${PRIVATE_MARKET_ENABLE_ATTESTATION:-0}" = "1" ]; then
   cat >"${ATTESTATION_CONFIG_PATH}" <<EOF

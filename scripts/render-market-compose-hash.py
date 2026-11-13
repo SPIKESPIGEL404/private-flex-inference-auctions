@@ -29,16 +29,12 @@ ROOT = Path(__file__).resolve().parent.parent
 DEPLOY = ROOT / "deploy" / "market"
 
 # Encrypted secrets only. Public buyer keys are literals in the compose file.
-# DNS is Namecheap (see dstack-ingress DNS_PROVIDERS.md). ACME_EMAIL replaces
-# legacy CERTBOT_EMAIL.
+# tls-alpn-01 needs no DNS provider credentials. ACME_EMAIL is optional and
+# published in evidence — leave it unset, so it is not in allowed_envs.
 ALLOWED_ENVS = [
     "BUYER_0_TOKEN",
     "BUYER_1_TOKEN",
     "BUYER_2_TOKEN",
-    "NAMECHEAP_USERNAME",
-    "NAMECHEAP_API_KEY",
-    "NAMECHEAP_CLIENT_IP",
-    "ACME_EMAIL",
 ]
 
 
@@ -74,7 +70,10 @@ def render_compose(market_image: str, domain: str, buyers_json: str) -> str:
         "${MARKET_IMAGE:-private-market-host:local}",
         market_image,
     )
-    rendered = rendered.replace("${PRIVATE_MARKET_DOMAIN:-market.example.com}", domain)
+    # Production compose hardcodes demo.bitrouter.ai; allow --domain override
+    # for alternate deploys (must also match GATEWAY DNS records).
+    if domain != "demo.bitrouter.ai":
+        rendered = rendered.replace("demo.bitrouter.ai", domain)
     rendered = rendered.replace("${PRIVATE_MARKET_ENABLE_ATTESTATION:-1}", "1")
     # Buyer public config is mounted from the deploy directory; ensure the
     # measured compose references the committed public file name only.

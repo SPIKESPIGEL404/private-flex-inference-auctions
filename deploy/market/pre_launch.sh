@@ -10,7 +10,7 @@
 # Deploy MUST use the rendered app-compose.json that embeds THIS script so the
 # compose hash matches RTMR3. Do not let the dashboard substitute a different
 # pre_launch_script. Encrypted operator inputs are limited by allowed_envs to
-# BUYER_0_TOKEN, BUYER_1_TOKEN, BUYER_2_TOKEN, NAMECHEAP_USERNAME,
-# NAMECHEAP_API_KEY, NAMECHEAP_CLIENT_IP, and ACME_EMAIL only.
+# BUYER_0_TOKEN, BUYER_1_TOKEN, and BUYER_2_TOKEN only (tls-alpn-01; no DNS
+# credentials; ACME_EMAIL left unset because it is published in evidence).
 set -euo pipefail
 exit 0

@@ -5,8 +5,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if ! command -v docker >/dev/null 2>&1 && command -v docker.exe >/dev/null 2>&1; then
-  docker() { docker.exe "$@"; }
+# Prefer docker.exe on WSL when the Desktop CLI shim is broken (I/O error).
+if command -v docker.exe >/dev/null 2>&1; then
+  if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
+    docker() { docker.exe "$@"; }
+  fi
 fi
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "node is required" >&2; exit 1; }
@@ -112,8 +115,9 @@ check_proc() {
     ip="${local_addr%:*}"
     port_hex="${local_addr##*:}"
     port=$((16#$port_hex))
+    # Stack + tls-alpn-01 internals (9443 lego ACME, 9444 HAProxy TLS frontend).
     case "$port" in
-      5432|6379|8080) ;;
+      5432|6379|8080|9443|9444) ;;
       *) continue ;;
     esac
     if [ "$ip" != "$loopback_ip" ]; then

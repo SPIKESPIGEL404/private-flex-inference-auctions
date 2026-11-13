@@ -1,6 +1,8 @@
 # Production-shaped compose for a dstack CVM. All services use host networking
 # so DATABASE_URL/REDIS_URL can remain 127.0.0.1. Postgres and Redis bind
-# loopback only. Only dstack-ingress listens on :443.
+# loopback only. Only dstack-ingress listens on :443 (public). In tls-alpn-01
+# mode, HAProxy's TLS frontend is on 127.0.0.1:9444 and lego's ACME responder
+# on 127.0.0.1:9443 — neither may bind non-loopback.
 #
 # Image digests for postgres/redis/ingress are pinned. The Market image digest
 # is filled by scripts/render-market-compose-hash.py before deploy.
@@ -73,11 +75,13 @@ services:
         condition: service_started
     environment:
       PRIVATE_MARKET_MODE: controlled
-      PRIVATE_MARKET_DOMAIN: ${PRIVATE_MARKET_DOMAIN:-market.example.com}
+      PRIVATE_MARKET_DOMAIN: demo.bitrouter.ai
       PRIVATE_MARKET_LISTEN: 127.0.0.1:8080
       PRIVATE_MARKET_STATE_ROOT: /var/lib/market/state
       PRIVATE_MARKET_SECRETS_DIR: /var/lib/market/secrets
-      PRIVATE_MARKET_TLS_DIR: /etc/letsencrypt/live/${PRIVATE_MARKET_DOMAIN:-market.example.com}
+      # lego (tls-alpn-01) writes the real leaf+chain here — not the HAProxy
+      # placeholder under /etc/haproxy/certs/. See dstack-ingress tlsalpn.sh.
+      PRIVATE_MARKET_TLS_CERT: /etc/letsencrypt/lego/certificates/demo.bitrouter.ai.crt
       PRIVATE_MARKET_BUYERS_PUBLIC: /etc/market/buyers.public.json
       PRIVATE_MARKET_ENABLE_ATTESTATION: ${PRIVATE_MARKET_ENABLE_ATTESTATION:-1}
       PRIVATE_MARKET_BUYER_TOKEN_0: ${BUYER_0_TOKEN}
@@ -91,26 +95,25 @@ services:
     restart: unless-stopped
 
   dstack-ingress:
-    image: dstacktee/dstack-ingress@sha256:d05a7b343c37c1cca1bba8dbf7e8f3c6d2118158af2d41c455103796db4f67f0
+    # Pin matches dstack-examples e199b30 dstack-ingress 2.8 (tls-alpn-01 / lego).
+    image: ghcr.io/dstack-tee/dstack-ingress:2.8@sha256:60e682449534715a2f2e5b72326ca4229209c8e26c931c6f34d27e02200ac086
     network_mode: host
-    # Start with the guest agent sockets so DNS-01 can issue the leaf before
-    # Market serves. Market waits on fullchain.pem; ingress may briefly see a
-    # down backend until Market is listening on 127.0.0.1:8080.
+    # Market waits on the lego leaf under /etc/letsencrypt/lego/certificates/.
+    # Ingress may briefly see a down backend until Market listens on 127.0.0.1:8080.
     depends_on:
       init-secrets:
         condition: service_completed_successfully
     environment:
-      DOMAIN: ${PRIVATE_MARKET_DOMAIN:-market.example.com}
+      CHALLENGE_TYPE: tls-alpn-01
+      DOMAIN: demo.bitrouter.ai
       TARGET_ENDPOINT: http://127.0.0.1:8080
-      DNS_PROVIDER: namecheap
-      # ACME_EMAIL is the current name; CERTBOT_EMAIL is legacy (dstack-ingress).
-      ACME_EMAIL: ${ACME_EMAIL:-}
-      NAMECHEAP_USERNAME: ${NAMECHEAP_USERNAME:-}
-      NAMECHEAP_API_KEY: ${NAMECHEAP_API_KEY:-}
-      NAMECHEAP_CLIENT_IP: ${NAMECHEAP_CLIENT_IP:-}
-      GATEWAY_DOMAIN: gateway.${DSTACK_GATEWAY_DOMAIN:-}
-      # With SET_CAA=true on Namecheap, the pointer is an A record (not CNAME).
-      SET_CAA: "true"
+      GATEWAY_DOMAIN: gateway.dstack-prod5.phala.network
+      DNS_SETUP_MODE: wait
+      # ACME_EMAIL deliberately unset: optional and published in /evidences/.
+      # Loopback-only internals (defaults; set explicitly so they stay measured).
+      TLSALPN_ADDRESS: "127.0.0.1"
+      TLSALPN_PORT: "9443"
+      TLS_TERMINATE_PORT: "9444"
     volumes:
       - /var/run/dstack.sock:/var/run/dstack.sock
       - /var/run/tappd.sock:/var/run/tappd.sock

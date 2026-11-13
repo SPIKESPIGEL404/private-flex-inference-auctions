@@ -1,5 +1,9 @@
 # Market dstack / Phala Cloud packaging
 
+> **Agents:** Before changing Phala / dstack / CVM / ingress packaging, read this
+> file, then open the [Phala docs index](https://docs.phala.com/llms.txt), select
+> the links that match the task, and read those pages before implementing.
+
 Controlled-mode packaging for a Phala Cloud confidential VM. This is not
 hardware acceptance, not batch D completion, and not a live NEAR inference
 deployment. Health remains `attested: false` until an independent buyer verifies
@@ -18,7 +22,7 @@ Render and hash from the repo:
 ```bash
 python3 scripts/render-market-compose-hash.py \
   --market-image ghcr.io/OWNER/private-market-host@sha256:DIGEST \
-  --domain market.example.com \
+  --domain demo.bitrouter.ai \
   --buyers-public deploy/market/buyers.public.json
 ```
 
@@ -36,11 +40,11 @@ root password, SSH keys). SSH is not enabled.
 `allowed_envs` lists only encrypted secrets:
 
 - `BUYER_0_TOKEN`, `BUYER_1_TOKEN`, `BUYER_2_TOKEN`
-- `NAMECHEAP_USERNAME`, `NAMECHEAP_API_KEY`, `NAMECHEAP_CLIENT_IP`
-- `ACME_EMAIL` (current ACME contact name; `CERTBOT_EMAIL` is legacy)
 
-Buyer verifying keys are public config (`buyers.public.json`), not encrypted
-secrets. Anything else the operator passes must be rejected by `allowed_envs`.
+No DNS provider credentials. `ACME_EMAIL` is left **unset** (optional; published
+in `/evidences/acme-account.json` if set). Buyer verifying keys are public
+config (`buyers.public.json`), not encrypted secrets. Anything else the operator
+passes must be rejected by `allowed_envs`.
 
 ## Buyer keypairs (offline)
 
@@ -78,37 +82,75 @@ JS
 `deploy/market/buyers.public.json.example`. Buyers sign purchases with
 `--signing-key-file` pointing at their local secret file.
 
-## Networking and TLS
+## Networking and TLS (tls-alpn-01)
 
 All services use host networking so `DATABASE_URL` / `REDIS_URL` stay on
 `127.0.0.1` and the Market HTTP listener stays loopback. Postgres is started with
 `listen_addresses=127.0.0.1`. Redis uses `--bind 127.0.0.1` and
-`--protected-mode yes`. Only port **443** is intended as the external surface
-(`dstack-ingress` in production, Caddy for local acceptance).
+`--protected-mode yes`. Only port **443** may bind a non-loopback address
+(`dstack-ingress` public peek frontend). In tls-alpn-01 mode, HAProxy’s TLS
+frontend listens on **`127.0.0.1:9444`** (`TLS_TERMINATE_PORT`) and lego’s ACME
+responder on **`127.0.0.1:9443`** (`TLSALPN_PORT`) — both loopback only.
 
-Production TLS uses **dstack-ingress** with Let’s Encrypt **DNS-01** via
-**Namecheap** (`DNS_PROVIDER=namecheap`). Credentials follow
-[dstack-ingress DNS_PROVIDERS.md](https://raw.githubusercontent.com/Dstack-TEE/dstack-examples/e199b30ecfbd623cbbd175e554b7fd214f629be5/custom-domain/dstack-ingress/DNS_PROVIDERS.md):
-`NAMECHEAP_USERNAME`, `NAMECHEAP_API_KEY`, `NAMECHEAP_CLIENT_IP`, plus
-`ACME_EMAIL`. The TLS private key is created inside the CVM. The Market waits for
-`fullchain.pem` and seals the leaf SPKI into the ACI keyset before serving.
+Production TLS uses **dstack-ingress 2.8** with Let’s Encrypt **tls-alpn-01**
+(lego; no DNS API token in the CVM), per
+[dstack-ingress README — Certificates without DNS credentials](https://raw.githubusercontent.com/Dstack-TEE/dstack-examples/e199b30ecfbd623cbbd175e554b7fd214f629be5/custom-domain/dstack-ingress/README.md):
 
-**Namecheap / SET_CAA:** this compose sets `SET_CAA=true`. On Namecheap that
-makes the gateway pointer an **A record instead of a CNAME**. Every Namecheap
-write goes through `setHosts`, which **replaces the whole zone** (read-modify
-write; if the read fails, nothing is written). `NAMECHEAP_CLIENT_IP` must be the
-CVM node’s public IP, **whitelisted** in Namecheap API access. If that node IP
-changes, API auth and renewals fail — pin the CVM with `phala deploy --node`.
+| Variable | Value |
+| --- | --- |
+| `CHALLENGE_TYPE` | `tls-alpn-01` |
+| `DOMAIN` | `demo.bitrouter.ai` |
+| `GATEWAY_DOMAIN` | `gateway.dstack-prod5.phala.network` |
+| `DNS_SETUP_MODE` | `wait` |
 
-**Certificate renewal:** a new leaf changes SPKI. The attested keyset will not
-match the live certificate until the Market process restarts and reseals. Buyers
-must re-verify. There is no hot reload in this version.
+### Operator DNS records (by hand)
 
-**DNS operator:** Namecheap credentials live in the CVM, and the operator who set
-the encrypted secrets knows them. That operator also controls DNS and can
-redirect traffic (denial of service). They cannot read buyer traffic: a
-certificate issued outside the TEE has a different key and fails the client’s
-SPKI pin after a successful Market identity check.
+On first start the container prints the exact records, then waits until they
+resolve. The operator creates them outside the TEE (nothing in the CVM can write
+DNS):
+
+1. **CNAME** `demo.bitrouter.ai` → `gateway.dstack-prod5.phala.network`
+2. **TXT** `_dstack-app-address.demo.bitrouter.ai` → `<instance_id>:443`
+3. **CAA** `demo.bitrouter.ai` → `0 issue "letsencrypt.org;validationmethods=tls-alpn-01;accounturi=…"`
+
+**CAA must allow `tls-alpn-01`.** A leftover `validationmethods=dns-01` record from
+an earlier dns-01 deploy will make the CA refuse. Redeploying / replacing the
+instance changes the TXT value (see single-instance below).
+
+### Leaf certificate path (attestation)
+
+lego stores the issued leaf+chain at:
+
+`/etc/letsencrypt/lego/certificates/<domain>.crt`
+
+(and the key at `<domain>.key`). Source: dstack-ingress `tlsalpn.sh` /
+`legoman.py` (`LEGO_PATH` default `/etc/letsencrypt/lego`). The Market’s
+`PRIVATE_MARKET_TLS_CERT` and attestation `tls_certificate` point at that
+`.crt`. HAProxy may serve a **self-signed placeholder** under
+`/etc/haproxy/certs/` until issuance succeeds — the Market **must not** wait on
+or seal that path. It waits for the lego `.crt` (real leaf) before `serve`.
+
+### Single-instance limit
+
+tls-alpn-01 publishes the **instance ID** in the TXT record (not the app ID), so
+the hostname is pinned to one CVM instance. There is no gateway failover across
+replicas. Replacing the instance requires updating DNS; until then issuance /
+routing break.
+
+### Renewal → new SPKI → Market restart
+
+Certificate renewal issues a new leaf and therefore a new SPKI. The attested
+keyset will not match the live certificate until the Market process restarts and
+reseals. Buyers must re-verify. There is no hot reload in this version. Losing
+the `cert-data` volume also changes the ACME account URI, so a pinned CAA
+`accounturi` must be updated by hand.
+
+### DNS operator trust
+
+The operator who controls the zone can redirect traffic (denial of service).
+They cannot read buyer traffic: a certificate issued outside the TEE has a
+different key and fails the client’s SPKI pin after a successful Market identity
+check. No DNS provider token is stored in the CVM in this mode.
 
 ## Secrets and buyer keys
 
@@ -116,7 +158,6 @@ SPKI pin after a successful Market identity check.
 | --- | --- |
 | Buyer ed25519 public keys | Public `buyers.public.json` (buyer-generated offline) |
 | Buyer bearer tokens | Phala encrypted secrets (the operator who set them knows them) |
-| Namecheap + ACME_EMAIL | Phala encrypted secrets |
 | Bootstrap binding, cutover token, seller key, Postgres password | Generated inside the VM on first boot |
 
 Signing private keys never enter the deployment.
@@ -154,8 +195,9 @@ bash scripts/accept-market-dstack-local.sh
 Builds the image, runs the stack with attestation disabled and a self-signed
 certificate, checks `https://127.0.0.1/healthz` from a container on the Docker
 host network (required on Docker Desktop, where host networking is not WSL
-localhost), and fails if Postgres/Redis/Market HTTP listen on a non-loopback
-address. Only port 443 may bind non-loopback.
+localhost), and fails if Postgres/Redis/Market HTTP (or tls-alpn-01 ports
+9443/9444 when present) listen on a non-loopback address. Only port 443 may bind
+non-loopback.
 
 ## Commands to push and deploy (operator)
 
@@ -195,7 +237,7 @@ echo "$DIGEST"
 # buyers.public.json must already exist (see Buyer keypairs above).
 python3 scripts/render-market-compose-hash.py \
   --market-image "ghcr.io/OWNER/private-market-host@${DIGEST}" \
-  --domain market.example.com \
+  --domain demo.bitrouter.ai \
   --buyers-public deploy/market/buyers.public.json
 # Review deploy/market/rendered/compose.hash and app-compose.json.
 ```
@@ -208,10 +250,6 @@ Create `deploy/market/.env` (gitignored) with **only** the allowed secret names:
 BUYER_0_TOKEN=brk_...
 BUYER_1_TOKEN=brk_...
 BUYER_2_TOKEN=brk_...
-NAMECHEAP_USERNAME=...
-NAMECHEAP_API_KEY=...
-NAMECHEAP_CLIENT_IP=...   # whitelisted node public IP
-ACME_EMAIL=ops@example.com
 ```
 
 ### Phala deploy (measured app-compose)
@@ -226,7 +264,7 @@ To keep the measured hash identical to `scripts/render-market-compose-hash.py`,
 deploy the rendered JSON with `--app-compose`, not a bare `docker-compose.yml`:
 
 ```bash
-# Replace NODE with a fixed node from `phala nodes` (required for Namecheap IP).
+# Prefer a fixed --node so instance replacement (and TXT updates) are deliberate.
 phala deploy \
   --name private-market \
   --app-compose deploy/market/rendered/app-compose.json \
@@ -239,18 +277,6 @@ phala deploy \
   --wait
 ```
 
-Doc lines relied on (deploy.md options / examples):
-
-- `-c, --compose <value>` — “Path to Docker Compose file”
-- `--app-compose <value>` — “Path to a whole app-compose JSON file, sent instead
-  of --compose and the compose flags”
-- Example: `phala deploy --app-compose app-compose.json`
-- `-t, --instance-type` / example: `phala deploy --instance-type tdx.medium`
-- `--node <value>` — “Physical node name… Run `phala nodes` to list…”
-- `-e, --env` / example: `phala deploy -e .env`
-- `--kms <value>` — “KMS type: phala (default), ethereum/eth, or base”
-- Example: `phala deploy --no-public-logs --no-public-sysinfo`
-
-After deploy, confirm the CVM’s compose-hash equals
-`deploy/market/rendered/compose.hash`, then pin that hash in buyer
-`acceptedComposeHashes`.
+After deploy, create the printed CNAME/TXT/CAA records, confirm the CVM’s
+compose-hash equals `deploy/market/rendered/compose.hash`, then pin that hash in
+buyer `acceptedComposeHashes`.
