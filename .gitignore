@@ -1,6 +1,7 @@
 /target/
 **/target/
 .market-runs/
+.accept-work/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

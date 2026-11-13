@@ -31,7 +31,10 @@ RUN apt-get update \
     && useradd --system --uid 10001 --gid 10001 --home-dir /var/lib/market --create-home --shell /usr/sbin/nologin market
 COPY --from=build /src/target/release/private-market-host /usr/local/bin/private-market-host
 COPY deploy/market/entrypoint.sh /usr/local/bin/market-entrypoint.sh
+# Golden deploy catalog: init-deploy and every serve byte-compare state to this file.
+COPY deploy/market/catalog.json /etc/market/catalog.json
 RUN chmod 0555 /usr/local/bin/private-market-host /usr/local/bin/market-entrypoint.sh \
+    && chmod 0444 /etc/market/catalog.json \
     && mkdir -p /run/market-tls \
     && chown -R market:market /var/lib/market /run/market-tls
 # Do not pre-create STATE_ROOT: Docker copies image content into an empty named

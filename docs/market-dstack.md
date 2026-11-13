@@ -162,6 +162,12 @@ check. No DNS provider token is stored in the CVM in this mode.
 
 Signing private keys never enter the deployment.
 
+## Boot measurements (MRTD / RTMR0–2)
+
+Per [Verify the Platform](https://docs.phala.com/phala-cloud/attestation/verify-the-platform.md), MRTD/RTMR0–2 for a given dstack OS image **can** be reproduced independently of a live CVM: download the OS image, combine it with the VM config (CPU, memory, `os_image_hash`), and compute expected values with `dstack-mr` / `dstack-verifier` (“Expected MRTD and RTMR0-2 calculated using dstack-mr from the OS image + VM config”; optional full rebuild from `meta-dstack`).
+
+This Market packaging does **not** yet ship a pinned, locally reproduced `dstack-mr` profile for prod5 / OS **v0.6.3**. Until that artifact exists in-repo, the buyer boot allowlist (`acceptedBootMeasurements`) is taken from a **Phala-served attestation quote whose Intel signature has been verified** (dashboard / `phala cvms attestation` / PCS), not from an independently reproduced `dstack-mr` run in this repository. That is stronger than blind TOFU against the HTTPS endpoint, but it is not full platform reproduction. Reproducing MRTD/RTMR0–2 from the published OS image + VM config remains the intended end state.
+
 ## Persistent state
 
 Application state lives on the CVM persistent disk volume. Per dstack’s FAQ, the
@@ -186,18 +192,53 @@ stays online. The staging directory is gitignored and is not present in the
 runtime image layers (multi-stage build; only the `private-market-host` binary
 is copied into the final image).
 
+## Deploy catalog identity (golden file)
+
+The measured deploy catalog is generated with fixed constants in
+`crates/private-market-host/src/provision.rs` and committed as
+`deploy/market/catalog.json`. The image bakes that file at
+`/etc/market/catalog.json`. `init-deploy` writes the same bytes into state and
+refuses to start if they differ; every subsequent `serve` also byte-compares the
+state catalog to the golden file and exits on any difference.
+
+| Constant | Value | Role |
+| --- | --- | --- |
+| `DEPLOY_FIXTURE_ADDR` | `127.0.0.1:18080` | Loopback-only seller/tokenizer published in the catalog |
+| `DEPLOY_CATALOG_AT_MS` | `1700000000000` | Frozen catalog clock (always ≥24h in the past at deploy) |
+| `DEPLOY_CATALOG_VALID_UNTIL_MS` | `4102444800000` | Far-future bound for wall-clock-sensitive validity fields |
+
+**Wall-clock-sensitive fields** (deploy generation only; Market money semantics
+unchanged): seller order `valid_until` / GTD `expires_at`, supply-state
+`valid_until`, throughput observation `valid_until`, load snapshot
+`valid_until`, and scope report `valid_until`. Lab `init` still uses wall-clock
+`now` + 30 minutes.
+
+`/healthz` includes `catalog_policy_digest` (`sha256:` of the catalog bytes) in
+deploy mode so buyers and local acceptance can pin the policy digest without
+attestation. Local mode sets `PRIVATE_MARKET_SIGNED_PURCHASES=1` so purchase
+signatures use that digest as the keyset when ACI is off.
+
+Regenerate (empty `private_market_*` DB required):
+
+```bash
+private-market-host emit-deploy-catalog deploy/market/catalog.json
+```
+
 ## Local acceptance (no Phala)
 
 ```bash
 bash scripts/accept-market-dstack-local.sh
 ```
 
-Builds the image, runs the stack with attestation disabled and a self-signed
-certificate, checks `https://127.0.0.1/healthz` from a container on the Docker
-host network (required on Docker Desktop, where host networking is not WSL
-localhost), and fails if Postgres/Redis/Market HTTP (or tls-alpn-01 ports
-9443/9444 when present) listen on a non-loopback address. Only port 443 may bind
-non-loopback.
+Builds the image, regenerates the golden catalog from committed constants and
+requires a byte match with the repo file and the baked image path, runs the
+stack with attestation disabled and a self-signed certificate, checks
+`https://127.0.0.1/healthz` (including `catalog_policy_digest`) from a container
+on the Docker host network (required on Docker Desktop, where host networking is
+not WSL localhost), completes one signed purchase through 443 against the frozen
+catalog, refuses a mutated state catalog on restart, and fails if Postgres /
+Redis / Market HTTP / fixture **18080** (or tls-alpn-01 ports 9443/9444 when
+present) listen on a non-loopback address. Only port 443 may bind non-loopback.
 
 ## Commands to push and deploy (operator)
 

@@ -50,6 +50,9 @@ struct State {
     registration_sha256: Option<String>,
     #[serde(default)]
     catalog_sha256: Option<String>,
+    /// When true, every serve compares state catalog bytes to the image golden.
+    #[serde(default)]
+    deploy_golden: bool,
 }
 
 fn required(name: &str) -> Result<String> {
@@ -263,22 +266,47 @@ async fn initialize(
         tx.execute(sql("INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,idempotency_key,metadata) VALUES($1,$2,'test_credit',$3,$1,'{\"source\":\"batch-a-isolated-test-credit\"}'::jsonb)", vec![entry.into(), account.into(), CASH.into()])).await?;
     }
     tx.commit().await?;
-    // Reserve an available local fixture address for the catalog. A collision
-    // at serve time fails binding before the market can dispatch.
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-    let fixture_addr = listener.local_addr()?;
-    let origin = format!("http://{fixture_addr}");
+    let deploy = deploy_buyers.is_some();
     let mut registration_sha256 = None;
-    if let Some(input) = &registration {
-        live::register(db.conn().clone(), input).await?;
-        write_private(&dir.join("registration.json"), input)?;
-        registration_sha256 = Some(bitrouter_market::persistence_codec::digest(&fs::read(
-            dir.join("registration.json"),
-        )?));
+    let (fixture_addr, deploy_golden) = if deploy {
+        // Measured deploy fixture: fixed loopback port (not operator env).
+        let fixture_addr: SocketAddr = provision::DEPLOY_FIXTURE_ADDR.parse()?;
+        ensure!(
+            fixture_addr.ip().is_loopback() && fixture_addr.port() == 18080,
+            "deploy fixture must be 127.0.0.1:18080"
+        );
+        let _hold = tokio::net::TcpListener::bind(fixture_addr)
+            .await
+            .context("deploy fixture 127.0.0.1:18080 is not available")?;
+        drop(_hold);
+        let origin = format!("http://{fixture_addr}");
+        let catalog = provision::create_deploy(db.conn().clone(), &origin, &origin).await?;
+        let raw = serde_json::to_vec_pretty(&catalog)?;
+        let golden = fs::read(provision::DEPLOY_GOLDEN_CATALOG)
+            .context("deploy golden catalog missing from image (/etc/market/catalog.json)")?;
+        ensure!(
+            raw == golden,
+            "deploy catalog does not match the golden file baked into the image"
+        );
+        write_private_bytes(&dir.join("catalog.json"), &raw)?;
+        (fixture_addr, true)
     } else {
-        let catalog = provision::create(db.conn().clone(), &origin, &origin).await?;
-        write_private(&dir.join("catalog.json"), &catalog)?;
-    }
+        // Lab path: ephemeral loopback fixture (unchanged).
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let fixture_addr = listener.local_addr()?;
+        let origin = format!("http://{fixture_addr}");
+        if let Some(input) = &registration {
+            live::register(db.conn().clone(), input).await?;
+            write_private(&dir.join("registration.json"), input)?;
+            registration_sha256 = Some(bitrouter_market::persistence_codec::digest(&fs::read(
+                dir.join("registration.json"),
+            )?));
+        } else {
+            let catalog = provision::create(db.conn().clone(), &origin, &origin).await?;
+            write_private(&dir.join("catalog.json"), &catalog)?;
+        }
+        (fixture_addr, false)
+    };
     let state = State {
         database,
         redis,
@@ -288,6 +316,7 @@ async fn initialize(
         buyers,
         registration_sha256,
         catalog_sha256: None,
+        deploy_golden,
     };
     write_private(&dir.join("state.json"), &state)?;
     db.shutdown_handle()
@@ -296,6 +325,17 @@ async fn initialize(
     println!(
         "{}",
         json!({"initialized":true,"buyers":3,"test_credit_micro_usd":CASH,"attested":false})
+    );
+    Ok(())
+}
+
+fn ensure_deploy_catalog_matches_golden(catalog_path: &Path) -> Result<()> {
+    let golden = fs::read(provision::DEPLOY_GOLDEN_CATALOG)
+        .context("deploy golden catalog missing from image")?;
+    let live = fs::read(catalog_path).context("state catalog missing")?;
+    ensure!(
+        live == golden,
+        "deploy catalog does not match the golden file baked into the image"
     );
     Ok(())
 }
@@ -362,6 +402,9 @@ async fn serve(dir: &Path) -> Result<()> {
             == fs::canonicalize(&catalog_path)?,
         "catalog must belong to this state directory"
     );
+    if state.deploy_golden {
+        ensure_deploy_catalog_matches_golden(&catalog_path)?;
+    }
     // Hash before any Market load. Launch reads the same path on its own.
     let policy_digest = catalog_policy_digest(&catalog_path)?;
     let is_live = state.registration_sha256.is_some();
@@ -471,18 +514,31 @@ async fn serve(dir: &Path) -> Result<()> {
     } else {
         "controlled"
     };
-    let router =
-        Router::new()
-            .route(
-                "/healthz",
-                get(move || async move {
-                    axum::Json(json!({"ready":true,"mode":mode,"attested":false}))
-                }),
-            )
-            .nest("/market", native);
+    let health_digest = policy_digest.clone();
+    let health_deploy = state.deploy_golden;
+    let router = Router::new()
+        .route(
+            "/healthz",
+            get(move || async move {
+                let mut body = json!({"ready":true,"mode":mode,"attested":false});
+                if health_deploy {
+                    body["catalog_policy_digest"] = json!(health_digest);
+                }
+                axum::Json(body)
+            }),
+        )
+        .nest("/market", native);
     let (router, keyset_digest) = attestation::mount(router, &policy_digest).await?;
     let attestation_available = keyset_digest.is_some();
-    let router = if let Some(digest) = keyset_digest {
+    // Deploy/local may require signed purchases without ACI by setting
+    // PRIVATE_MARKET_SIGNED_PURCHASES=1 (keyset = catalog policy digest).
+    let signed_without_aci = env::var("PRIVATE_MARKET_SIGNED_PURCHASES").as_deref() == Ok("1");
+    let auth_digest = match keyset_digest {
+        Some(digest) => Some(digest),
+        None if signed_without_aci => Some(Arc::from(policy_digest.clone())),
+        None => None,
+    };
+    let router = if let Some(digest) = auth_digest {
         let guard = purchase_auth::Guard::new(
             digest,
             process_start,
@@ -540,13 +596,14 @@ async fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
     ensure!(
         args.len() >= 3,
-        "usage: private-market-host <init|init-deploy|serve|init-live|qualify-live|validate-live> <state-or-profile> [input]"
+        "usage: private-market-host <init|init-deploy|serve|emit-deploy-catalog|init-live|qualify-live|validate-live> <state-or-profile> [input]"
     );
     match (args[1].as_str(), args.len()) {
         ("init", 3) => initialize(Path::new(&args[2]), None, None).await,
         ("init-deploy", 4) => {
             initialize(Path::new(&args[2]), None, Some(Path::new(&args[3]))).await
         }
+        ("emit-deploy-catalog", 3) => emit_deploy_catalog(Path::new(&args[2])).await,
         ("init-live", 4) => {
             initialize(
                 Path::new(&args[2]),
@@ -571,8 +628,53 @@ async fn main() -> Result<()> {
             Ok(())
         }
         ("serve", 3) => serve(Path::new(&args[2])).await,
-        _ => anyhow::bail!("expected init, init-deploy, or serve"),
+        _ => anyhow::bail!("expected init, init-deploy, serve, or emit-deploy-catalog"),
     }
+}
+
+/// Regenerate the deploy golden catalog into `out` using committed constants.
+/// Requires DATABASE_URL to an empty private_market_* database, plus the usual
+/// ownership env placeholders (unused in catalog bytes).
+async fn emit_deploy_catalog(out: &Path) -> Result<()> {
+    let (database, _) = targets()?;
+    let _ = required("BITROUTER_PREVIEW_BOOTSTRAP_BINDING")?;
+    let _ = required("REDIS_BALANCE_CUTOVER_TOKEN")?;
+    let conn = Database::connect(database.clone()).await?;
+    let row = conn.query_one(sql("SELECT EXISTS(SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN('r','p','v','m','S','f')) AS occupied", vec![])).await?.context("database preflight")?;
+    ensure!(
+        !row.try_get::<bool>("", "occupied")?,
+        "emit-deploy-catalog requires a new empty database"
+    );
+    conn.close().await?;
+    FabricDb::migrate_billing_schema(&database, BillingMigrationPhase::IsolatedBootstrap).await?;
+    let db = FabricDb::connect(&database).await?;
+    for text in [
+        include_str!("../upstream/sql/settings-up.sql"),
+        include_str!("../upstream/sql/promo-up.sql"),
+        include_str!("../upstream/sql/inference-up.sql"),
+        include_str!("../upstream/sql/cash-up.sql"),
+    ] {
+        db.conn().execute_unprepared(text).await?;
+    }
+    let origin = format!("http://{}", provision::DEPLOY_FIXTURE_ADDR);
+    let catalog = provision::create_deploy(db.conn().clone(), &origin, &origin).await?;
+    let raw = serde_json::to_vec_pretty(&catalog)?;
+    fs::write(out, &raw)?;
+    db.shutdown_handle()
+        .close(tokio::time::Instant::now() + Duration::from_secs(5))
+        .await?;
+    println!(
+        "{}",
+        json!({
+            "wrote": out,
+            "bytes": raw.len(),
+            "sha256": format!("sha256:{}", bitrouter_market::persistence_codec::digest(&raw)),
+            "fixture": provision::DEPLOY_FIXTURE_ADDR,
+            "at_ms": provision::DEPLOY_CATALOG_AT_MS,
+            "valid_until_ms": provision::DEPLOY_CATALOG_VALID_UNTIL_MS,
+        })
+    );
+    Ok(())
 }
 
 #[cfg(test)]
@@ -600,5 +702,38 @@ mod policy_digest {
             aci_protocol::digest::sha256_hex(&bytes)
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn committed_deploy_golden_catalog_matches_constants() {
+        // Byte identity with emit-deploy-catalog is checked by
+        // accept-market-dstack-local.sh (regen into a temp DB). This unit test
+        // pins the committed file to the same constants used by create_deploy.
+        let bytes = include_bytes!("../../../deploy/market/catalog.json");
+        let catalog: Value = serde_json::from_slice(bytes).expect("golden JSON");
+        let text = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(
+            text.contains(provision::DEPLOY_FIXTURE_ADDR),
+            "golden must publish the fixed fixture address"
+        );
+        assert!(
+            text.contains(&provision::DEPLOY_CATALOG_AT_MS.to_string()),
+            "golden must embed the frozen catalog clock"
+        );
+        assert!(
+            text.contains(&provision::DEPLOY_CATALOG_VALID_UNTIL_MS.to_string()),
+            "golden must embed the far-future validity bound"
+        );
+        // Wall-clock-sensitive validity fields must not use short at+30m windows.
+        let at = provision::DEPLOY_CATALOG_AT_MS;
+        let until = provision::DEPLOY_CATALOG_VALID_UNTIL_MS;
+        let short = at + 1_800_000;
+        assert_ne!(until, short);
+        assert!(until > at + 86_400_000);
+        let routes = catalog["products"][0]["routes"].as_array().expect("routes");
+        for route in routes {
+            let base = route["base_url"].as_str().unwrap();
+            assert_eq!(base, &format!("http://{}", provision::DEPLOY_FIXTURE_ADDR));
+        }
     }
 }

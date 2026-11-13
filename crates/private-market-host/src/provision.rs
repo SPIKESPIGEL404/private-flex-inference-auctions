@@ -16,26 +16,76 @@ use bitrouter_market::{
     throughput::{ThroughputClaim, ThroughputFilter, ThroughputObservation, ThroughputRate},
 };
 use std::collections::BTreeMap;
+
+/// Loopback fixture published in the deploy catalog / golden file.
+pub const DEPLOY_FIXTURE_ADDR: &str = "127.0.0.1:18080";
+/// Catalog "at" clock: fixed past instant (2023-11-14T22:13:20Z). Always ≥24h
+/// older than real time for any deploy after that date.
+pub const DEPLOY_CATALOG_AT_MS: u64 = 1_700_000_000_000;
+/// Far-future validity bound (2099-12-31T00:00:00Z). Wall-clock-sensitive
+/// fields (seller `valid_until` / GTD `expires_at`, supply `valid_until`,
+/// throughput observation `valid_until`, load snapshot `valid_until`, scope
+/// report `valid_until`) use this instead of `at + 30m` so a past frozen
+/// clock cannot expire live purchases.
+pub const DEPLOY_CATALOG_VALID_UNTIL_MS: u64 = 4_102_444_800_000;
+/// Golden catalog path baked into the deploy image.
+pub const DEPLOY_GOLDEN_CATALOG: &str = "/etc/market/catalog.json";
+
 fn ms() -> UnixMillis {
     UnixMillis(chrono::Utc::now().timestamp_millis() as u64)
 }
+
+/// Lab path: wall-clock schedule (unchanged).
 pub async fn create(
     db: sea_orm::DatabaseConnection,
     tokenizer_url: &str,
     seller_url: &str,
 ) -> Result<Value> {
+    let at = ms();
+    create_with_schedule(
+        db,
+        tokenizer_url,
+        seller_url,
+        at,
+        UnixMillis(at.0 + 1_800_000),
+    )
+    .await
+}
+
+/// Deploy path: frozen past `at`, far-future `until`. Deterministic given an
+/// empty DB and fixed fixture URLs.
+pub async fn create_deploy(
+    db: sea_orm::DatabaseConnection,
+    tokenizer_url: &str,
+    seller_url: &str,
+) -> Result<Value> {
+    create_with_schedule(
+        db,
+        tokenizer_url,
+        seller_url,
+        UnixMillis(DEPLOY_CATALOG_AT_MS),
+        UnixMillis(DEPLOY_CATALOG_VALID_UNTIL_MS),
+    )
+    .await
+}
+
+async fn create_with_schedule(
+    db: sea_orm::DatabaseConnection,
+    tokenizer_url: &str,
+    seller_url: &str,
+    at: UnixMillis,
+    until: UnixMillis,
+) -> Result<Value> {
     bitrouter_cloud::market::pg::install(&db).await?;
     let work = Workload {
         token_ids: vec![42, 43],
     };
-    let at = ms();
     let sellers = &[
         (11, 7, "controlled"),
         (12, 7, "controlled"),
         (13, 7, "controlled"),
     ];
     let protocol = "chat_completions";
-    let until = UnixMillis(at.0 + 1_800_000);
     let mut config = catalog::config(&work, at, protocol, sellers);
     // Three one-use sell orders from one Provider share one physical slot.
     let shared_backend = config.scopes[0].members[0].offering.backend_refs.clone();
@@ -113,7 +163,8 @@ pub async fn create(
             )
             .await?;
     }
-    let observed = UnixMillis(ms().0.max(at.0 + 1));
+    // Deterministic relative to `at` (lab and deploy). Do not call wall clock.
+    let observed = UnixMillis(at.0 + 1);
     market
         .publish_supply(
             "observation-clock".into(),
