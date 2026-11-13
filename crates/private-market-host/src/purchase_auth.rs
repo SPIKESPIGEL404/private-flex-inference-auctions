@@ -292,16 +292,19 @@ fn parse_ts(value: &str) -> Result<i64, Fail> {
 }
 
 fn parse_public_key(value: &str) -> Result<VerifyingKey, Fail> {
-    let encoded = value.strip_prefix("ed25519:").ok_or(Fail::Invalid)?;
-    let bytes = bs58::decode(encoded)
-        .into_vec()
-        .map_err(|_| Fail::Invalid)?;
+    parse_public_key_str(value).map_err(|_| Fail::Invalid)
+}
+
+/// Shared format check for deploy config and purchase admission.
+pub(crate) fn parse_public_key_str(value: &str) -> Result<VerifyingKey, ()> {
+    let encoded = value.strip_prefix("ed25519:").ok_or(())?;
+    let bytes = bs58::decode(encoded).into_vec().map_err(|_| ())?;
     if bytes.len() != 32 {
-        return Err(Fail::Invalid);
+        return Err(());
     }
     let mut raw = [0u8; 32];
     raw.copy_from_slice(&bytes);
-    VerifyingKey::from_bytes(&raw).map_err(|_| Fail::Invalid)
+    VerifyingKey::from_bytes(&raw).map_err(|_| ())
 }
 
 pub(crate) fn encode_public_key(bytes: &[u8; 32]) -> String {

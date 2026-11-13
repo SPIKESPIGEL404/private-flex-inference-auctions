@@ -1,0 +1,129 @@
+# Production-shaped compose for a dstack CVM. All services use host networking
+# so DATABASE_URL/REDIS_URL can remain 127.0.0.1. Postgres and Redis bind
+# loopback only. Only dstack-ingress listens on :443.
+#
+# Image digests for postgres/redis/ingress are pinned. The Market image digest
+# is filled by scripts/render-market-compose-hash.py before deploy.
+
+x-market-image: &market_image ${MARKET_IMAGE:-private-market-host:local}
+
+services:
+  init-secrets:
+    image: debian@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+    network_mode: host
+    volumes:
+      - market-data:/var/lib/market
+      - ./init-secrets.sh:/usr/local/bin/init-secrets.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/init-secrets.sh"]
+    environment:
+      PRIVATE_MARKET_SECRETS_DIR: /var/lib/market/secrets
+    restart: "no"
+
+  postgres:
+    image: postgres@sha256:ece55f7868da684e400f82f1030a050718adbdd65c23aa500c486f6e2950dc0f
+    network_mode: host
+    depends_on:
+      init-secrets:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: market
+      POSTGRES_DB: private_market_deploy
+      POSTGRES_PASSWORD_FILE: /var/lib/market/secrets/postgres_password.pg
+    volumes:
+      - market-data:/var/lib/market
+      # Postgres 18+ images require the mount at /var/lib/postgresql (not .../data).
+      - pg-data:/var/lib/postgresql
+    # Explicit loopback bind; do not rely on image defaults under host networking.
+    command:
+      - postgres
+      - -c
+      - listen_addresses=127.0.0.1
+      - -c
+      - port=5432
+    restart: unless-stopped
+
+  redis:
+    image: redis@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
+    network_mode: host
+    command:
+      - redis-server
+      - --bind
+      - 127.0.0.1
+      - --protected-mode
+      - "yes"
+      - --port
+      - "6379"
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory-policy
+      - noeviction
+    restart: unless-stopped
+
+  market:
+    image: *market_image
+    network_mode: host
+    depends_on:
+      init-secrets:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+    environment:
+      PRIVATE_MARKET_MODE: controlled
+      PRIVATE_MARKET_DOMAIN: ${PRIVATE_MARKET_DOMAIN:-market.example.com}
+      PRIVATE_MARKET_LISTEN: 127.0.0.1:8080
+      PRIVATE_MARKET_STATE_ROOT: /var/lib/market/state
+      PRIVATE_MARKET_SECRETS_DIR: /var/lib/market/secrets
+      PRIVATE_MARKET_TLS_DIR: /etc/letsencrypt/live/${PRIVATE_MARKET_DOMAIN:-market.example.com}
+      PRIVATE_MARKET_BUYERS_PUBLIC: /etc/market/buyers.public.json
+      PRIVATE_MARKET_ENABLE_ATTESTATION: ${PRIVATE_MARKET_ENABLE_ATTESTATION:-1}
+      PRIVATE_MARKET_BUYER_TOKEN_0: ${BUYER_0_TOKEN}
+      PRIVATE_MARKET_BUYER_TOKEN_1: ${BUYER_1_TOKEN}
+      PRIVATE_MARKET_BUYER_TOKEN_2: ${BUYER_2_TOKEN}
+    volumes:
+      - market-data:/var/lib/market
+      - cert-data:/etc/letsencrypt:ro
+      - /var/run/dstack.sock:/var/run/dstack.sock
+      - ./buyers.public.json:/etc/market/buyers.public.json:ro
+    restart: unless-stopped
+
+  dstack-ingress:
+    image: dstacktee/dstack-ingress@sha256:d05a7b343c37c1cca1bba8dbf7e8f3c6d2118158af2d41c455103796db4f67f0
+    network_mode: host
+    # Start with the guest agent sockets so DNS-01 can issue the leaf before
+    # Market serves. Market waits on fullchain.pem; ingress may briefly see a
+    # down backend until Market is listening on 127.0.0.1:8080.
+    depends_on:
+      init-secrets:
+        condition: service_completed_successfully
+    environment:
+      DOMAIN: ${PRIVATE_MARKET_DOMAIN:-market.example.com}
+      TARGET_ENDPOINT: http://127.0.0.1:8080
+      DNS_PROVIDER: namecheap
+      # ACME_EMAIL is the current name; CERTBOT_EMAIL is legacy (dstack-ingress).
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      NAMECHEAP_USERNAME: ${NAMECHEAP_USERNAME:-}
+      NAMECHEAP_API_KEY: ${NAMECHEAP_API_KEY:-}
+      NAMECHEAP_CLIENT_IP: ${NAMECHEAP_CLIENT_IP:-}
+      GATEWAY_DOMAIN: gateway.${DSTACK_GATEWAY_DOMAIN:-}
+      # With SET_CAA=true on Namecheap, the pointer is an A record (not CNAME).
+      SET_CAA: "true"
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+      - /var/run/tappd.sock:/var/run/tappd.sock
+      - cert-data:/etc/letsencrypt
+      - evidences:/evidences
+    # Host networking: the process must listen on 443. Declaring the port
+    # documents the sole external surface for operators and Phala tooling.
+    ports:
+      - "443:443"
+    restart: unless-stopped
+
+volumes:
+  market-data:
+  pg-data:
+  cert-data:
+  evidences:

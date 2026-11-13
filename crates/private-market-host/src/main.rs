@@ -138,7 +138,54 @@ fn issue_buyer_keys(dir: &Path, index: usize) -> Result<String> {
     Ok(public_key)
 }
 
-async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Result<()> {
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeployBuyers {
+    /// Exactly three NEAR-format verifying keys supplied by the buyers.
+    public_keys: [String; 3],
+}
+
+fn deploy_buyer_tokens() -> Result<[String; 3]> {
+    let tokens = [
+        required("PRIVATE_MARKET_BUYER_TOKEN_0")?,
+        required("PRIVATE_MARKET_BUYER_TOKEN_1")?,
+        required("PRIVATE_MARKET_BUYER_TOKEN_2")?,
+    ];
+    for token in &tokens {
+        ensure!(
+            (32..=512).contains(&token.len()) && token.starts_with("brk_"),
+            "deploy buyer token rejected"
+        );
+    }
+    ensure!(
+        tokens[0] != tokens[1] && tokens[0] != tokens[2] && tokens[1] != tokens[2],
+        "deploy buyer tokens must be distinct"
+    );
+    Ok(tokens)
+}
+
+fn deploy_public_keys(path: &Path) -> Result<[String; 3]> {
+    let cfg: DeployBuyers = live::read(path)?;
+    for key in &cfg.public_keys {
+        ensure!(
+            purchase_auth::parse_public_key_str(key).is_ok(),
+            "deploy buyer public key rejected"
+        );
+    }
+    ensure!(
+        cfg.public_keys[0] != cfg.public_keys[1]
+            && cfg.public_keys[0] != cfg.public_keys[2]
+            && cfg.public_keys[1] != cfg.public_keys[2],
+        "deploy buyer public keys must be distinct"
+    );
+    Ok(cfg.public_keys)
+}
+
+async fn initialize(
+    dir: &Path,
+    registration: Option<live::Registration>,
+    deploy_buyers: Option<&Path>,
+) -> Result<()> {
     if let Some(input) = &registration {
         input.validate()?;
     }
@@ -171,18 +218,34 @@ async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Res
         db.conn().execute_unprepared(text).await?;
     }
     let mut buyers = Vec::with_capacity(3);
-    for index in 0..3 {
-        let id = Uuid::new_v4().to_string();
-        buyers.push(Buyer {
-            user: Uuid::new_v4().to_string(),
-            token: format!(
-                "brk_{id}.{}{}",
-                Uuid::new_v4().simple(),
-                Uuid::new_v4().simple()
-            ),
-            credential_id: id,
-            public_key: issue_buyer_keys(dir, index)?,
-        });
+    if let Some(path) = deploy_buyers {
+        // Deployment path: buyer signing secrets stay on buyer machines.
+        // Public keys are public config; bearer tokens arrive as encrypted secrets.
+        let public_keys = deploy_public_keys(path)?;
+        let tokens = deploy_buyer_tokens()?;
+        for index in 0..3 {
+            let id = Uuid::new_v4().to_string();
+            buyers.push(Buyer {
+                user: Uuid::new_v4().to_string(),
+                token: tokens[index].clone(),
+                credential_id: id,
+                public_key: public_keys[index].clone(),
+            });
+        }
+    } else {
+        for index in 0..3 {
+            let id = Uuid::new_v4().to_string();
+            buyers.push(Buyer {
+                user: Uuid::new_v4().to_string(),
+                token: format!(
+                    "brk_{id}.{}{}",
+                    Uuid::new_v4().simple(),
+                    Uuid::new_v4().simple()
+                ),
+                credential_id: id,
+                public_key: issue_buyer_keys(dir, index)?,
+            });
+        }
     }
     let tx = db.conn().begin().await?;
     for buyer in &buyers {
@@ -477,12 +540,20 @@ async fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
     ensure!(
         args.len() >= 3,
-        "usage: private-market-host <init|serve|init-live|qualify-live|validate-live> <state-or-profile> [input]"
+        "usage: private-market-host <init|init-deploy|serve|init-live|qualify-live|validate-live> <state-or-profile> [input]"
     );
     match (args[1].as_str(), args.len()) {
-        ("init", 3) => initialize(Path::new(&args[2]), None).await,
+        ("init", 3) => initialize(Path::new(&args[2]), None, None).await,
+        ("init-deploy", 4) => {
+            initialize(Path::new(&args[2]), None, Some(Path::new(&args[3]))).await
+        }
         ("init-live", 4) => {
-            initialize(Path::new(&args[2]), Some(live::read(Path::new(&args[3]))?)).await
+            initialize(
+                Path::new(&args[2]),
+                Some(live::read(Path::new(&args[3]))?),
+                None,
+            )
+            .await
         }
         ("qualify-live", 4) => qualify_live(Path::new(&args[2]), Path::new(&args[3])).await,
         ("validate-live", 3) => {
@@ -500,7 +571,7 @@ async fn main() -> Result<()> {
             Ok(())
         }
         ("serve", 3) => serve(Path::new(&args[2])).await,
-        _ => anyhow::bail!("expected init or serve"),
+        _ => anyhow::bail!("expected init, init-deploy, or serve"),
     }
 }
 
