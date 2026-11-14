@@ -186,6 +186,15 @@ buyer charges, provider invoices and native-chain transfers are separate fields;
 missing evidence remains null. Market heads and verified signed receipts are retained privately for later
 settlement integration; availability alone is not proof of a final charge.
 
+## Availability notice
+
+The public Mono frontend now shows the self-hosted Chutes operating window:
+automatic shutdown after about one hour and approximately ten minutes for a cold
+start. The notice is visible before wallet connection and expands to explain
+startup time before a timed comparison. It is informational, not a live readiness
+signal. Warm/readiness handling still requires explicit provider acceptance;
+the notice does not silently extend task deadlines or retry Unknown requests.
+
 ## Remaining integration
 
 1. Accept both real suppliers and invoices on reviewed deployments with a bounded

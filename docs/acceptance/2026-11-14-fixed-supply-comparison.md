@@ -15,6 +15,7 @@ playground deployment remains unchanged.
 | P2 Rust host tests | 13 passed | Includes exact NEAR loopback binding, security encryption vectors and single-model guard |
 | Chutes full Market acceptance | Passed | Actual signed host + owned PG/Redis, native model mapping, settlement and replay after restart |
 | Two-arm full Market acceptance | Passed | Two owned Markets/PG/Redis, common request, one controlled upstream invoke per arm, committed settlements and zero extra invokes after process restart/replay |
+| Frontend build and visual inspection | Passed | Availability notice visible before wallet connection; desktop 1440px and mobile 390px, expandable estimate explanation |
 | Official SDK construction | Passed | Node 24.22.1, pinned SDK 0.3.0, no inference call |
 | Public NEAR catalog snapshot CLI | Passed | Read-only live public metadata; zero inference calls |
 

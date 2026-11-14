@@ -150,3 +150,10 @@ dialog textarea { resize: vertical; min-height: 108px; }
 @media (max-width: 700px) { .task-pane-heading { padding: 8px 12px; gap: 9px; }.activity-budget { display: none; }.task-activity.stats-expanded { height: 240px; }.activity-body { padding: 0 12px 12px; }.gateway-status { line-height: 1.6; }.workspace-login { margin: 28px auto; padding: 22px; } }
 
 .native-field{display:flex;flex-direction:column;gap:8px;margin:20px 0}.native-field input,.native-transfer input{background:#101010;color:#ededed;border:1px solid #333;padding:10px;font:inherit}.native-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.native-confirm{display:flex;gap:10px;line-height:1.6;margin:20px 0;font-size:12px}.native-agent{padding:20px 0;border-top:1px solid #333}.native-agent h3{font-size:14px}.native-agent small{color:#777;font-weight:400}.native-address{font-size:11px;overflow-wrap:anywhere;color:#aaa}.native-transfer{display:flex;flex-direction:column;gap:8px;font-size:12px;padding:12px 0}.native-transfer a{color:#ccc}.wallet-error{color:#ffaaaa}
+
+.supply-availability { flex: none; padding: 8px 16px; border-bottom: 1px solid var(--border); background: #080808; color: #aaa; font-size: 10px; line-height: 1.8; }
+.supply-availability summary { cursor: pointer; }
+.supply-availability summary:focus-visible { outline: 1px solid #aaa; outline-offset: 3px; }
+.supply-availability-name { color: #ddd; margin-right: 18px; }
+.supply-availability p { max-width: 820px; margin: 7px 0 2px; color: #999; }
+@media (max-width: 700px) { .supply-availability { padding: 8px 12px; }.supply-availability-name { display: block; margin: 0; } }

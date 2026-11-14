@@ -3,6 +3,7 @@ import {TaskPane} from './TaskPane';
 import type {PaneHandle} from './TaskPane';
 import {Modal, NewTask, TaskSettings} from './WorkspaceDialogs';
 import {TaskActivity} from './TaskActivity';
+import {SupplyAvailability} from './SupplyAvailability';
 import {NativeWalletController} from './native-wallet';
 import {NativeWallets} from './NativeWallets';
 import {WalletController} from './wallet-api';
@@ -234,6 +235,7 @@ export default function App() {
     </div></header>
     <div className="gateway-status" role="status"><button onClick={() => setDialog('mode')}>{tasks ? capabilities?.nativeWallets ? 'Controlled inference · virtual settlement · wallet funding is real NEAR' : 'Controlled inference · virtual settlement · no real inference payments' : 'Wallet preparation · inference procurement not enabled'}</button>
       <span>{tasks ? 'independent agents · MPP / Market' : 'owner authorization required'}</span></div>
+    <SupplyAvailability />
     {error && <div className="workspace-error" role="alert">{error}</div>}
     <main className="terminal-workspace" ref={workspace} aria-label="Agent terminals">
       {connection === 'loading' && <div className="workspace-empty">connecting to workspace…</div>}
