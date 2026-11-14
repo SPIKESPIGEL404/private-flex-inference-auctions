@@ -16,6 +16,8 @@ class Setup(P3):
   r=request(self.wallet+'/fixture/owner-transaction',{'transaction':tx},{'x-fixture-key':self.code});assert r[0]==200,r;return r[1]['transaction']['hash']
 def acceptance(binary):
  with Setup(binary) as x:
+  assert 'plan' not in request(x.url+'/buyer-api/config')[1]
+  assert 'plan' in x.api('config')[1]
   assert x.api('agents')[1]['setup']
   assert x.api('wallets/agent-1/funding',{})[0]!=200
   for id in ['agent-1','agent-2']:

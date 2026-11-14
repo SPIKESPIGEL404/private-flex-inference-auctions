@@ -75,7 +75,7 @@ Install the merchant credential as `<credentialDirectory>/<merchantBinding.crede
 
 ## Evidence and remaining gates
 
-- [Local four-case matrix](acceptance/2026-11-14-outlayer-p3-matrix.json): actual PG/Redis/original Market, two libfx engines, native-shaped payment/gas double, tool continuations, refunds, restart, lost ACK, signature failure and owner revocation.
+- [Local five-case matrix](acceptance/2026-11-14-outlayer-p3-matrix.json): actual PG/Redis/original Market, two libfx engines, native-shaped payment/gas double, tool continuations, refunds, restart, lost ACK, signature failure, owner/project revocation and private-plan access.
 - [Request-specific qualification](acceptance/2026-11-14-outlayer-p3-native.json): actual Rust qualification and one physical scope, distinct input token counts, bounded calibration+execution, restart, unknown calibration with no payment/repost. Provider and chain are local doubles.
 - [Setup integration](acceptance/2026-11-14-outlayer-p3-setup.json): actual auth/PG/HTTP setup through activation/task, policy ACK recovery, duplicate-funding refusal, CSRF rejection and cookie invalidation; wallet and chain are doubles.
 - [Real testnet component](acceptance/2026-11-14-outlayer-p3-real-testnet.json): actual OutLayer ordinary Transfer, agent-paid gas, exact NEP-413 and full merchant refund after agent freeze. No real model, Market integration or browser owner in this component.
@@ -83,3 +83,5 @@ Install the merchant credential as `<credentialDirectory>/<merchantBinding.crede
 - [P1](acceptance/2026-11-14-outlayer-p3-p1-regression.json) / [P2](acceptance/2026-11-14-outlayer-p3-p2-regression.json) regression evidence retains its controlled scope.
 
 Still unaccepted: a real browser owner wallet end-to-end; real provider inference joined with real chain payments/refunds; mainnet 1Click funding; hosted OutLayer native idempotency fault injection; production deployment. No independent reviewer was launched: this side conversation prohibits subagents. These gates must not be described as P3 real-money acceptance or gpt-6-astra approval.
+
+Final local validation: 84 Node tests, 15 original Market tests, 5 existing Mono UI tests, 22 P1 scenarios, 15 P2 scenarios and 8 P3 integration scenarios passed. Both P3 and canonical Mono browser builds passed. The first P1 Redis-pause run timed out during balance-repair startup under concurrent acceptance load; its complete rerun passed 22/22. This timeout is retained in the validation manifest rather than counted as a clean first run.

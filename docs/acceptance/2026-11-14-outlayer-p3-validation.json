@@ -1,0 +1,107 @@
+{
+  "baseMain": "7bccb0f201eaaf3b864526b596c5c0c49a1f333f",
+  "sourceFilesSha256": {
+    "clients/agent-playground/README.md": "76d92b2df0d52de16e07d6fd7a0d0919ab1d02ef7af38146d2e07fdd923609a3",
+    "clients/agent-playground/p3.html": "81b9434321cb5d07e91465ac0d9f9e2114390ad8144cab9b2af6d0f690e40b06",
+    "clients/agent-playground/package-lock.json": "c8389df29743616899616a7f371dbf5b7048d3bd624687a7b5f48c1a9b622e69",
+    "clients/agent-playground/package.json": "6722ec8dd7949734ac0d4fa46819eb5f5d7681429ecf436bcbf077eb26b8a951",
+    "clients/agent-playground/src/p3.css": "dd9264cbf22f985892d13631804aab1faa1d29d1babf62e3a9cffa17aabeb1ea",
+    "clients/agent-playground/src/p3.ts": "c8e1e2921982facf430d5427eea39d4f047bf9599ff99e8a8b16de03c5e6205c",
+    "clients/agent-playground/tsconfig.p3.json": "26b122ae6f604a44e8ab8af11ff1cc43618e8a22484d0cc2607d11386053f7db",
+    "clients/agent-playground/vite.p3.config.ts": "b571f932a0d042e308aec4e83e5ce3dc919028b9c968f861fba87ff0307e41d9",
+    "crates/private-market-host/src/live.rs": "9db78db5329d5861d676a53066822313bc88b899bf5c629bccaa2ae8c0a0697d",
+    "crates/private-market-host/src/main.rs": "58a4f37d21e4b4fe6ee40025d4357aa4e144b59b1dc5ec15c43325ebd5f9e4fe",
+    "crates/private-market-host/src/provision.rs": "c3759a24f92c94866d917117e0d15c3b68f55c9ef2df7159170016d8e45d0826",
+    "crates/private-market-host/upstream/p3/paid_real.sql": "a557e62b33b70cbc018d035b2e2e8d9fb3148a5eeedcff68dafeaaeaf341b0d0",
+    "crates/private-market-host/upstream/p3/qualification-diagnostics.patch": "d831d78dc65d11a4a4d784f4220370648dcf550a9b7052ad409152b96d16ee55",
+    "crates/private-market-host/upstream/p3/scope-members.patch": "c7a20f5d032eb387aff6e903b1016bf45539d46cabac672273b6dade82d0e212",
+    "crates/private-market-p3/Cargo.lock": "127afddd81fa91d1649fe36024d33cad55615fd244197e9cceaeda1e54c3187a",
+    "crates/private-market-p3/Cargo.toml": "6d2ce81c327b07785a43e6f28574be160568357a85b236e4dd25eb9b6525259f",
+    "scripts/accept-agent-mpp-p3-native.py": "4d1cb6e2d2e91e38317f8d908d0af463e7cafb03bba06f5cecb59468bc4518e1",
+    "scripts/accept-agent-mpp-p3-setup.py": "2d64453b63354cddb541ac3d1d7c9d61258dd8eb65e3622d9b5ff3141b17d508",
+    "scripts/accept-agent-mpp-p3-testnet.mjs": "b2166a0e655c53cfdfd1d489a2954c0f26f04be69ffef92025cfed81dd813ee3",
+    "scripts/accept-agent-mpp-p3.py": "b2a5f7ec351d2c74d350645eeb85fc1bc220376fda371cb7e4fd1167d383ecce",
+    "scripts/accept-agent-mpp-p3.sh": "b54a21081be7e689dca97d2d6a3f33058039d7c8aa0652b52133d55a44f26051",
+    "scripts/materialize-market-p3.py": "012e40b75b42d77df05b77a02543a2b1bfc727925df329c999e115571a9dfbf2",
+    "scripts/prepare-agent-mpp-p3.mjs": "b2e9317155e80a6dd04a277843614f83e27a78297e21aa61711fd932a0e398de",
+    "services/mpp-near-direct/near.mjs": "5e68d4f5cea2e6c2a530638d971617e6f66f82f8d642f1e9ad7c2357b01d457b",
+    "services/mpp-near-direct/p1/authority.mjs": "18a5f866778631bc25ee779edaadcc010c531e648cf53132bbeded70990ac9cb",
+    "services/mpp-near-direct/p1/server.mjs": "e8832680a4d2131af80c57da661b5e29555835a328145d2f9554188bc78f7c97",
+    "services/mpp-near-direct/p2/authority.mjs": "5b79776285268e5b5c916f09c56057a2277810d6b553334a805a80d0e9a66334",
+    "services/mpp-near-direct/p2/fx-runtime.mjs": "23dad419295337882dd12867e8a2497ad013229a8b929eaa84a750291dbc3779",
+    "services/mpp-near-direct/p3/auth.mjs": "d361cdaa8a19f940dd4ed917204dec290d52027b83f1fff0fd7023b22a942e8a",
+    "services/mpp-near-direct/p3/authority.mjs": "c5b8b0015a51567d7e278c417643f80188f82710414c03ae8ea3e002ed2d08f0",
+    "services/mpp-near-direct/p3/funding.mjs": "9eae32b69bffe0555edfef88e2c4d274ab12699a7c234c87fe8f7b986ca6ff9c",
+    "services/mpp-near-direct/p3/launch.mjs": "1a623eee3d132df8559c4ff0418b7f4cee5df9be25e95e4c59175bc946a77699",
+    "services/mpp-near-direct/p3/native-profiles.mjs": "f05caff7d8c7deb86833aff4ad3ce88d487346ae42981d160263e4963c9473a2",
+    "services/mpp-near-direct/p3/native-verification.mjs": "3ee5566a71d2bfcf2a75ad18e51ea133bd66e50cd0ce186c09407b1693b9ec51",
+    "services/mpp-near-direct/p3/onboarding.mjs": "16973bc68eb7e543832e27a6731871525151ffc7dd3c94ac08578332cb79d7dd",
+    "services/mpp-near-direct/p3/outlayer.mjs": "a59e822f2ca0eb5983fc33f7161a40cfc8a9bf23913bab712b8c49d95c1ef99d",
+    "services/mpp-near-direct/p3/plan.mjs": "cb89cfb31c24826e79665a6bb95a401a5398cf0ddb4294d73affd99f48c091ac",
+    "services/mpp-near-direct/p3/preflight.mjs": "fcf78ecb1a671a5c1d6f9861c2b9d9616f32b241ac53764b65e15028c9fc5249",
+    "services/mpp-near-direct/p3/profiles.mjs": "2d9017a0ef4d8536e8b37e68f938638ef8768788f70538df03657e84f367fa95",
+    "services/mpp-near-direct/p3/proxy.mjs": "fb09df7a9f82b7da5b08f85c5f1f5ed4d421daeef3cdea5c17f49e2707662aa8",
+    "services/mpp-near-direct/p3/route.mjs": "59eee4a2677045f5c073a5075815186c2c54c8ca1a455cd5010d2fc181947182",
+    "services/mpp-near-direct/p3/server.mjs": "7abad7a2ad04564013f42117860923a02a050ce6495cf9dc8288a5f9124c8483",
+    "services/mpp-near-direct/p3/setup.mjs": "5001b1b196126e2395489e9e521978d237ccb6d67c93cede22fe01ed6356159d",
+    "services/mpp-near-direct/p3/store.mjs": "b64576b95bcf2682e8038c877b01fea416e23af621dbf85d5064031413d74910",
+    "services/mpp-near-direct/p3/tasks.mjs": "ad6e5b47140c871cf96ba315bcdf198250b5722053da2ed04e5aebc0aede2e58",
+    "services/mpp-near-direct/p3/test/run-fx.mjs": "dbba9c9510134e28bf4a6313d281dd69e88bb22222e7756c3fbd7a1225ec1cab",
+    "services/mpp-near-direct/p3/test/wallet-fixture.mjs": "648e5c7ea4ebec0f0a01210e748fdd4571b6e1d9b563572c254f93e4ff69f3df",
+    "services/mpp-near-direct/p3/test/wallet.test.mjs": "c190541d923c9a6b7fcf004dde3ef7cf1fb030c6b6a217de3f2d0fa921b29983",
+    "services/mpp-near-direct/p3/wallet.mjs": "bf58836023482309034a12ff5fbf092cdb12341902876735fac759e7c1e6449b"
+  },
+  "binarySha256": "362837ae770845b7d09e8f0cd008b8f09178e218e59519826f736a716788bc10",
+  "local": {
+    "nodeTests": {
+      "passed": 84,
+      "failed": 0
+    },
+    "marketTests": {
+      "passed": 15,
+      "failed": 0
+    },
+    "existingMonoTests": {
+      "passed": 5,
+      "failed": 0
+    },
+    "p1Scenarios": {
+      "passed": 22,
+      "failed": 0
+    },
+    "p2Scenarios": {
+      "passed": 15,
+      "failed": 0
+    },
+    "p3Scenarios": {
+      "passed": 8,
+      "failed": 0
+    },
+    "p3BrowserBuild": "passed",
+    "canonicalMonoBuild": "passed"
+  },
+  "retryNotes": [
+    "First P1 Redis-pause scenario run hit balance-repair startup timeout under concurrent load. Complete rerun passed 22/22."
+  ],
+  "evidenceSha256": {
+    "docs/acceptance/2026-11-14-outlayer-p3-matrix.json": "c8ca6569c5c47a61c4a38b24000e76f24f5d0cd5e05270f8c0afdebad896a745",
+    "docs/acceptance/2026-11-14-outlayer-p3-native.json": "9c346417751d3a2765255e69beaa70e8df86f6733291116d271616e00cea09b3",
+    "docs/acceptance/2026-11-14-outlayer-p3-p1-regression.json": "5d92d43bea180b045c6d4b2d19301f31f4120c5f2d2760a86a633695fc6d47e8",
+    "docs/acceptance/2026-11-14-outlayer-p3-p2-regression.json": "40cede67757b60e3c42e0b4beb56fe1ea9cf0d46bb160cbfc2002054ef4ba351",
+    "docs/acceptance/2026-11-14-outlayer-p3-real-testnet.json": "e7437f2aa905fcff257dfb80953e1659969077c8749863e8be1d403cd4382844",
+    "docs/acceptance/2026-11-14-outlayer-p3-setup.json": "4430a1c2ee7786092873b6843bee0e14e64d2569b0e2aa38827426be66acd5ce"
+  },
+  "realTestnet": "component payment/gas/NEP413/frozen-agent refund only; earlier wallet-policy matrix separate",
+  "notAccepted": [
+    "real browser owner end-to-end",
+    "real provider joined to real chain payment and refund",
+    "mainnet 1Click funding",
+    "hosted native idempotency fault injection",
+    "production deployment",
+    "independent gpt-6-astra review"
+  ],
+  "reviewer": {
+    "launched": false,
+    "reason": "Side conversation developer restriction prohibits subagents."
+  }
+}

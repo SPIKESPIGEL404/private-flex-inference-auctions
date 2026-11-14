@@ -11,7 +11,7 @@ import {Onboarding} from './onboarding.mjs';
 import {Tasks} from './tasks.mjs';
 import {normalizeRecoveryBody} from '../p2/intent.mjs';
 import {hash,requireThat} from '../contract.mjs';
-const DIST=fileURLToPath(new URL('../../../clients/agent-playground/dist/',import.meta.url));
+const DIST=fileURLToPath(new URL('../../../clients/agent-playground/dist-p3/',import.meta.url));
 export function publicOrigin(value){
  if(value===undefined)return null;
  let u;try{u=new URL(value);}catch{throw new Error('invalid_public_origin');}
@@ -74,7 +74,10 @@ export async function start(config){
    if(['POST','PATCH'].includes(req.method))requireThat(req.headers.origin===expectedOrigin&&req.headers['content-type']?.split(';')[0]==='application/json','origin_denied');
    if(req.headers.origin&&req.headers.origin!==expectedOrigin)throw new Error('origin_denied');
    if(req.method==='GET'&&req.url==='/healthz')return json(res,200,{ready:true,phase:'P3',mode:config.payments.mode,realPayment:config.payments.mode==='bounded',walletProvider:'outlayer',revision:config.buildRevision??null});
-   if(req.method==='GET'&&req.url==='/buyer-api/config')return json(res,200,{phase:'P3',mode:config.payments.mode,network:config.payments.network,origin:config.payments.plan.origin,plan:config.payments.plan});
+   if(req.method==='GET'&&req.url==='/buyer-api/config'){
+    let authorized=false;try{const token=decodeURIComponent(String(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith('p3_owner='))?.slice(9)??'');const s=await proxy.services.auth.session(token);authorized=[config.payments.plan.ownerAccount,config.payments.plan.projectAccount].includes(s.owner_id);}catch{}
+    return json(res,200,{phase:'P3',mode:config.payments.mode,network:config.payments.network,origin:config.payments.plan.origin,...(authorized?{plan:config.payments.plan}:{})});
+   }
    if(req.method==='POST'&&req.url==='/buyer-api/auth/challenge')return json(res,200,await proxy.services.auth.challenge('login'));
    if(req.method==='POST'&&req.url==='/buyer-api/auth/verify'){
     const input=await read(req),signed=await proxy.services.auth.verify(input.id,input.signed);
@@ -137,4 +140,4 @@ export async function start(config){
  await new Promise(r=>server.listen(config.port??0,'127.0.0.1',r));
  return {url:'http://127.0.0.1:'+server.address().port,proxy,tasks,async close(){stopping=true;server.closeAllConnections();await new Promise(r=>server.close(r));await proxy.close();}};
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){const c=JSON.parse(readFileSync(process.argv[2],'utf8'));const app=await start(c);console.log(JSON.stringify({url:app.url,phase:'P3',mode:c.payments.mode,realPayment:c.payments.mode==='bounded'}));for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>void app.close().then(()=>process.exit(0)));}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){try{const c=JSON.parse(readFileSync(process.argv[2],'utf8'));const app=await start(c);console.log(JSON.stringify({url:app.url,phase:'P3',mode:c.payments.mode,realPayment:c.payments.mode==='bounded'}));for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>void app.close().then(()=>process.exit(0)));}catch(error){console.error(/^[a-z_]+$/.test(error.message)?error.message:'p3_launch_failed');process.exitCode=2;}}

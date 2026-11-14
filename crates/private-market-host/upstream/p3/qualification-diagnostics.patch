@@ -1,23 +1,11 @@
 --- a/src/market/pg/matching.rs
 +++ b/src/market/pg/matching.rs
-@@ -186,20 +186,28 @@
-         if !option.supports_terms(config, terms)
-             || !destinations.iter().any(|d| d.provider == provider)
-         {
+@@ -188,0 +189 @@
 +            if std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref() == Ok("controlled") { eprintln!("native terms rejected"); }
-             continue;
-         }
-         let mut context = c.context.clone();
-         context.root = root.clone();
-         context.compared_at = at;
-         let current = c.input.clone();
+@@ -195 +196 @@
 -        let Ok(quote) = qualify_total_cap_with_price_guarantee(
 +        let qualified_quote = qualify_total_cap_with_price_guarantee(
-             &registration,
-             order.window,
-             &context,
-             &current,
-             None,
+@@ -201,2 +202,9 @@
 -        ) else {
 -            continue;
 +        );
@@ -29,21 +17,9 @@
 +                }
 +                continue;
 +            }
-         };
-         let evidence_ref = format!("{key}/quote/{i}");
-         let publication = PurchaseQuotePublication {
-@@ -225,12 +233,12 @@
-                     Some(bitrouter_market::market_host::HostError::Market(
-                         bitrouter_market::exchange::ExchangeError::Eligibility
-                     ))
+@@ -228 +236 @@
 -                ) => {}
 +                ) => { if std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref() == Ok("controlled") { eprintln!("native quote eligibility rejected"); } }
-             Err(error)
-                 if matches!(
-                     error.downcast_ref::<bitrouter_market::exchange::ExchangeError>(),
-                     Some(bitrouter_market::exchange::ExchangeError::Eligibility)
+@@ -233 +241 @@
 -                ) => {}
 +                ) => { if std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref() == Ok("controlled") { eprintln!("native quote eligibility rejected"); } }
-             Err(error) => return Err(error),
-         }
-     }

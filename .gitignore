@@ -32,3 +32,5 @@ deploy/market/*.secret.env
 .market-p3-upstream/
 .p3-secrets/
 .p3-runs/
+
+clients/agent-playground/dist-p3/

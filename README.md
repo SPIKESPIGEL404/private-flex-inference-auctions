@@ -245,8 +245,11 @@ P0–P2 below provide controlled contracts, execution, budget and recovery tests
 Their v2 NEP-366 fixture incorrectly debits agent principal: real NEP-366 charges
 both principal and gas to the outer relayer. Those tests do not qualify real
 payments. G1 must verify the selected native Transfer route with agent-paid principal and gas; real P3
-wallet funding, inference and refund acceptance remain outstanding. Unfinished
-P3 runtime prototypes are excluded from this integration.
+wallet funding, inference and refund joint acceptance remain outstanding. The opt-in
+[OutLayer P3 runtime](docs/agent-mpp-p3.md) implements owner policy setup, agent-funded
+MPP purchases, gas accounting, usage settlement and refunds. Local task/recovery
+acceptance and a real testnet payment/NEP-413/refund component are recorded separately;
+it is not deployed or qualified as a real-provider money loop.
 
 The canonical Mono workspace is `clients/market-playground`. It discovers backend capabilities and uses the existing P2 task runtime or wallet-preparation adapter in the same UI. `clients/agent-playground` is a compatibility launch alias. A unified interface does not establish a connected real-money loop; real G1/P3 qualification remains outstanding.
 

@@ -6,8 +6,8 @@
   "scripts": {
     "build": "npm --prefix ../market-playground run build",
     "dev": "npm --prefix ../market-playground run dev",
-    "build:p3": "tsc -b && vite build",
-    "dev:p3": "vite --host 127.0.0.1"
+    "build:p3": "tsc -p tsconfig.p3.json && vite build --config vite.p3.config.ts",
+    "dev:p3": "vite --config vite.p3.config.ts --host 127.0.0.1"
   },
   "dependencies": {
     "@wterm/dom": "0.5.10",

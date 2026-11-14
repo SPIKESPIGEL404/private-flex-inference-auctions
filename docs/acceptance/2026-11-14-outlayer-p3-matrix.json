@@ -32,6 +32,10 @@
     {
       "case": "owner-revocation-stops-new-effects-keeps-read-recovery",
       "passed": true
+    },
+    {
+      "case": "project-cost-revocation-fences-both-agents-private-plan-owner-only",
+      "passed": true
     }
   ]
 }

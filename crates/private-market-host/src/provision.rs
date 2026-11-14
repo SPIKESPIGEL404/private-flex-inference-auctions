@@ -61,7 +61,7 @@ pub async fn create(
         std::env::var("PRIVATE_MARKET_P2_PREVIEW_TTL_MS")
             .ok()
             .as_deref(),
-        (std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") || std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref() == Ok("controlled")),
+        std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") || std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref() == Ok("controlled"),
     )?;
     create_with_schedule(
         db,

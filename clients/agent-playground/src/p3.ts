@@ -14,7 +14,7 @@ async function api(path:string,body?:unknown){
  const r=await fetch('/buyer-api'+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',redirect:'error',headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
  const value=await r.json();if(!r.ok)throw Error(value.error?.code??value.error??'operation_unavailable');return value;
 }
-const config=await api('/config');
+let config=await api('/config');
 note.textContent=`${config.network} · ${config.mode}. Each agent pays its own NEAR principal and gas. Merchant refunds return to that agent; merchant pays refund gas.`;
 const connector=new NearConnector({network:config.network,autoConnect:false,features:{signInAndSignMessage:true,signMessage:true,signAndSendTransactions:true}});
 let owner:string|null=null,epoch=0;
@@ -30,7 +30,7 @@ button('Connect NEAR wallet',async()=>{
  const handler=(event:EventMap['wallet:signInAndSignMessage'])=>{signed=event.accounts[0]?.signedMessage;};
  connector.on('wallet:signInAndSignMessage',handler);
  try{await connector.connect({signMessageParams:{...c.payload,nonce:bytes(c.payload.nonce)}});}finally{connector.off('wallet:signInAndSignMessage',handler);}
- if(!signed)throw Error('wallet_did_not_sign');const s=await api('/auth/verify',{id:c.id,signed});owner=s.owner;await refresh();
+ if(!signed)throw Error('wallet_did_not_sign');const s=await api('/auth/verify',{id:c.id,signed});owner=s.owner;config=await api('/config');await refresh();
 });
 if(config.phase!=='setup')for(const role of ['owner','project'])button(role==='owner'?'Authorize agent spending':'Authorize project provider costs',async()=>{
  if(!owner)throw Error('connect_wallet_first');

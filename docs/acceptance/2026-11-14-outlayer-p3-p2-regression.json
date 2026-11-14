@@ -21,13 +21,13 @@
           "fxStarted": true,
           "task": {
             "id": "task-1",
-            "user_id": "d85d0372-d41b-46d1-aa47-6aaa5ecbedca",
+            "user_id": "cc36032d-1149-4040-bb1f-1b7a46812230",
             "budget_nano": "10000000",
             "reserved_nano": "0",
             "spent_nano": "1575000",
             "hard_bid_nano": "3000000",
             "call_cap_nano": "3000000",
-            "deadline_ms": "1794690021624",
+            "deadline_ms": "1794693800147",
             "revision": "0",
             "active": true,
             "paused": false,
@@ -50,15 +50,15 @@
           },
           "calls": [
             {
-              "id": "1cc9c9152dbfa4d3565252402e85ae10d62c53edfe3e80c07eb9a121f8ebfd2a",
+              "id": "4ca06dcdfdfa390742772abba7b13e3fcf33b72297d44e7877ff4ac1e2ed031c",
               "state": "terminal",
               "revision": "0",
               "bid_nano": "1500000",
               "manual": false,
-              "started_ms": "1794689842834",
-              "deadline_ms": "1794690021624",
+              "started_ms": "1794693622547",
+              "deadline_ms": "1794693800147",
               "decision": {
-                "nowMs": 1794689843235,
+                "nowMs": 1794693622958,
                 "quote": {
                   "mode": "controlled",
                   "meter": {
@@ -69,7 +69,7 @@
                     "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "ccbada63e0ba62e15057726f580541ab8d83fe2010fd02b27a3336b7a5faa93f",
+                    "execution_sha256": "dc3d309fc703b4f11acaeb23321dce78623e70e240553a8432678b5092fc2836",
                     "total_input_tokens": 96,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 96
@@ -106,8 +106,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1084020",
-                  "endToEndMs": 1101,
+                  "scoreNano": "1084220",
+                  "endToEndMs": 1111,
                   "reserveNano": "1216000",
                   "urgencyMultiplier": "1"
                 },
@@ -117,27 +117,27 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689842999"
+                  "observed_ms": "1794693622142"
                 },
-                "deadlineMs": 1794690021624,
+                "deadlineMs": 1794693800147,
                 "preference": "balanced",
-                "startedAtMs": 1794689842834,
+                "startedAtMs": 1794693622547,
                 "availableNano": "10000000",
                 "supplyAvailable": true,
                 "futureReserveBps": 2500
               },
-              "order_id": "9089246feb968f9c828c89c7f4bf2c9b8a197598e1ae95d84efc10b692045772"
+              "order_id": "4029f93fb28ef14ce556c31ef28579f11e2cbf09c32661989ee54b827defa54b"
             },
             {
-              "id": "2c8364e7cb28ea790f5f445f07be2763dfc3b58c9cd1798887a0fa791e66f4bd",
+              "id": "e3c626a2df558155c5f6bde011bdda1ddcbab18ea385e22e7aa33bb9ab887707",
               "state": "terminal",
               "revision": "0",
               "bid_nano": "1500000",
               "manual": false,
-              "started_ms": "1794689844837",
-              "deadline_ms": "1794690021624",
+              "started_ms": "1794693627624",
+              "deadline_ms": "1794693800147",
               "decision": {
-                "nowMs": 1794689846414,
+                "nowMs": 1794693630306,
                 "quote": {
                   "mode": "controlled",
                   "meter": {
@@ -148,7 +148,7 @@
                     "input_sha256": "a795ee5eabb94236e3f9bcbc56b36bb907e12c9853d80b905de7203780df344e",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "4563c73d61d48ef02e46056de2cd5d67dcdc2d77f6600588ddbc2d08f54453b0",
+                    "execution_sha256": "da6a3c2f45dcf0496f6fd0e040ba79e5371ca74f884c88be29120e88b6b5a2f2",
                     "total_input_tokens": 151,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 151
@@ -185,8 +185,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1108540",
-                  "endToEndMs": 2277,
+                  "scoreNano": "1130640",
+                  "endToEndMs": 3382,
                   "reserveNano": "1217000",
                   "urgencyMultiplier": "1"
                 },
@@ -196,23 +196,23 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689846001"
+                  "observed_ms": "1794693630150"
                 },
-                "deadlineMs": 1794690021624,
+                "deadlineMs": 1794693800147,
                 "preference": "balanced",
-                "startedAtMs": 1794689844837,
+                "startedAtMs": 1794693627624,
                 "availableNano": "9004000",
                 "supplyAvailable": true,
                 "futureReserveBps": 2500
               },
-              "order_id": "e45a5806032c93a53b74dd4c2848185445f44b4a1c9f22a7cc63458eb0487ad4"
+              "order_id": "35042419c40fc3798e51217219d5aebb8fa15141e3cd9ea9414c4ce2276251bf"
             }
           ],
           "orders": [
             {
-              "id": "9089246feb968f9c828c89c7f4bf2c9b8a197598e1ae95d84efc10b692045772",
+              "id": "4029f93fb28ef14ce556c31ef28579f11e2cbf09c32661989ee54b827defa54b",
               "state": "refunded",
-              "nativeId": "86922626-daa8-4bc1-88e4-3638c16c4c19",
+              "nativeId": "18aa7d9c-7470-4cf2-b69e-7f7f8c1da1df",
               "principal": {
                 "P": "608000000000000000000",
                 "C": "498000000000000000000",
@@ -234,37 +234,37 @@
               "anomalies": [],
               "timings": [
                 {
-                  "atMs": 1794689843256,
+                  "atMs": 1794693623584,
                   "clock": "postgres_wall_clock",
                   "stage": "quote_prepared"
                 },
                 {
-                  "atMs": 1794689843281,
+                  "atMs": 1794693623661,
                   "clock": "postgres_wall_clock",
                   "stage": "proof_presented"
                 },
                 {
-                  "atMs": 1794689843300,
+                  "atMs": 1794693624272,
                   "clock": "postgres_wall_clock",
                   "stage": "funds_recorded"
                 },
                 {
-                  "atMs": 1794689843577,
+                  "atMs": 1794693624735,
                   "clock": "postgres_wall_clock",
                   "stage": "native_admission_requested"
                 },
                 {
-                  "atMs": 1794689843786,
+                  "atMs": 1794693625457,
                   "clock": "postgres_wall_clock",
                   "stage": "admission_committed"
                 },
                 {
-                  "atMs": 1794689844503,
+                  "atMs": 1794693627046,
                   "clock": "postgres_wall_clock",
                   "stage": "financial_committed"
                 },
                 {
-                  "atMs": 1794689844779,
+                  "atMs": 1794693627459,
                   "clock": "postgres_wall_clock",
                   "stage": "native_response_read_finished"
                 }
@@ -280,7 +280,7 @@
                     "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "ccbada63e0ba62e15057726f580541ab8d83fe2010fd02b27a3336b7a5faa93f",
+                    "execution_sha256": "dc3d309fc703b4f11acaeb23321dce78623e70e240553a8432678b5092fc2836",
                     "total_input_tokens": 96,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 96
@@ -316,8 +316,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1084020",
-                  "endToEndMs": 1101,
+                  "scoreNano": "1084220",
+                  "endToEndMs": 1111,
                   "reserveNano": "1216000",
                   "urgencyMultiplier": "1"
                 },
@@ -326,16 +326,16 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689842999"
+                  "observed_ms": "1794693622142"
                 },
                 "buyerRouteFeeNano": "0",
                 "projectEstimateYocto": "100000000000000000000"
               }
             },
             {
-              "id": "e45a5806032c93a53b74dd4c2848185445f44b4a1c9f22a7cc63458eb0487ad4",
+              "id": "35042419c40fc3798e51217219d5aebb8fa15141e3cd9ea9414c4ce2276251bf",
               "state": "refunded",
-              "nativeId": "be05e93c-9daf-4e29-be89-42dc60465121",
+              "nativeId": "d0c791ab-8d84-4a19-9217-2c463a27ab6a",
               "principal": {
                 "P": "608500000000000000000",
                 "C": "289500000000000000000",
@@ -357,37 +357,37 @@
               "anomalies": [],
               "timings": [
                 {
-                  "atMs": 1794689846419,
+                  "atMs": 1794693630397,
                   "clock": "postgres_wall_clock",
                   "stage": "quote_prepared"
                 },
                 {
-                  "atMs": 1794689846431,
+                  "atMs": 1794693630427,
                   "clock": "postgres_wall_clock",
                   "stage": "proof_presented"
                 },
                 {
-                  "atMs": 1794689846605,
+                  "atMs": 1794693630452,
                   "clock": "postgres_wall_clock",
                   "stage": "funds_recorded"
                 },
                 {
-                  "atMs": 1794689846885,
+                  "atMs": 1794693630800,
                   "clock": "postgres_wall_clock",
                   "stage": "native_admission_requested"
                 },
                 {
-                  "atMs": 1794689846895,
+                  "atMs": 1794693630818,
                   "clock": "postgres_wall_clock",
                   "stage": "admission_committed"
                 },
                 {
-                  "atMs": 1794689847983,
+                  "atMs": 1794693632431,
                   "clock": "postgres_wall_clock",
                   "stage": "financial_committed"
                 },
                 {
-                  "atMs": 1794689848219,
+                  "atMs": 1794693632804,
                   "clock": "postgres_wall_clock",
                   "stage": "native_response_read_finished"
                 }
@@ -403,7 +403,7 @@
                     "input_sha256": "a795ee5eabb94236e3f9bcbc56b36bb907e12c9853d80b905de7203780df344e",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "4563c73d61d48ef02e46056de2cd5d67dcdc2d77f6600588ddbc2d08f54453b0",
+                    "execution_sha256": "da6a3c2f45dcf0496f6fd0e040ba79e5371ca74f884c88be29120e88b6b5a2f2",
                     "total_input_tokens": 151,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 151
@@ -439,8 +439,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1108540",
-                  "endToEndMs": 2277,
+                  "scoreNano": "1130640",
+                  "endToEndMs": 3382,
                   "reserveNano": "1217000",
                   "urgencyMultiplier": "1"
                 },
@@ -449,7 +449,7 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689846001"
+                  "observed_ms": "1794693630150"
                 },
                 "buyerRouteFeeNano": "0",
                 "projectEstimateYocto": "100000000000000000000"
@@ -465,13 +465,13 @@
           "fxStarted": true,
           "task": {
             "id": "task-2",
-            "user_id": "1c0bf39b-f47b-4f7b-8ab4-e30cb782402c",
+            "user_id": "517e843b-0e33-4e3a-ae03-8cadb0ba4299",
             "budget_nano": "10000000",
             "reserved_nano": "638000",
             "spent_nano": "1575000",
             "hard_bid_nano": "3000000",
             "call_cap_nano": "3000000",
-            "deadline_ms": "1794690021689",
+            "deadline_ms": "1794693800294",
             "revision": "0",
             "active": true,
             "paused": false,
@@ -494,15 +494,15 @@
           },
           "calls": [
             {
-              "id": "f9e131d7822bc9a66bb8a17ccfba956ff62f22234361d2893c5aeb9bec44a53d",
+              "id": "3973bf979cdcab2d79db6f7a5f6eb7e08f2faa2f1692042853a03daf336d6387",
               "state": "terminal",
               "revision": "0",
               "bid_nano": "1500000",
               "manual": false,
-              "started_ms": "1794689842835",
-              "deadline_ms": "1794690021689",
+              "started_ms": "1794693622968",
+              "deadline_ms": "1794693800294",
               "decision": {
-                "nowMs": 1794689844779,
+                "nowMs": 1794693627459,
                 "quote": {
                   "mode": "controlled",
                   "meter": {
@@ -513,7 +513,7 @@
                     "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "f5e1665870821cfb5f99348a4d3ffd79cc6054ac96e50199cf5e1b6c475be05d",
+                    "execution_sha256": "c99da0e93929f140ec3a0793bf9e3a34ceab38661779548f61773243797c537b",
                     "total_input_tokens": 96,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 96
@@ -550,8 +550,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1114880",
-                  "endToEndMs": 2644,
+                  "scoreNano": "1165820",
+                  "endToEndMs": 5191,
                   "reserveNano": "1216000",
                   "urgencyMultiplier": "1"
                 },
@@ -561,27 +561,27 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689844000"
+                  "observed_ms": "1794693627147"
                 },
-                "deadlineMs": 1794690021689,
+                "deadlineMs": 1794693800294,
                 "preference": "balanced",
-                "startedAtMs": 1794689842835,
+                "startedAtMs": 1794693622968,
                 "availableNano": "10000000",
                 "supplyAvailable": true,
                 "futureReserveBps": 2500
               },
-              "order_id": "317bf6bcc91762bd23682b80ea03d7df2daf091a6e0aa591ea83cbb0f151e9b6"
+              "order_id": "9c8ee897cd119886781b3a5534269faf23cad9a8a73f225e2a8c7a7606ffa444"
             },
             {
-              "id": "7d557575104cf4ab9d9b5527f1929cc56e0c4c003eae552a989f8503859905b0",
+              "id": "fca405d05ed3cdd83de6a6c1fb7c527d2c0268637c9575d14c22accfdce08b60",
               "state": "terminal",
               "revision": "0",
               "bid_nano": "1500000",
               "manual": false,
-              "started_ms": "1794689846434",
-              "deadline_ms": "1794690021689",
+              "started_ms": "1794693630479",
+              "deadline_ms": "1794693800294",
               "decision": {
-                "nowMs": 1794689848501,
+                "nowMs": 1794693632434,
                 "quote": {
                   "mode": "controlled",
                   "meter": {
@@ -592,7 +592,7 @@
                     "input_sha256": "c47c62faa8cf04e10c14dc72f9528ae2c0b7ec8798913fc62dd898009c519240",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "08bb64a9d2783a6c9c1a730ad2f070cbb9656baf6e15b0d2f3533fe72ce88fbf",
+                    "execution_sha256": "5c2bc4e65a9e47b148f702dd38ebf5637a99f0b573372c43f2f8ec90f4bd1b02",
                     "total_input_tokens": 151,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 151
@@ -629,8 +629,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1118340",
-                  "endToEndMs": 2767,
+                  "scoreNano": "1116100",
+                  "endToEndMs": 2655,
                   "reserveNano": "1217000",
                   "urgencyMultiplier": "1"
                 },
@@ -640,23 +640,23 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689848001"
+                  "observed_ms": "1794693632152"
                 },
-                "deadlineMs": 1794690021689,
+                "deadlineMs": 1794693800294,
                 "preference": "balanced",
-                "startedAtMs": 1794689846434,
+                "startedAtMs": 1794693630479,
                 "availableNano": "9004000",
                 "supplyAvailable": true,
                 "futureReserveBps": 2500
               },
-              "order_id": "69e0ab706b6e9bf95a7a4c2dcebc43f88244560c84389f4e377dd6d2abcf9d73"
+              "order_id": "be8072ae7817cf9d62521141afb09a636a2458d29e1212507427b4ef392ff965"
             }
           ],
           "orders": [
             {
-              "id": "317bf6bcc91762bd23682b80ea03d7df2daf091a6e0aa591ea83cbb0f151e9b6",
+              "id": "9c8ee897cd119886781b3a5534269faf23cad9a8a73f225e2a8c7a7606ffa444",
               "state": "refunded",
-              "nativeId": "3b11ccba-5f6e-4495-9865-ea5be65e7f7a",
+              "nativeId": "687e6c4d-1ee7-4c15-9a59-63449229e77f",
               "principal": {
                 "P": "608000000000000000000",
                 "C": "498000000000000000000",
@@ -678,37 +678,37 @@
               "anomalies": [],
               "timings": [
                 {
-                  "atMs": 1794689844788,
+                  "atMs": 1794693627489,
                   "clock": "postgres_wall_clock",
                   "stage": "quote_prepared"
                 },
                 {
-                  "atMs": 1794689844829,
+                  "atMs": 1794693627538,
                   "clock": "postgres_wall_clock",
                   "stage": "proof_presented"
                 },
                 {
-                  "atMs": 1794689845040,
+                  "atMs": 1794693627996,
                   "clock": "postgres_wall_clock",
                   "stage": "funds_recorded"
                 },
                 {
-                  "atMs": 1794689845312,
+                  "atMs": 1794693628512,
                   "clock": "postgres_wall_clock",
                   "stage": "native_admission_requested"
                 },
                 {
-                  "atMs": 1794689845324,
+                  "atMs": 1794693628526,
                   "clock": "postgres_wall_clock",
                   "stage": "admission_committed"
                 },
                 {
-                  "atMs": 1794689846218,
+                  "atMs": 1794693630035,
                   "clock": "postgres_wall_clock",
                   "stage": "financial_committed"
                 },
                 {
-                  "atMs": 1794689846414,
+                  "atMs": 1794693630390,
                   "clock": "postgres_wall_clock",
                   "stage": "native_response_read_finished"
                 }
@@ -724,7 +724,7 @@
                     "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "f5e1665870821cfb5f99348a4d3ffd79cc6054ac96e50199cf5e1b6c475be05d",
+                    "execution_sha256": "c99da0e93929f140ec3a0793bf9e3a34ceab38661779548f61773243797c537b",
                     "total_input_tokens": 96,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 96
@@ -760,8 +760,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1114880",
-                  "endToEndMs": 2644,
+                  "scoreNano": "1165820",
+                  "endToEndMs": 5191,
                   "reserveNano": "1216000",
                   "urgencyMultiplier": "1"
                 },
@@ -770,16 +770,16 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689844000"
+                  "observed_ms": "1794693627147"
                 },
                 "buyerRouteFeeNano": "0",
                 "projectEstimateYocto": "100000000000000000000"
               }
             },
             {
-              "id": "69e0ab706b6e9bf95a7a4c2dcebc43f88244560c84389f4e377dd6d2abcf9d73",
+              "id": "be8072ae7817cf9d62521141afb09a636a2458d29e1212507427b4ef392ff965",
               "state": "refund_due",
-              "nativeId": "400276b8-f5dc-4a8c-a288-dcfc3eb0a3ee",
+              "nativeId": "948216ef-3df0-4bff-9630-8096a642b5f9",
               "principal": {
                 "P": "608500000000000000000",
                 "C": "289500000000000000000",
@@ -801,37 +801,37 @@
               "anomalies": [],
               "timings": [
                 {
-                  "atMs": 1794689848506,
+                  "atMs": 1794693632812,
                   "clock": "postgres_wall_clock",
                   "stage": "quote_prepared"
                 },
                 {
-                  "atMs": 1794689848518,
+                  "atMs": 1794693632835,
                   "clock": "postgres_wall_clock",
                   "stage": "proof_presented"
                 },
                 {
-                  "atMs": 1794689848524,
+                  "atMs": 1794693632857,
                   "clock": "postgres_wall_clock",
                   "stage": "funds_recorded"
                 },
                 {
-                  "atMs": 1794689848643,
+                  "atMs": 1794693633180,
                   "clock": "postgres_wall_clock",
                   "stage": "native_admission_requested"
                 },
                 {
-                  "atMs": 1794689848664,
+                  "atMs": 1794693633192,
                   "clock": "postgres_wall_clock",
                   "stage": "admission_committed"
                 },
                 {
-                  "atMs": 1794689850337,
+                  "atMs": 1794693634860,
                   "clock": "postgres_wall_clock",
                   "stage": "financial_committed"
                 },
                 {
-                  "atMs": 1794689850757,
+                  "atMs": 1794693635310,
                   "clock": "postgres_wall_clock",
                   "stage": "native_response_read_finished"
                 }
@@ -847,7 +847,7 @@
                     "input_sha256": "c47c62faa8cf04e10c14dc72f9528ae2c0b7ec8798913fc62dd898009c519240",
                     "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
                     "normalization": "cloud_text_tools_json_micro_v3",
-                    "execution_sha256": "08bb64a9d2783a6c9c1a730ad2f070cbb9656baf6e15b0d2f3533fe72ce88fbf",
+                    "execution_sha256": "5c2bc4e65a9e47b148f702dd38ebf5637a99f0b573372c43f2f8ec90f4bd1b02",
                     "total_input_tokens": 151,
                     "reused_input_tokens": 0,
                     "billable_input_tokens": 151
@@ -883,8 +883,8 @@
                   "id": "controlled-native",
                   "action": "accept",
                   "version": "cost-speed-v1",
-                  "scoreNano": "1118340",
-                  "endToEndMs": 2767,
+                  "scoreNano": "1116100",
+                  "endToEndMs": 2655,
                   "reserveNano": "1217000",
                   "urgencyMultiplier": "1"
                 },
@@ -893,7 +893,7 @@
                   "available": true,
                   "singleton": true,
                   "usable_ms": "500",
-                  "observed_ms": "1794689848001"
+                  "observed_ms": "1794693632152"
                 },
                 "buyerRouteFeeNano": "0",
                 "projectEstimateYocto": "100000000000000000000"
@@ -904,7 +904,7 @@
         }
       ],
       "slowBootstrapRegression": {
-        "bootstrapElapsedMs": 1824,
+        "bootstrapElapsedMs": 3398,
         "syntheticObservationMs": 1
       }
     },
@@ -929,7 +929,7 @@
       "passed": true,
       "before": {
         "tools": 1,
-        "refunds": 0,
+        "refunds": 1,
         "payments": 1,
         "executions": 1
       },

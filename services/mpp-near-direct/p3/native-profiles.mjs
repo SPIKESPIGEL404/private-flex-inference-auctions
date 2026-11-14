@@ -100,6 +100,13 @@ export class NativeProfiles {
  async calibrate(id,body,quote,state,dir,db){
   await db.query('BEGIN');
   try{
+   const call=(await db.query('SELECT c.* FROM mpp_direct_p3_profiles p JOIN mpp_direct_p2_calls c ON c.id=p.call_id WHERE p.id=$1',[id])).rows[0];
+   requireThat(call,'original_native_call_required');
+   await db.query('SELECT pg_advisory_xact_lock(public.balance_cache_advisory_key($1))',[call.user_id]);
+   const task=(await db.query('SELECT t.*,a.active AS agent_active FROM mpp_direct_tasks t JOIN mpp_direct_agents a ON a.user_id=t.user_id WHERE t.id=$1 FOR UPDATE OF t',[call.task_id])).rows[0];
+   const current=(await db.query('SELECT state FROM mpp_direct_p2_calls WHERE id=$1 FOR SHARE',[call.id])).rows[0];
+   requireThat(task?.active&&task.agent_active&&!task.paused&&current?.state==='bidding'&&Date.now()<Number(task.deadline_ms)&&Date.now()<this.plan.limits.deadlineMs,'native_calibration_authorization_closed');
+   await this.auth.requireGrant(this.plan.ownerAccount,'owner',db);
    await this.auth.requireGrant(this.plan.projectAccount,'project',db);
    const budget=(await db.query('SELECT * FROM mpp_direct_p3_provider_budget WHERE singleton FOR UPDATE')).rows[0];
    requireThat(budget&&budget.calls<budget.maximum_calls&&BigInt(budget.spent_micro)+BigInt(budget.reserved_micro)+BigInt(quote.provider_micro)<=BigInt(budget.maximum_micro),'provider_calibration_allowance_exhausted');

@@ -11,7 +11,7 @@ import {Authorizations} from './auth.mjs';
 import {validatePlan} from './plan.mjs';
 import {Funding} from './funding.mjs';
 
-const DIST=fileURLToPath(new URL('../../../clients/agent-playground/dist/',import.meta.url));
+const DIST=fileURLToPath(new URL('../../../clients/agent-playground/dist-p3/',import.meta.url));
 const json=(res,status,value)=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));};
 async function read(req){let s='';for await(const b of req){s+=b;requireThat(Buffer.byteLength(s)<=128*1024,'body_too_large');}return JSON.parse(s||'{}');}
 // No inference endpoint or agent transfer/signing relay is open during setup.
@@ -54,7 +54,10 @@ export async function startSetup(config,{onActivate}={}) {
   res.setHeader('referrer-policy','no-referrer');res.setHeader('x-content-type-options','nosniff');
   if(req.method==='POST')requireThat(req.headers.origin===p.origin&&req.headers['content-type']?.split(';')[0]==='application/json','origin_denied');
   if(req.method==='GET'&&req.url==='/healthz')return json(res,200,{phase:'P3-setup',canPurchase:false,walletProvider:'outlayer'});
-  if(req.method==='GET'&&req.url==='/buyer-api/config')return json(res,200,{phase:'setup',network:p.network,mode:c.mode,plan:p});
+  if(req.method==='GET'&&req.url==='/buyer-api/config'){
+   let authorized=false;try{const token=decodeURIComponent(String(req.headers.cookie??'').split(';').map(x=>x.trim()).find(x=>x.startsWith('p3_owner='))?.slice(9)??'');authorized=(await auth.session(token)).owner_id===p.ownerAccount;}catch{}
+   return json(res,200,{phase:'setup',network:p.network,mode:c.mode,...(authorized?{plan:p}:{})});
+  }
   if(req.method==='POST'&&req.url==='/buyer-api/auth/challenge')return json(res,200,await auth.challenge('login'));
   if(req.method==='POST'&&req.url==='/buyer-api/auth/verify') {
    const b=await read(req),result=await auth.verify(b.id,b.signed);requireThat(result.owner===p.ownerAccount,'wrong_owner');

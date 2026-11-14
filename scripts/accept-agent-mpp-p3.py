@@ -106,6 +106,16 @@ def owner_revocation(binary):
   assert x.api('sessions/session-1')[0]==200
   return {'case':'owner-revocation-stops-new-effects-keeps-read-recovery','passed':True}
 
+def project_revocation(binary):
+ with P3(binary) as x:
+  assert 'plan' not in request(x.url+'/buyer-api/config')[1]
+  assert x.api('authorization/revoke',{'role':'project'})[0]==200
+  assert x.m.sql("SELECT active FROM mpp_direct_p3_grants WHERE role='owner'")=='t'
+  assert x.m.sql("SELECT active FROM mpp_direct_p3_grants WHERE role='project'")=='f'
+  assert x.m.sql("SELECT count(*) FROM mpp_direct_tasks WHERE paused")=='2'
+  assert x.counts()['payments']==0
+  return {'case':'project-cost-revocation-fences-both-agents-private-plan-owner-only','passed':True}
+
 def happy(binary):
  with P3(binary) as x:
   with ThreadPoolExecutor(max_workers=2) as pool:r=list(pool.map(x.fx,[1,2]))
@@ -120,4 +130,4 @@ def happy(binary):
   return {'case':'two-fx-native-outlayer-principal-gas-refunds-restart','passed':True,'counts':x.counts()}
 if __name__=='__main__':
  a=argparse.ArgumentParser();a.add_argument('binary');a.add_argument('--evidence',default=str(ROOT/'docs/acceptance/2026-11-14-outlayer-p3-matrix.json'));args=a.parse_args()
- checks=[happy(args.binary),signature_failure(args.binary),lost_ack(args.binary),owner_revocation(args.binary)];Path(args.evidence).write_text(json.dumps({'scope':'local-original-market-and-outlayer-shaped-doubles','realChain':False,'realProvider':False,'cases':checks},indent=2)+'\n');print(json.dumps({'passed':len(checks),'evidence':args.evidence}))
+ checks=[happy(args.binary),signature_failure(args.binary),lost_ack(args.binary),owner_revocation(args.binary),project_revocation(args.binary)];Path(args.evidence).write_text(json.dumps({'scope':'local-original-market-and-outlayer-shaped-doubles','realChain':False,'realProvider':False,'cases':checks},indent=2)+'\n');print(json.dumps({'passed':len(checks),'evidence':args.evidence}))
