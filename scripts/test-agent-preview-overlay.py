@@ -17,6 +17,13 @@ class Overlay(unittest.TestCase):
   self.assertEqual(original['services']['market'],new['services']['market']);self.assertEqual(original['volumes']['gateway'],new['volumes']['gateway'])
   self.assertEqual(updated['allowed_envs'],self.before['allowed_envs']);self.assertTrue(updated['pre_launch_script'].startswith(installed['pre_launch_script']))
   self.assertEqual(second['operation'],'update');self.assertTrue(second['existingPreviewUnchangedExceptImageRevision'])
+ def test_fallback_changes_only_explicit_preview_field(self):
+  installed,_=self.prepare(self.before)
+  changed,report=m.prepare(installed,'sha256:'+'f'*64,'https://github.com/owner/repo/releases/download/release/image.tar.gz','c'*64,'d'*64,'e'*40,'https://preview.example.com','https://fallback.example.com')
+  old=yaml.safe_load(installed['docker_compose_file']);new=yaml.safe_load(changed['docker_compose_file'])
+  self.assertEqual(old['services']['market'],new['services']['market'])
+  self.assertEqual(new['services']['agent-preview']['environment']['AGENT_PREVIEW_FALLBACK_ORIGIN'],'https://fallback.example.com')
+  self.assertFalse(report['existingPreviewUnchangedExceptImageRevision']);self.assertEqual(report['explicitFallbackOrigin'],'https://fallback.example.com')
  def test_update_refuses_owner_or_origin_drift(self):
   installed,_=self.prepare(self.before);c=yaml.safe_load(installed['docker_compose_file']);c['services']['agent-preview']['environment']['AGENT_PREVIEW_ORIGIN']='https://other.example.com';installed['docker_compose_file']=yaml.safe_dump(c)
   with self.assertRaisesRegex(ValueError,'origin or ownership'):self.prepare(installed)

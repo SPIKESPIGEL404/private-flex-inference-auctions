@@ -60,3 +60,9 @@ test('logout cancellation fences an already consumed challenge while FINAL key l
  assert.equal(store.list('session',keys.owner.account_id).length,0);
  auth.cancel('arbitrary-forged-cookie');assert.equal(store.list('revoked-challenge','').length,1);
 });
+
+test('a trusted fallback challenge signs its actual recipient and origin',async t=>{
+ const store=new Store(':memory:',randomBytes(32));t.after(()=>store.close());const keys=ownerKeys(),auth=new Auth(store,{fullAccess:async()=>{}},'https://canonical.example'),alias='https://fallback.example';
+ const c=auth.challenge(alias);assert.equal(c.payload.recipient,'fallback.example');assert.equal(JSON.parse(c.payload.message).origin,alias);
+ const session=await auth.verify(c.token,{accountId:keys.owner.account_id,publicKey:keys.owner.public_key,signature:keys.sign(c.payload)});assert.deepEqual(auth.owner(session.token),keys.owner);
+});

@@ -5,7 +5,7 @@ import { verifyMessage } from './near.mjs';
 const digest = value => createHash('sha256').update(value).digest('hex');
 export class Auth {
   constructor(store, rpc, origin, now = Date.now) { Object.assign(this, { store, rpc, origin, now }); }
-  challenge() {
+  challenge(origin = this.origin) {
     for(const value of this.store.list('revoked-challenge',''))if(value.expiresAt<=this.now())this.store.delete('revoked-challenge',value.id);
     for(const row of this.store.list('inflight-login',''))if(row.expiresAt<=this.now())this.store.delete('inflight-login',row.id);
     const pending = this.store.list('challenge', '');
@@ -13,8 +13,8 @@ export class Auth {
     check(pending.filter(challenge => challenge.expiresAt > this.now()).length + this.store.list('inflight-login','').length < 2000, 'login_capacity_exceeded', 429);
     const token = randomBytes(32).toString('base64url');
     const expiresAt = this.now() + 5 * 60_000;
-    const payload = { nonce: randomBytes(32).toString('base64'), recipient: new URL(this.origin).host,
-      message: JSON.stringify({ action: 'Sign in to Private Market', origin: this.origin, network: 'mainnet', expires_at: new Date(expiresAt).toISOString(), session_nonce: randomBytes(16).toString('base64url') }) };
+    const payload = { nonce: randomBytes(32).toString('base64'), recipient: new URL(origin).host,
+      message: JSON.stringify({ action: 'Sign in to Private Market', origin, network: 'mainnet', expires_at: new Date(expiresAt).toISOString(), session_nonce: randomBytes(16).toString('base64url') }) };
     this.store.put('challenge', digest(token), '', { id: digest(token), payload, expiresAt });
     return { token, payload, expiresAt };
   }

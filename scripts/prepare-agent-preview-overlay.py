@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 import yaml
 
 
-def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origin):
+def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origin, fallback_origin=None):
     for value in [archive_sha, owner_hash]:
         if not re.fullmatch('[a-f0-9]{64}', value):
             raise ValueError('expected SHA-256')
@@ -30,6 +30,10 @@ def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origi
     public = urlsplit(origin)
     if not (public.scheme == 'https' and public.netloc == public.hostname and public.geturl() == 'https://' + public.hostname):
         raise ValueError('expected exact public HTTPS origin')
+    if fallback_origin is not None:
+        fallback=urlsplit(fallback_origin)
+        if not (fallback.scheme=='https' and fallback.netloc==fallback.hostname and fallback.geturl()=='https://'+fallback.hostname):
+            raise ValueError('expected exact fallback HTTPS origin')
     compose = yaml.safe_load(before['docker_compose_file'])
     updating = 'agent-preview' in compose['services']
     if not updating and ('agent-preview-data' in compose['volumes'] or 'agent-preview-private' in compose.get('networks', {})):
@@ -61,6 +65,8 @@ def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origi
         # A dedicated ordinary bridge permits the host-published preview port.
         # It is not an egress firewall; controlled inference targets loopback.
         overlay.setdefault('networks', {})['agent-preview-private'] = {}
+    if fallback_origin is not None:
+        overlay['services']['agent-preview']['environment']['AGENT_PREVIEW_FALLBACK_ORIGIN']=fallback_origin
     after['docker_compose_file'] = yaml.safe_dump(overlay, sort_keys=False)
     loader = f'''
 # Controlled agent preview. No gateway state or environment is modified below.
@@ -89,6 +95,11 @@ def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origi
         same = copy.deepcopy(overlay['services']['agent-preview'])
         same['image'] = compose['services']['agent-preview']['image']
         same['environment']['AGENT_PREVIEW_REVISION'] = compose['services']['agent-preview']['environment']['AGENT_PREVIEW_REVISION']
+        if fallback_origin is not None:
+            if 'AGENT_PREVIEW_FALLBACK_ORIGIN' in compose['services']['agent-preview']['environment']:
+                same['environment']['AGENT_PREVIEW_FALLBACK_ORIGIN']=compose['services']['agent-preview']['environment']['AGENT_PREVIEW_FALLBACK_ORIGIN']
+            else:
+                same['environment'].pop('AGENT_PREVIEW_FALLBACK_ORIGIN',None)
         assert same == compose['services']['agent-preview']
     assert all(overlay['volumes'][key] == value for key, value in compose['volumes'].items())
     assert all(overlay['networks'][key] == value for key, value in compose.get('networks', {}).items())
@@ -100,7 +111,8 @@ def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origi
     report = {'passed': True, 'sourceRevision': revision, 'image': image, 'archiveSha256': archive_sha,
               'expectedComposeHash': hashlib.sha256(canonical.encode()).hexdigest(),
               'operation': 'update' if updating else 'install',
-              'existingPreviewUnchangedExceptImageRevision': updating,
+              'existingPreviewUnchangedExceptImageRevision': updating and fallback_origin is None,
+              'explicitFallbackOrigin': fallback_origin,
               'originalServiceDefinitionsUnchanged': [key for key in compose['services'] if key != 'agent-preview'],
               'originalVolumesUnchanged': list(compose['volumes']), 'sealedEnvironmentNamesUnchanged': True,
               'manifestMetadataUnchanged': True, 'preLaunchPrefixUnchanged': True,
@@ -115,9 +127,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ['before', 'output', 'image', 'archive-url', 'archive-sha', 'owner-hash', 'revision', 'origin']:
         p.add_argument('--' + name, required=True)
+    p.add_argument('--fallback-origin')
     args = p.parse_args()
     after, report = prepare(json.loads(Path(args.before).read_text()), args.image, args.archive_url,
-                            args.archive_sha, args.owner_hash, args.revision, args.origin)
+                            args.archive_sha, args.owner_hash, args.revision, args.origin, args.fallback_origin)
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True, mode=0o700)
     for name, value in [('app-compose.json', json.dumps(after)), ('compose.yaml', after['docker_compose_file']),

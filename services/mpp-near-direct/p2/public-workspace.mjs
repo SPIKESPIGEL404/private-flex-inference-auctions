@@ -9,6 +9,7 @@ export class PublicWorkspace {
   constructor(config, pool) {
     this.pool = pool;
     this.origin = config.origin;
+    this.origins = new Set(config.origins ?? [config.origin]);
     this.rpc = new NearRpc(config.rpcUrl ?? "https://rpc.mainnet.near.org");
     this.store = new Store(
       config.storePath,
@@ -91,7 +92,8 @@ export class PublicWorkspace {
   wallets(owner) {
     return this.store.get("native-wallets", hash(owner), owner)?.agents ?? [];
   }
-  async register(owner, agents) {
+  async register(owner, agents, origin = this.origin) {
+    requireThat(this.origins.has(origin),"origin_denied");
     requireThat(
       Array.isArray(agents) && agents.length === 2,
       "invalid_native_wallets",
@@ -126,7 +128,7 @@ export class PublicWorkspace {
       );
       const message = JSON.stringify({
         action: "register-agent-wallet",
-        origin: this.origin,
+        origin,
         network: "mainnet",
         owner,
         id: a.id,

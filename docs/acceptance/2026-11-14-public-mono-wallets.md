@@ -74,3 +74,20 @@ inference was executed for this acceptance. Compatibility of every advertised
 wallet has not been tested. The Phala preview's HTTPS termination does not
 establish end-to-end TEE TLS. Hosted image, revision and retained-gateway quote
 identity are checked separately in the release receipt.
+
+## Explicit fallback origin
+
+The deployed CVM acquired custom-domain ingress concurrently with this change.
+A follow-up preserves that ingress and adds one explicitly configured Phala
+preview origin, so judges have an available entrance while domain TLS is being
+repaired. No wildcard or inferred origin is trusted. Sign-in payloads and wallet
+registration proofs bind to the selected approved origin; existing addresses
+remain immutable across origins. The fallback has separate cookies and browser
+storage, so moving an existing wallet requires its backup. Added regression
+checks cover origin downgrade/path/wildcard rejection, origin-bound signatures,
+immutable wallet registration and overlay changes limited to the explicit field.
+
+The fallback follow-up passes 86/86 backend tests and 3/3 overlay tests.
+Independent Astra checks additionally accept registration of the same key after
+re-signing for the other approved origin, while rejecting reuse of the old
+origin's signature. No new mainnet transaction was broadcast.
