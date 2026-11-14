@@ -22,6 +22,18 @@ This command runs offline registration checks with zero inference calls. A new
 live run requires a prepared plan and explicit cost authorization as documented.
 Private deployment and final demo delivery remain batches D/E.
 
+## Browser playground
+
+The separate [browser playground](clients/market-playground/README.md) provides
+an fx-inspired, monochrome UI with independent fx/wterm/just-bash buyer terminals.
+Set the buyer count in the header to retile 1–8 panes automatically. The default
+mode now uses a [hosted buyer gateway](clients/buyer-gateway/README.md) for NEAR
+owner login, independent agent wallets/grants and equal funding plans. Funding
+defaults off and real inference procurement remains disabled. The original
+scripted preview is available only through an explicit development switch;
+wallet-mode failures do not fall back to scripted responses. No deployed Market
+or real funds were changed by this implementation batch.
+
 ## Verify the Market before buying
 
 The optional ACI identity endpoint and Node buyer now support fresh hardware
