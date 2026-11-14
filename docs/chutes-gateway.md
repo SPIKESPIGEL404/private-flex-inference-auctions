@@ -82,6 +82,46 @@ single GPU and maximum one instance; it has no hourly price selector ceiling
 and retains idle instances for one hour. The manager does not accept a new
 deployment fee. The historical scheduler definition remains separate.
 
+### Read-only native metrics
+
+The private Chute registers `GET /metrics` alongside native Chat. Scrape it
+with a Chutes API key authorized for this private Chute:
+
+```sh
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer ${CHUTES_API_KEY}" \
+  https://kelsen-qwen-qwen3-8-27b-fp8.chutes.ai/metrics
+```
+
+This returns the native Prometheus/OpenMetrics text and model labels. The Cord
+always makes a GET to this replica's fixed loopback vLLM `/metrics`, using the
+engine's own authentication and optional mTLS context. Caller URLs, parameters,
+headers and methods are ignored. Redirects, non-text responses, upstream errors,
+responses over 4 MiB and requests exceeding ten seconds fail with a generic
+502. The handler sets `Cache-Control: no-store`; Chutes' external relay replaces
+this with `no-cache, no-transform`. `Response.media_type` is set explicitly so
+the relay reconstructs the native Content-Type. No POST metrics Cord exists.
+Chutes enforces private-Chute authentication before dispatch; a Market buyer
+token does not authorize this operational endpoint.
+
+This endpoint is on the Chutes origin. The Market still advertises only
+`qwen3.8-27b`. A scrape is ordinary authenticated monitoring, not a signed TEE
+execution receipt or a trusted capacity reservation. It does not submit an
+inference, reset counters, or automatically change auction admission. Updating
+the Chute source requires reviewing and updating the gateway's exact source and
+version pins before its next provider invocation.
+
+For Prometheus, use [the scrape example](../deploy/chutes/prometheus.example.yml)
+and mount the Chutes key at its `authorization.credentials_file` path. It uses
+HTTPS and disables redirects; the key is never stored in the YAML. These fields
+follow the [Prometheus scrape configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+
+Run the six native metrics contract tests in the existing SDK environment:
+
+```sh
+.phase4-tools/bin/python -m unittest discover -s deploy/chutes -p test_metrics.py -v
+```
+
 ```sh
 .market-runs/chutes-gateway/venv/bin/python deploy/chutes/prepare_gateway.py \
   --key-file /private/chutes.key \
@@ -159,4 +199,7 @@ verified. Keyset renewal behavior remains current main's behavior.
 The [historical live run](acceptance/2026-11-14-chutes-live.md) records actual
 hardware/E2EE, test settlement and CVM replay for the older binary, plus its
 retained early Unknown test. The current main-based port has separate controlled
-[acceptance](acceptance/2026-11-14-chutes-main-port.md); it has not replaced that online image or claimed a new live run.
+[acceptance](acceptance/2026-11-14-chutes-main-port.md); that gateway build has
+not replaced the historical online image. The subsequent
+[metrics deployment](acceptance/2026-11-14-chutes-metrics.md) updates the native
+Chute source and that existing gateway's measured provider pins.

@@ -36,6 +36,8 @@ def prepare(definition="scheduler"):
         assert paths == {"/scheduler/profile", "/scheduler/tokenize", "/scheduler/completions", "/scheduler/state", "/scheduler/seal", "/metrics"}
     else:
         assert "/v1/chat/completions" in paths and not any(p.startswith("/scheduler/") for p in paths)
+        metrics = [c for c in app.cords if c.public_api_path == "/metrics"]
+        assert len(metrics) == 1 and metrics[0]._public_api_method == "GET"
     body = {
         "name": app.name, "tagline": app.tagline, "readme": app.readme, "logo_id": None,
         "image": app.image, "public": False, "standard_template": app.standard_template,
