@@ -3,6 +3,7 @@
 mod attestation;
 mod catalog;
 mod e2ee;
+mod financial_receipt;
 mod fixtures;
 mod live;
 mod provision;
@@ -11,7 +12,10 @@ mod purchase_auth;
 use anyhow::{Context, Result, ensure};
 use axum::{Router, routing::get};
 use bitrouter_cloud::{
-    auth::{principal_cache::PrincipalCache, remote_resolver::RemoteIntrospectionResolver},
+    auth::{
+        CredentialResolver, principal_cache::PrincipalCache,
+        remote_resolver::RemoteIntrospectionResolver,
+    },
     core_gateway::market_inference::launch,
     db::{BillingMigrationPhase, FabricDb},
     service::redis_balance::RedisBalanceCache,
@@ -449,7 +453,7 @@ async fn serve(dir: &Path) -> Result<()> {
     let authority_url = format!("http://{}", authority.local_addr()?);
     let internal = Uuid::new_v4().to_string();
     let authority_router = fixtures::authority(state.buyers.clone(), internal.clone());
-    let resolver = Arc::new(
+    let resolver: Arc<dyn CredentialResolver> = Arc::new(
         RemoteIntrospectionResolver::new(
             authority_url.clone(),
             internal.clone(),
@@ -499,7 +503,7 @@ async fn serve(dir: &Path) -> Result<()> {
             }
         }
     });
-    let market = launch::start_configured(db.clone(), redis, resolver, ISSUER)
+    let market = launch::start_configured(db.clone(), redis, resolver.clone(), ISSUER)
         .await?
         .context("market catalog is required")?;
     // The Market loaded INFERENCE_MARKET_CONFIG_PATH itself. Refuse to listen
@@ -537,6 +541,15 @@ async fn serve(dir: &Path) -> Result<()> {
     let signed_without_aci = env::var("PRIVATE_MARKET_SIGNED_PURCHASES").as_deref() == Ok("1");
     let router = match mounted {
         Some(mounted) => {
+            let router = financial_receipt::mount(
+                router,
+                db.clone(),
+                resolver.clone(),
+                catalog::EXCHANGE,
+                ISSUER,
+                mounted.keyset_digest.clone(),
+                mounted.receipt_key.clone(),
+            );
             let guard = purchase_auth::Guard::new(
                 mounted.keyset_digest,
                 process_start,

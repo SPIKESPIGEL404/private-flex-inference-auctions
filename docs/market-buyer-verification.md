@@ -219,3 +219,22 @@ to the quote-bound E2EE key.
 
 **Does not:** hide the prompt (it still reaches Market and the provider);
 encrypt responses; replace pinned TLS; or prove hardware by itself.
+
+## Signed Market financial receipts
+
+After a committed purchase, `GET /market/v1/receipts/{request_id}/signed`
+returns the Market's stored `MarketReceipt` JSON wrapped in a signed envelope
+(`purpose=market.receipt.v1`, plus `request_id`, `idempotency_key`,
+`workload_keyset_digest`, `key_id`, and hex ed25519 `signature` over JCS of the
+document without `signature`). The nested `receipt` bytes are unchanged Market
+records (provider/platform/cash charges, etc.). This proves **what** the
+attested Market recorded and signed, not **when** (there is no external
+timestamp). The receipt signing key is ephemeral per attestation identity and
+rotates when the keyset rotates; archive the verified keyset (CLI `receipt
+--out`) with the signed document to re-check old receipts later.
+
+`node cli.mjs receipt --policy … --credential-file … --request-id … [--out FILE]`
+runs Market verification first, then fetches and verifies the signature against
+`receipt_signing_keys` from that verified keyset. Integers outside JavaScript's
+safe range fail closed. Unauthenticated calls get `401`; unknown, other-buyer,
+malformed, pending, or non-final ids get the same generic `404` body.

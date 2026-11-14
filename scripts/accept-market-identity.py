@@ -13,7 +13,7 @@ import sys
 import threading
 import time
 import urllib.request
-from market_b_support import Market, http, run
+from market_b_support import Market, http, run, wait_for
 
 ROOT = Path(__file__).resolve().parent.parent
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -239,6 +239,60 @@ def main(binary):
             e2ee_driver_file.write_text(json.dumps(e2ee_driver))
             print(run('node', e2ee_script, str(e2ee_driver_file), 'replay-nonce', env=env))
             assert market.effects() == 1 and market.balance() == 24963
+            # Signed financial receipt: verify, then refusal shapes (byte-identical 404s).
+            committed = market.receipt('d-controlled')
+            assert committed['settlement'] == 'committed'
+            request_id = committed['request_id']
+            receipt_script = str(ROOT / 'clients/market-buyer/test/signed-receipt.mjs')
+            receipt_driver = {
+                'marketUrl': market.url, 'token': market.buyers[0]['token'],
+                'requestId': request_id, 'keyset': first_keyset,
+                'verifiedKeyset': first['attestation']['workload_keyset'],
+            }
+            receipt_driver_file = root / 'receipt-driver.json'
+            receipt_driver_file.write_text(json.dumps(receipt_driver))
+            print(run('node', receipt_script, str(receipt_driver_file), 'ok', env=env))
+            print(run('node', receipt_script, str(receipt_driver_file), 'tampered-amount', env=env))
+            print(run('node', receipt_script, str(receipt_driver_file), 'wrong-request-id', env=env))
+            print(run('node', receipt_script, str(receipt_driver_file), 'wrong-keyset', env=env))
+            print(run('node', receipt_script, str(receipt_driver_file), 'no-auth', env=env))
+            unknown_body = root / 'receipt-404-unknown.body'
+            receipt_driver['requestId'] = '00000000-0000-0000-0000-000000000099'
+            receipt_driver['saveBodyFile'] = str(unknown_body)
+            receipt_driver_file.write_text(json.dumps(receipt_driver))
+            print(run('node', receipt_script, str(receipt_driver_file), 'unknown-id', env=env))
+            receipt_driver['requestId'] = request_id
+            receipt_driver['token'] = market.buyers[1]['token']
+            receipt_driver['compareBodyFile'] = str(unknown_body)
+            receipt_driver.pop('saveBodyFile', None)
+            receipt_driver_file.write_text(json.dumps(receipt_driver))
+            print(run('node', receipt_script, str(receipt_driver_file), 'other-buyer', env=env))
+            receipt_driver['token'] = market.buyers[0]['token']
+            receipt_driver['requestId'] = 'not-a-uuid'
+            receipt_driver.pop('compareBodyFile', None)
+            receipt_driver_file.write_text(json.dumps(receipt_driver))
+            print(run('node', receipt_script, str(receipt_driver_file), 'malformed-id', env=env))
+            # Pending / non-final settlement must 404: hold the seller mid-stream.
+            market.seller.release.clear()
+            e2ee_driver['idempotencyKey'] = 'e2ee-pending-receipt'
+            e2ee_driver.pop('capture', None)
+            e2ee_driver_file.write_text(json.dumps(e2ee_driver))
+            pending_proc = subprocess.Popen(
+                ['node', e2ee_script, str(e2ee_driver_file), 'ok'], env=env,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            def pending_id():
+                value = market.sql(
+                    "SELECT coalesce((SELECT request_id FROM market_inference_requests "
+                    "WHERE idempotency_key='e2ee-pending-receipt'),'')")
+                return value or None
+            pending_request = wait_for(pending_id, 20)
+            receipt_driver['requestId'] = pending_request
+            receipt_driver['token'] = market.buyers[0]['token']
+            receipt_driver_file.write_text(json.dumps(receipt_driver))
+            print(run('node', receipt_script, str(receipt_driver_file), 'pending', env=env))
+            market.seller.release.set()
+            assert pending_proc.wait(timeout=30) == 0
+            wait_for(lambda: market.receipt('e2ee-pending-receipt').get('settlement') == 'committed', 20)
             market.stop()
             rpc.bad_slot = True
             refused = subprocess.run([binary, 'serve', str(market.state)], env=market.env, capture_output=True, timeout=40)
@@ -251,7 +305,7 @@ def main(binary):
             assert resealed['attestation']['workload_keyset']['subject'] == 'market-policy:' + resealed_digest
             assert resealed_digest != catalog_digest
             assert resealed['workload_keyset_digest'] != first_keyset
-            assert sum(p.sensitive_posts for p in proxies) == 2 and market.effects() == 1
+            assert sum(p.sensitive_posts for p in proxies) == 2 and market.effects() == 2
             market.stop()
             quiet = time.monotonic() + 20
             while other_sessions(market) and time.monotonic() < quiet:
@@ -285,7 +339,7 @@ def main(binary):
             assert 'catalog identity changed during startup' in gap_text
             assert '"url"' not in gap_text
             assert market.buyers[0]['token'] not in gap_text
-            assert market.effects() == 1
+            assert market.effects() == 2
         finally:
             for server in proxies:
                 server.shutdown()
@@ -293,11 +347,11 @@ def main(binary):
             rpc.shutdown()
             rpc.server_close()
     print(json.dumps({'buyer_market_identity': 'controlled-pass', 'hardware_attestation': False,
-        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 26,
+        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 33,
         'signed_purchase_refusals': 8, 'e2ee_purchase_refusals': 8,
-        'controlled_tls_purchases': 1, 'controlled_tls_posts': 2,
-        'idempotent_signed_retry': True, 'e2ee': True,
-        'provider_micro_usd': 35, 'platform_micro_usd': 2, 'balance_micro_usd': 24963}))
+        'signed_receipt_refusals': 7, 'controlled_tls_purchases': 1, 'controlled_tls_posts': 2,
+        'idempotent_signed_retry': True, 'e2ee': True, 'signed_receipt': True,
+        'provider_micro_usd': 35, 'platform_micro_usd': 2, 'balance_micro_usd': 24926}))
 
 
 if __name__ == '__main__':

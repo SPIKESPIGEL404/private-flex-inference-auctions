@@ -1,5 +1,6 @@
-//! First-hop ACI identity only. No upstream verification or financial receipt.
+//! First-hop ACI identity only. No upstream verification.
 use super::*;
+use crate::financial_receipt::ReceiptSigningKey;
 use aci_protocol::{digest, identity, types::*};
 use axum::{extract::Query, http::StatusCode, response::IntoResponse};
 use dstack_sdk_types::dstack::{GetQuoteResponse, InfoResponse};
@@ -28,8 +29,6 @@ struct Identity {
     digest: String,
     domain: String,
     not_after: u64,
-    // Generated inside this process; the first-hop surface issues no receipts.
-    _receipt_key: ed25519_dalek::SigningKey,
 }
 
 #[derive(Deserialize)]
@@ -227,14 +226,14 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Optio
             domain: Some(domain.clone()),
         }],
     })?;
+    let digest = identity::workload_keyset_digest(&keyset)?;
     let identity = Arc::new(Identity {
         rpc,
         rpc_base,
-        digest: identity::workload_keyset_digest(&keyset)?,
+        digest: digest.clone(),
         keyset,
         domain,
         not_after,
-        _receipt_key: key,
     });
     // Startup must obtain a real RPC response. There is no development/fallback
     // quote generator in this executable; tests own their separate RPC server.
@@ -242,7 +241,7 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Optio
         .report(&Uuid::new_v4().simple().to_string().repeat(2))
         .await
         .context("initialize dstack identity")?;
-    let digest = Arc::<str>::from(identity.digest.as_str());
+    let digest = Arc::<str>::from(digest);
     let handler = move |Query(challenge): Query<Challenge>| {
         let identity = identity.clone();
         async move {
@@ -263,15 +262,17 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Optio
             .route("/v1/aci/attestation", get(handler)),
         Some(Mounted {
             keyset_digest: digest,
+            receipt_key: Arc::new(ReceiptSigningKey::new(key)),
             e2ee_secret,
             e2ee_public_hex,
         }),
     ))
 }
 
-/// Attestation mount result: keyset digest plus in-process E2EE material.
+/// Attestation mount result: keyset digest plus in-process crypto material.
 pub struct Mounted {
     pub keyset_digest: Arc<str>,
+    pub receipt_key: Arc<ReceiptSigningKey>,
     pub e2ee_secret: x25519_dalek::StaticSecret,
     pub e2ee_public_hex: String,
 }

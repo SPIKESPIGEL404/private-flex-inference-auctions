@@ -283,8 +283,11 @@ docker cp "$WORK/purchase.json" "${pcid}:/work/purchase.json"
 docker cp "$WORK/buyer-0.secret" "${pcid}:/work/buyer-0.secret"
 docker cp "$ROOT/clients/market-buyer/purchase-sign.mjs" "${pcid}:/clients/purchase-sign.mjs"
 docker cp "$ROOT/clients/market-buyer/purchase-e2ee.mjs" "${pcid}:/clients/purchase-e2ee.mjs"
+docker cp "$ROOT/clients/market-buyer/receipt-verify.mjs" "${pcid}:/clients/receipt-verify.mjs"
 docker cp "$ROOT/clients/market-buyer/test/encrypted-purchase.mjs" \
   "${pcid}:/clients/test/encrypted-purchase.mjs"
+docker cp "$ROOT/clients/market-buyer/test/signed-receipt.mjs" \
+  "${pcid}:/clients/test/signed-receipt.mjs"
 set +e
 docker exec -e NODE_TLS_REJECT_UNAUTHORIZED=0 -w /clients "$pcid" \
   node /clients/test/encrypted-purchase.mjs /work/purchase.json plaintext-caps
@@ -293,9 +296,37 @@ docker exec -e NODE_TLS_REJECT_UNAUTHORIZED=0 -w /clients "$pcid" \
   node /clients/test/encrypted-purchase.mjs /work/purchase.json ok
 purchase_rc=$?
 set -e
-docker rm -f "$pcid" >/dev/null
 test "$plain_rc" -eq 0
 test "$purchase_rc" -eq 0
+# Resolve the committed request id, then fetch and verify the signed receipt.
+REQUEST_ID=""
+for i in $(seq 1 60); do
+  REQUEST_ID="$(docker compose --project-directory "$DEPLOY" \
+    -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.local.yml" \
+    --env-file "$WORK/local.env" exec -T postgres \
+    bash -c 'export PGPASSWORD="$(cat /var/lib/market/secrets/postgres_password.pg 2>/dev/null || cat /var/lib/market/secrets/postgres_password)"
+      psql -U market -d private_market_deploy -h 127.0.0.1 -X -A -t -v ON_ERROR_STOP=1 \
+      -c "SELECT coalesce((SELECT s.request_id FROM market_inference_requests s JOIN market_inference_receipts r USING(request_id,revision) WHERE s.idempotency_key='"'"'dstack-local-e2ee-1'"'"' AND r.receipt->>'"'"'settlement'"'"'='"'"'committed'"'"'),'"'"''"'"')"')"
+  REQUEST_ID="$(printf '%s' "$REQUEST_ID" | tr -d '[:space:]')"
+  if [ -n "$REQUEST_ID" ]; then
+    break
+  fi
+  sleep 1
+done
+test -n "$REQUEST_ID"
+cat >"$WORK/receipt.json" <<EOF
+{
+  "marketUrl": "https://127.0.0.1",
+  "token": "$TOKEN0",
+  "requestId": "$REQUEST_ID",
+  "keyset": "$KEYSET_DIGEST",
+  "verifiedKeyset": $(cat "$WORK/verified-keyset.json")
+}
+EOF
+docker cp "$WORK/receipt.json" "${pcid}:/work/receipt.json"
+docker exec -e NODE_TLS_REJECT_UNAUTHORIZED=0 -w /clients "$pcid" \
+  node /clients/test/signed-receipt.mjs /work/receipt.json ok
+docker rm -f "$pcid" >/dev/null
 # Catalog policy digest from healthz must still match golden file bytes.
 test "$DIGEST" = "$(python3 -c 'import hashlib,pathlib; print("sha256:"+hashlib.sha256(pathlib.Path("deploy/market/catalog.json").read_bytes()).hexdigest())')"
 
@@ -335,4 +366,4 @@ if [ "$refused" != 1 ]; then
   exit 1
 fi
 
-echo "{\"market_dstack_local\":\"pass\",\"attested\":false,\"https_443\":true,\"e2ee_purchase\":true,\"plaintext_purchase_refused\":true,\"catalog_policy_digest\":\"$DIGEST\",\"keyset_digest\":\"$KEYSET_DIGEST\",\"golden_regen\":true,\"catalog_mutate_refused\":true,\"fixture_18080_loopback\":true,\"non_loopback_stack_ports\":false,\"frozen_clock_ge_24h\":true,\"controlled_attestation\":true}"
+echo "{\"market_dstack_local\":\"pass\",\"attested\":false,\"https_443\":true,\"e2ee_purchase\":true,\"plaintext_purchase_refused\":true,\"signed_receipt\":true,\"catalog_policy_digest\":\"$DIGEST\",\"keyset_digest\":\"$KEYSET_DIGEST\",\"golden_regen\":true,\"catalog_mutate_refused\":true,\"fixture_18080_loopback\":true,\"non_loopback_stack_ports\":false,\"frozen_clock_ge_24h\":true,\"controlled_attestation\":true}"

@@ -70,7 +70,7 @@ function sortValue(value) {
     }
     return out;
   }
-  requireValue(typeof value !== 'number' || Number.isInteger(value), 'non-integer JCS number');
+  requireValue(typeof value !== 'number' || Number.isSafeInteger(value), 'non-integer JCS number');
   return value;
 }
 
