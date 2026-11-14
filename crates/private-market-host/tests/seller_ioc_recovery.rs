@@ -384,9 +384,11 @@ fn send_and_e_crashes_keep_closed_seller_and_original_task_or_not_found_responsi
                 task
             );
         }
-        assert!(m.host().unwrap().snapshot().sells()[&round.seller]
-            .allocation()
-            .is_closed());
+        assert!(
+            m.host().unwrap().snapshot().sells()[&round.seller]
+                .allocation()
+                .is_closed()
+        );
         assert_eq!(
             m.host()
                 .unwrap()
@@ -403,9 +405,11 @@ fn send_and_e_crashes_keep_closed_seller_and_original_task_or_not_found_responsi
         drop(a);
         drop(m);
         let m = DurableMarketHost::open(dir.market()).unwrap();
-        assert!(m.host().unwrap().snapshot().sells()[&round.seller]
-            .allocation()
-            .is_closed());
+        assert!(
+            m.host().unwrap().snapshot().sells()[&round.seller]
+                .allocation()
+                .is_closed()
+        );
     }
 }
 
@@ -415,12 +419,13 @@ fn second_outbox_sql_failure_rolls_back_entire_round_buyer_keys_and_both_gs() {
     let (mut m, _a, _r, round) = setup(&dir);
     let db = rusqlite::Connection::open(dir.market()).unwrap();
     db.execute_batch("CREATE TRIGGER reject_second_g BEFORE INSERT ON outbox WHEN (SELECT COUNT(*) FROM outbox) >= 1 BEGIN SELECT RAISE(ABORT,'second g failure'); END;").unwrap();
-    assert!(m
-        .execute(
+    assert!(
+        m.execute(
             round.input.idempotency_key.clone(),
             ExchangeCommand::DriveFormalOrders(round.input.clone())
         )
-        .is_err());
+        .is_err()
+    );
     assert!(matches!(m.host(), Err(DurableError::Poisoned)));
     drop(m);
     db.execute_batch("DROP TRIGGER reject_second_g").unwrap();

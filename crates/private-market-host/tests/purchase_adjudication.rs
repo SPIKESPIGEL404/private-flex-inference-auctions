@@ -110,12 +110,13 @@ fn duplicate_proposal_identity_and_unresolved_root_cannot_create_another_g() {
     );
     let mut conflict = p.clone();
     conflict.candidates[0].source_generation += 1;
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             conflict.idempotency_key.clone(),
             ExchangeCommand::ProposePurchase(Box::new(conflict))
         )
-        .is_err());
+        .is_err()
+    );
 }
 
 #[test]
@@ -478,12 +479,13 @@ fn ioc_no_g_is_final_and_original_receipt_survives_retries() {
     assert_eq!(h.snapshot().accounts()[&1].held(), MicroUsd(0));
     assert_eq!(propose(&mut h, &p), original);
     let next = proposal(&h, &r, &[fresh], "ioc-again");
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             next.idempotency_key.clone(),
             ExchangeCommand::ProposePurchase(Box::new(next))
         )
-        .is_err());
+        .is_err()
+    );
     assert!(h.snapshot().purchase_trades().unwrap().is_empty());
 }
 
@@ -510,21 +512,23 @@ fn prepared_purchase_is_not_resolvable_and_changed_immutable_evidence_cannot_pub
         panic!("prepared")
     };
     let request = &prepared.record().effects()[0];
-    assert!(a
-        .handle(request, h.committed_grants(), h.snapshot().now())
-        .is_err());
+    assert!(
+        a.handle(request, h.committed_grants(), h.snapshot().now())
+            .is_err()
+    );
     assert!(a.attempts().is_empty());
     assert!(h.snapshot().purchase_trades().unwrap().is_empty());
     drop(prepared);
     let before = h.snapshot();
     let mut conflicting = q;
     conflicting.source_generation += 1;
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             "conflicting-evidence".into(),
             ExchangeCommand::PurchaseQuote(Box::new(conflicting))
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(h.snapshot(), before);
 }
 
@@ -547,9 +551,11 @@ fn close_and_market_withdrawal_after_g_do_not_revoke_frozen_authority_acceptance
         .unwrap();
     h.receive("accepted".into(), a.origin(), accepted).unwrap();
     assert_eq!(h.snapshot().accounts()[&1].held(), MicroUsd(11));
-    assert!(h.snapshot().purchase_trades().unwrap()[&id]
-        .accepted_at
-        .is_some());
+    assert!(
+        h.snapshot().purchase_trades().unwrap()[&id]
+            .accepted_at
+            .is_some()
+    );
     assert_eq!(
         h.snapshot()
             .order_status(&r.authorization.binding.root)
@@ -591,12 +597,13 @@ fn failed_and_cancelled_execution_keep_pending_funds_and_cannot_restore_purchase
         retry.proposal_id = "retry-after-execution".into();
         retry.decision_id = "retry-after-execution".into();
         retry.basis.evidence = purchase_proposal_basis(&retry).unwrap();
-        assert!(h
-            .execute(
+        assert!(
+            h.execute(
                 retry.idempotency_key.clone(),
                 ExchangeCommand::ProposePurchase(Box::new(retry))
             )
-            .is_err());
+            .is_err()
+        );
         assert_eq!(h.snapshot().purchase_trades().unwrap().len(), 1);
     }
 }

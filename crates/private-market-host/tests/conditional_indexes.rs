@@ -34,10 +34,12 @@ fn fence_of_one_option_wakes_buyers_for_other_market_options_of_the_same_sale() 
     );
     h.receive("fenced".into(), a.origin(), fence).unwrap();
     let receipt = sf::drive(&mut h, "after-fence");
-    assert!(receipt.reviewed.iter().any(|(root, r)| root.owner_id() == 2
-        && r.decision
-            .as_ref()
-            .is_some_and(|d| matches!(d.result, PurchaseResult::Granted { .. }))));
+    assert!(receipt.reviewed.iter().any(|(root, r)| {
+        root.owner_id() == 2
+            && r.decision
+                .as_ref()
+                .is_some_and(|d| matches!(d.result, PurchaseResult::Granted { .. }))
+    }));
     assert_eq!(h.snapshot().purchase_trades().unwrap().len(), 2);
 }
 #[test]
@@ -115,12 +117,13 @@ fn seeded_funding_sequences_match_an_independent_shared_balance_oracle() {
                     let before = h.snapshot();
                     let mut conflict = i.clone();
                     conflict.authorization.max_charge.0 += 1;
-                    assert!(h
-                        .execute(
+                    assert!(
+                        h.execute(
                             conflict.idempotency_key.clone(),
                             ExchangeCommand::PlaceFormalOrder(Box::new(conflict))
                         )
-                        .is_err());
+                        .is_err()
+                    );
                     assert_eq!(h.snapshot(), before);
                 }
             }

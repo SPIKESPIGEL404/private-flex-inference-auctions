@@ -132,9 +132,10 @@ fn first_response_is_one_immutable_observation_and_does_not_release_responsibili
     let first = UnixMillis(e.0 + 20);
     a.first_response("exchange", &id, first).unwrap();
     a.first_response("exchange", &id, first).unwrap();
-    assert!(a
-        .first_response("exchange", &id, UnixMillis(first.0 + 1))
-        .is_err());
+    assert!(
+        a.first_response("exchange", &id, UnixMillis(first.0 + 1))
+            .is_err()
+    );
     at(&mut h, first);
     let report = query(
         &mut h,
@@ -248,8 +249,8 @@ fn historical_running_after_terminal_retains_all_original_facts_and_never_reopen
 }
 
 #[test]
-fn persistence_record_replay_checks_every_field_before_publication(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn persistence_record_replay_checks_every_field_before_publication()
+-> Result<(), Box<dyn std::error::Error>> {
     let (original, _, _, now) = accepted();
     let saved = serde_json::to_vec(&original)?;
     let mut live = original.clone();
@@ -314,8 +315,8 @@ fn persistence_record_replay_checks_every_field_before_publication(
 }
 
 #[test]
-fn prepared_report_preserves_receive_order_and_rejected_raw_evidence(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn prepared_report_preserves_receive_order_and_rejected_raw_evidence()
+-> Result<(), Box<dyn std::error::Error>> {
     let (host, _, _, _) = accepted();
     let raw = host
         .raw_reports()
@@ -357,8 +358,8 @@ fn prepared_report_preserves_receive_order_and_rejected_raw_evidence(
 }
 
 #[test]
-fn persistence_bootstrap_validation_rejects_changed_or_nonempty_basis(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn persistence_bootstrap_validation_rejects_changed_or_nonempty_basis()
+-> Result<(), Box<dyn std::error::Error>> {
     let bootstrap = fixture::bootstrap(false);
     let mut host = bootstrap.clone();
     host.execute(

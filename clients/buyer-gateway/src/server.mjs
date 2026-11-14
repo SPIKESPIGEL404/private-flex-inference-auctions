@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { Auth } from './auth.mjs';
 import { Onboarding } from './onboarding.mjs';
+import { createAttestationHandler } from './attestation.mjs';
 import { check, publicError } from './errors.mjs';
 
 const cookieName = 'private_market_session', challengeName = 'private_market_challenge';
@@ -26,9 +27,14 @@ function json(response, status, value) {
   response.end(JSON.stringify(value));
 }
 
-export function createGateway({ config, store, api, rpc, now = Date.now }) {
+export function createGateway({ config, store, api, rpc, now = Date.now, verifyDeployment = null }) {
   const auth = new Auth(store, rpc, config.origin, now);
   const onboarding = new Onboarding({ store, api, rpc, config, now });
+  const attestation = createAttestationHandler({
+    policyPath: config.marketVerifyPolicy ?? null,
+    verifyDeployment,
+    now,
+  });
   const rates = new Map();
   function rate(request) {
     const at = now(), ip = request.socket.remoteAddress;
@@ -71,6 +77,13 @@ export function createGateway({ config, store, api, rpc, now = Date.now }) {
           grantDays: 7, merchantAccount: config.merchantAccount ?? null, fundingEnabled: config.fundingEnabled,
           procurementReady: false, termsUrl: 'https://docs.agentsonintents.com/integration/agent-api/overview',
           ownerTermsUrl: config.ownerTermsUrl, outlayerTermsUrl: config.outlayerTermsUrl, acceptanceVersion: config.acceptanceVersion }); return;
+      }
+      if (path === '/buyer-api/capabilities' && request.method === 'GET') {
+        json(response, 200, { version: 1, mode: 'wallet-setup', tasks: false, walletSetup: true, realInferencePayments: false, walletFunding: config.fundingEnabled }); return;
+      }
+      if (path === '/buyer-api/attestation' && request.method === 'GET') {
+        // Unauthenticated; ignore query/body/headers for policy selection.
+        json(response, 200, await attestation.get()); return;
       }
       const jar = cookies(request);
       if (path === '/buyer-api/auth/challenge' && request.method === 'POST') {

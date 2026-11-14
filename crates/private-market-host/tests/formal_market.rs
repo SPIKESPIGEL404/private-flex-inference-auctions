@@ -26,7 +26,7 @@ mod sf;
 use bitrouter_market::{
     durable::*, formal_order::*, manual_market::*, order::*, purchase_order::*,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn input() -> PlaceFormalOrder {
     PlaceFormalOrder {
@@ -136,13 +136,14 @@ fn no_router_policy_is_needed_for_full_execution_delivery_and_durable_receipt() 
     supply(&mut s);
     publish(&mut s, &p, &receipt);
     s.poll(UnixMillis(2000)).unwrap();
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .purchase_trades()
-        .unwrap()
-        .is_empty());
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .purchase_trades()
+            .unwrap()
+            .is_empty()
+    );
     call(
         &mut s,
         lf::OPERATOR,
@@ -355,11 +356,12 @@ fn no_runtime_profile_still_drives_formal_orders_and_ioc_keeps_original_deadline
     );
     assert_eq!(retry["receipt"], receipt["receipt"]);
     assert_eq!(retry["order"]["closed"], true);
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .purchase_trades()
-        .unwrap()
-        .is_empty());
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .purchase_trades()
+            .unwrap()
+            .is_empty()
+    );
 }

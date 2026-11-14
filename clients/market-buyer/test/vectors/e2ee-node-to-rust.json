@@ -1,0 +1,13 @@
+{
+  "secret_hex": "3737373737373737373737373737373737373737373737373737373737373737",
+  "model": "m/external",
+  "nonce": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+  "ts": 1700000001,
+  "purchase": {
+    "service_type": "on_demand",
+    "provider_cap_micro_usd": 4500,
+    "total_cap_micro_usd": 4510
+  },
+  "ciphertext_hex": "3cdf1f1ce028166b10254ad86ef030d6758a6d5ccd0a619e766f92fdc14df428447e83db2ae8b5677194d0e59f902ce8c6671a849197060c9af4f3e5344cf397408fc49620de9a5c10d3bdd9de5601db66569df8160ec95a63be7ba931eb7b8e7c43da8103a3ed6b6e19be9b926aa586ac4f310eae86e705abcebe9518b819f05ed14bc9c52a6c83f0b0fc961fd50c4a02",
+  "aad_utf8": "{\"algo\":\"x25519-aes-256-gcm-hkdf-sha256\",\"field\":\"bitrouter_purchase\",\"model\":\"m/external\",\"nonce\":\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\",\"purpose\":\"aci.e2ee.request.v2\",\"ts\":1700000001}"
+}

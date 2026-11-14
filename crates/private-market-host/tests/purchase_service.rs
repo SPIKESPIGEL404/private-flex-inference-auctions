@@ -57,12 +57,14 @@ fn throughput_and_ready_without_explicit_seller_contract_cannot_publish_purchase
     let (r, q) = prepared(&mut full);
     register(&mut missing, &r);
     let before = missing.snapshot();
-    assert!(missing
-        .execute(
-            "no-service".into(),
-            ExchangeCommand::PurchaseQuote(Box::new(q))
-        )
-        .is_err());
+    assert!(
+        missing
+            .execute(
+                "no-service".into(),
+                ExchangeCommand::PurchaseQuote(Box::new(q))
+            )
+            .is_err()
+    );
     assert_eq!(missing.snapshot(), before);
     assert!(before.purchase_trades().unwrap().is_empty());
     let first = service_publication(&missing, "a");
@@ -71,12 +73,14 @@ fn throughput_and_ready_without_explicit_seller_contract_cannot_publish_purchase
     rebound.schedule.reference = first.schedule.reference;
     rebound.schedule.revision = 2;
     let before = missing.snapshot();
-    assert!(missing
-        .execute(
-            "rebound".into(),
-            ExchangeCommand::PublishSellerService(Box::new(rebound))
-        )
-        .is_err());
+    assert!(
+        missing
+            .execute(
+                "rebound".into(),
+                ExchangeCommand::PublishSellerService(Box::new(rebound))
+            )
+            .is_err()
+    );
     assert_eq!(missing.snapshot(), before);
 }
 
@@ -90,12 +94,13 @@ fn service_terms_are_immutable_even_before_g_and_replay_keeps_original() {
         .unwrap()
         .clone();
     let before = h.snapshot();
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             "revision-2".into(),
             ExchangeCommand::PublishSellerService(Box::new(revised(&h)))
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(h.snapshot(), before);
     service(&mut h, "historical-retry", original.clone());
     assert_eq!(
@@ -149,12 +154,13 @@ fn forged_bin_price_time_or_content_cannot_pass_current_contract_revalidation() 
         b.quote_ref = format!("forged/quote/{i}");
         b.evidence_ref = format!("forged/evidence/{i}");
         let before = h.snapshot();
-        assert!(h
-            .execute(
+        assert!(
+            h.execute(
                 format!("forged/{i}"),
                 ExchangeCommand::PurchaseQuote(Box::new(b))
             )
-            .is_err());
+            .is_err()
+        );
         assert_eq!(h.snapshot(), before);
     }
 }
@@ -182,23 +188,25 @@ fn service_publication_checks_owner_source_version_identity_and_whole_range() {
     variants.push(b);
     for (i, b) in variants.into_iter().enumerate() {
         let before = h.snapshot();
-        assert!(h
-            .execute(
+        assert!(
+            h.execute(
                 format!("bad-service/{i}"),
                 ExchangeCommand::PublishSellerService(Box::new(b))
             )
-            .is_err());
+            .is_err()
+        );
         assert_eq!(h.snapshot(), before);
     }
     let h = initial_service(|p| p.schedule.bins[0].max_billable_output_tokens.min_inclusive = 2);
     let r = registration("narrow", 1, &["a"], false);
-    assert!(h
-        .snapshot()
-        .seller_service(&fixture::source("a"))
-        .unwrap()
-        .schedule
-        .freeze(r.authorization.options[0].request.size)
-        .is_err());
+    assert!(
+        h.snapshot()
+            .seller_service(&fixture::source("a"))
+            .unwrap()
+            .schedule
+            .freeze(r.authorization.options[0].request.size)
+            .is_err()
+    );
     // A valid narrow service cannot be widened by forged frozen terms.
     let prior = service_publication(&h, "a")
         .schedule
@@ -253,12 +261,13 @@ fn g_freezes_old_service_for_e_and_acceptance_clock_includes_queue_past_tif() {
     let p = proposal(&h, &r, &[q], "short-tif");
     let id = id(&propose(&mut h, &p));
     let next = revised(&h);
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             "new-service-after-g".into(),
             ExchangeCommand::PublishSellerService(Box::new(next))
         )
-        .is_err());
+        .is_err()
+    );
     let seller = h.snapshot().sources()[&fixture::source("a")]
         .option
         .as_ref()
@@ -405,12 +414,13 @@ fn atomic_snapshot_keeps_immutable_offer_and_original_g_and_e_terms() {
         .seller_service(&fixture::source("a"))
         .unwrap()
         .clone();
-    assert!(m
-        .execute(
+    assert!(
+        m.execute(
             "new-service".into(),
             ExchangeCommand::PublishSellerService(Box::new(revised(m.host().unwrap())))
         )
-        .is_err());
+        .is_err()
+    );
     drop(m);
     let mut m = DurableMarketHost::open(&market).unwrap();
     assert_eq!(

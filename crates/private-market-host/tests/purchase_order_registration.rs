@@ -265,13 +265,15 @@ fn enabling_registration_is_explicit_bootstrap_only_and_replay_bound() {
     assert!(MarketHost::replay(fixture::bootstrap(false), &journal).is_err());
     let mut changed = policy();
     changed.time.immediate_decision_window_ms += 1;
-    assert!(MarketHost::replay(
-        fixture::bootstrap(false)
-            .with_purchase_orders(changed)
-            .unwrap(),
-        &journal
-    )
-    .is_err());
+    assert!(
+        MarketHost::replay(
+            fixture::bootstrap(false)
+                .with_purchase_orders(changed)
+                .unwrap(),
+            &journal
+        )
+        .is_err()
+    );
 }
 
 struct Dir(PathBuf);
@@ -398,12 +400,13 @@ fn abrupt_exit_before_or_after_registration_commit_never_recovers_partial_root()
             m.host().unwrap().snapshot().accounts()[&1].held(),
             MicroUsd(80)
         );
-        assert!(m
-            .host()
-            .unwrap()
-            .snapshot()
-            .execution_requests()
-            .unwrap()
-            .is_empty());
+        assert!(
+            m.host()
+                .unwrap()
+                .snapshot()
+                .execution_requests()
+                .unwrap()
+                .is_empty()
+        );
     }
 }

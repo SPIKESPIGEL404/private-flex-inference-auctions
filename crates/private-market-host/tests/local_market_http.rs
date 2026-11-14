@@ -30,7 +30,7 @@ use bitrouter_market::execution_contract::*;
 use bitrouter_market::manual_market::*;
 use bitrouter_market::order::*;
 use bitrouter_market::purchase_order::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::process::{Child, Command, Stdio};

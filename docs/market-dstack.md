@@ -159,6 +159,7 @@ check. No DNS provider token is stored in the CVM in this mode.
 | Buyer ed25519 public keys | Public `buyers.public.json` (buyer-generated offline) |
 | Buyer bearer tokens | Phala encrypted secrets (the operator who set them knows them) |
 | Bootstrap binding, cutover token, seller key, Postgres password | Generated inside the VM on first boot |
+| Postgres password mount | Dedicated `pg-password` volume only (Postgres does not mount `market-data`, so it cannot read `seller_key`) |
 
 Signing private keys never enter the deployment.
 
@@ -215,8 +216,10 @@ unchanged): seller order `valid_until` / GTD `expires_at`, supply-state
 
 `/healthz` includes `catalog_policy_digest` (`sha256:` of the catalog bytes) in
 deploy mode so buyers and local acceptance can pin the policy digest without
-attestation. Local mode sets `PRIVATE_MARKET_SIGNED_PURCHASES=1` so purchase
-signatures use that digest as the keyset when ACI is off.
+attestation. Local acceptance enables a controlled attestation overlay so
+`bitrouter_purchase` must be E2EE-sealed (plaintext procurement is refused)
+and a committed purchase's signed financial receipt can be fetched on 443.
+Lab scripts with attestation off still use plaintext purchases.
 
 Regenerate (empty `private_market_*` DB required):
 

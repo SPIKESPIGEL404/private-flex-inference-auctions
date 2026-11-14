@@ -1,5 +1,5 @@
 use bitrouter_market::cache::*;
-use bitrouter_market::cost::{base_charge_cap, estimated_base_charge, CachedInputEstimate};
+use bitrouter_market::cost::{CachedInputEstimate, base_charge_cap, estimated_base_charge};
 use bitrouter_market::order::*;
 
 #[allow(dead_code)]

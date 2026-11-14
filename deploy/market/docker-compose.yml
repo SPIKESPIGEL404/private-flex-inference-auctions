@@ -15,10 +15,13 @@ services:
     network_mode: host
     volumes:
       - market-data:/var/lib/market
+      - pg-password:/run/pg-password
       - ./init-secrets.sh:/usr/local/bin/init-secrets.sh:ro
     entrypoint: ["/bin/bash", "/usr/local/bin/init-secrets.sh"]
     environment:
       PRIVATE_MARKET_SECRETS_DIR: /var/lib/market/secrets
+      # Postgres must not mount market-data (seller_key lives there).
+      PRIVATE_MARKET_PG_PASSWORD_DIR: /run/pg-password
     restart: "no"
 
   postgres:
@@ -30,11 +33,11 @@ services:
     environment:
       POSTGRES_USER: market
       POSTGRES_DB: private_market_deploy
-      POSTGRES_PASSWORD_FILE: /var/lib/market/secrets/postgres_password.pg
+      POSTGRES_PASSWORD_FILE: /run/pg-password/postgres_password.pg
     volumes:
-      - market-data:/var/lib/market
       # Postgres 18+ images require the mount at /var/lib/postgresql (not .../data).
       - pg-data:/var/lib/postgresql
+      - pg-password:/run/pg-password:ro
     # Explicit loopback bind; do not rely on image defaults under host networking.
     command:
       - postgres
@@ -128,5 +131,6 @@ services:
 volumes:
   market-data:
   pg-data:
+  pg-password:
   cert-data:
   evidences:

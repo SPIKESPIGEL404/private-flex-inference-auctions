@@ -23,6 +23,11 @@ export function validatePolicy(value) {
       requireValue(/^[a-f0-9]{96}$/.test(profile[name]), `invalid boot measurement ${name}`);
     }
   }
+  // Display-only verify (cli verify / gateway attestation) may set this.
+  // connectMarket / buy / receipt refuse it and never treat it as verified.
+  if (value.allowSimulatedHardware !== undefined) {
+    requireValue(value.allowSimulatedHardware === true, 'allowSimulatedHardware must be true when set');
+  }
   return structuredClone(value);
 }
 
@@ -65,9 +70,17 @@ async function boundedReport(response) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
-/** No injected verifier or development bypass is accepted by this entry point. */
+/**
+ * Production procurement entry: hardware quote only. Simulated / controlled_local
+ * paths live solely in verify-deployment.mjs for display-only checks.
+ */
 export async function connectMarket(input) {
   const policy = validatePolicy(input);
+  // Fail closed before any network, credential, or purchase-limit use.
+  requireValue(
+    policy.allowSimulatedHardware !== true,
+    'allowSimulatedHardware is display-only and cannot authorize buy or receipt',
+  );
   const origin = new URL(policy.baseURL).origin;
   const connection = await connectAci({
     baseURL: policy.baseURL,

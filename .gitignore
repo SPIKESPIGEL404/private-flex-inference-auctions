@@ -21,6 +21,7 @@ clients/agent-playground/dist/
 *.tsbuildinfo
 deploy/market/.build-cargo/
 deploy/market/buyers.public.json
+deploy/market/attestation.local.json
 deploy/market/rendered/
 deploy/market/.env
 deploy/market/*.secret.env
