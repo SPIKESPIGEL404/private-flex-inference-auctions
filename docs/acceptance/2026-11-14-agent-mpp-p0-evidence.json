@@ -1,0 +1,64 @@
+{
+  "schema": "agent-mpp-p0-evidence-v1",
+  "generatedAt": "2026-11-14T06:37:04.051Z",
+  "node": "v24.7.0",
+  "baseline": "ce103148278090f52fb8578fa7e2dab611e430df",
+  "prototypeVerdict": "PASS",
+  "overallPhase0": "PARTIAL",
+  "liveActivation": "BLOCKED",
+  "blockers": [
+    "F1: unmodified Agent API SDK cannot enforce the frozen per-operation native fee bound"
+  ],
+  "decisions": {
+    "asset": "native:NEAR",
+    "decimals": 24,
+    "price": "metered-prepay-refund",
+    "approval": "user-confirmed-2026-11-14"
+  },
+  "scope": "Controlled SDK/RPC/SQLite feasibility only; no Market PG/Redis integration or real funds/provider/deployment",
+  "counts": {
+    "tests": 44,
+    "pass": 44,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "requiredSuites": [
+    "test/contracts.test.mjs",
+    "test/interop.test.mjs",
+    "test/verification.test.mjs"
+  ],
+  "requiredGates": [
+    "official mppx client/server 402 -> persisted original proof -> receipt, no second transfer",
+    "official Agent API SDK encodes native transfer/signing routes with original operation key and grant",
+    "independently verifies final native transfer, full-access key and signed order binding",
+    "concurrent task reservations from independent workers cannot overspend one authorization",
+    "two independently valid signed assignments cannot buy two orders with the same movement",
+    "equal merchant transfer cannot be relabelled as an unrelated refund; original unknown holds W",
+    "native policy conforms to official pinned Policy schema and new-policy rules"
+  ],
+  "externalTransactions": 0,
+  "providerCalls": 0,
+  "sourceSha256": {
+    "docs/specs/2026-11-14-agent-mpp-inference-integration.md": "8b0f0b5e279f6b402ec6018ef397e65f786545f1e7e499a879dda250339d9312",
+    "docs/specs/2026-11-14-agent-mpp-p0-contract.md": "ee11dd117dbc069313f342f942d4acc098e5ac47d8280b7cbb6090477f7d5f6d",
+    "docs/specs/2026-11-14-agent-mpp-p0-owning-interfaces.md": "790ee53218c413ea904ab8fc1f062094fcae378d459de67091847acbd3285e02",
+    "scripts/accept-agent-mpp-p0.mjs": "85c9935a8283e9d2c367e865869656074a3b9350a801c25a756a9cd029e42e38",
+    "services/mpp-near-direct/README.md": "a1b72d9833c33c8a81981b33049bea99a843e334b709b3f0eeabd0b4646bb8da",
+    "services/mpp-near-direct/contract.mjs": "1f325fba57983ee297e1b22772f22ef1930cbe0350e47329c30663b276389b7c",
+    "services/mpp-near-direct/method.mjs": "cf9828757d2bea942d3ddd926248528274e3cfb7f40e8c8a6fa314dee86a32bc",
+    "services/mpp-near-direct/near.mjs": "508de90b6e0b1ac371c778eab85a6f296873553b58fb1b045b25646247a8bdf5",
+    "services/mpp-near-direct/package-lock.json": "5168c732035c8d03ee11aeb5e0607b536687d142063ffdf2af1a29908c5384d6",
+    "services/mpp-near-direct/package.json": "74d3226150b439b789c75f68868adec2f181b908ef1cfb2395d3b12537a8bfa5",
+    "services/mpp-near-direct/test/authority.mjs": "53a2e48a9cb0958a4b50ab3dd0541d6930091e39fac8b22b2cd7c9e5841153ce",
+    "services/mpp-near-direct/test/contracts.test.mjs": "8c45b4aa542bdf9830d275034678b249eb02110749cacbb109d8678eb8c1eb73",
+    "services/mpp-near-direct/test/fixtures/agent-api-policy-contract.json": "a535a2199980e50d4646bbdf1b9bcffc5024b46cbecf4cfc067ff6279f25f804",
+    "services/mpp-near-direct/test/interop.test.mjs": "728b5675f41739748bd9364283189d015c929e0256304805937920b0bada227a",
+    "services/mpp-near-direct/test/reserve-worker.mjs": "4f866bf493c72e9bc54ea46a81d789193e6f2de7cbf34ab8580ea9b6f1251a2b",
+    "services/mpp-near-direct/test/support.mjs": "ef402b03539a156700ec16ab56bf957c9bdb1f636d826b7400683ba3bb1abee3",
+    "services/mpp-near-direct/test/verification.test.mjs": "7c9506f60a29769387f8fc80f2d740cd90cc4d779e801e542fe474c3f0cf1435"
+  },
+  "testLogSha256": "f3af29f0799645a3004497dc67f4cab453909cb6808a97b725a6557b862c2b33",
+  "command": "node scripts/accept-agent-mpp-p0.mjs"
+}

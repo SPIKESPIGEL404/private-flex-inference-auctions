@@ -1,0 +1,9 @@
+{
+  "name": "private-market-near-direct-p0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "mppx": "0.17.0", "bs58": "6.0.0", "@near-intents-agent-api/sdk": "0.9.1" },
+  "devDependencies": { "ajv": "8.20.0" }
+}
