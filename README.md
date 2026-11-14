@@ -1,16 +1,145 @@
 # Private Flex Inference Auctions
 
-A NEAR hackathon prototype for private inference procurement and native Provider execution. The Market protects buyer purchase limits, balances and order conditions; it calls the Provider's native API. The Market and GPU can be deployed separately.
+**Let agents buy inference they can verify.**
 
-The current implementation is a **local Market host with real NEAR AI Cloud inference**, based on [Cloud PR 667](https://github.com/bitrouter/bitrouter-cloud/pull/667), pinned to `244177cafa26e8c8b001e61297cf4e7f89ac8de9`. It initializes an isolated test-credit ledger and three test buyers. Batch C registers a project-controlled seller and connects native Chat Completions directly to NEAR AI Cloud; batches A/B retain controlled regression endpoints. The Provider requires no proxy or scheduler protocol. The Market is unattested; NEAR chain payments and production funds remain outside this stage.
+A BitRouter proposal for the NEAR hackathon: agents optimize cost and timing within an explicit model contract. The owner fixes model requirements, authorized scope, budget and the evidence needed for acceptance. Procurement preserves those requirements through supply selection and delivery.
 
-See the [migration spec](docs/specs/2026-11-11-private-market-hackathon.md), [batch A run guide](docs/market-batch-a.md), and [source/dependency record](crates/private-market-host/upstream/SOURCES.md).
+Read the illustrated **[`/proposal`](#proposal-page)** in either browser playground. The [integration contract](docs/specs/2026-11-14-agent-mpp-inference-integration.md) remains the implementation baseline for controlled agent procurement and payments; this proposal adds the product direction for model fidelity and NEAR-native collaboration. It does not change that implementation contract.
+
+## Core thesis: model fidelity in autonomous procurement
+
+Delegating inference purchases gives an agent freedom to choose prices, timing and authorized supply. That freedom needs an acceptance boundary: the purchased model and execution conditions must remain consistent with the owner's authorization.
+
+**Qualify supply against the model contract first. Optimize cost and timing among eligible offers. Verify the delivered result against the required evidence policy.** A cheaper quote cannot silently authorize a smaller model, a different quantization, truncated effective input or an unrelated cached response. Any permitted substitution or reuse must be explicit in the original authorization or receive new authorization.
+
+Model fidelity means conformance to the specified model and execution contract. It does not establish that an answer is factually correct or that the agent completed its task successfully. A response's `model` string alone cannot establish fidelity.
+
+The proposed purchasing loop is:
+
+**Define model contract → qualify supply → choose, wait, revise or stop → pay and execute → check delivery → report acceptance → continue the task.**
+
+Market settlement and refunds retain their own frozen financial terms. A model acceptance verdict does not automatically reverse a payment or discharge an unresolved order. Task budgets, current bids and actual charges are separate quantities.
+
+## The model contract
+
+| Contract element | Fixed before purchasing |
+| --- | --- |
+| Model identity | Permitted model, checkpoint/revision, quantization, adapters and supported implementation rules |
+| Effective request | Full effective input/context, tokenizer/template assumptions, generation parameters, output limits and allowed transformations |
+| Evidence policy | Required deployment/model evidence, trust assumptions, verifier policy and supported scope |
+| Result binding | Actual returned tokens/bytes or events, original request identity, coverage, stop/completeness state and any allowed response conversion |
+| Owner authority | Authorized models/routes, privacy requirements, task and call limits, deadlines and permitted reuse |
+
+Qualification and delivery acceptance are separate checks. Missing required evidence remains unverified or pending; incompatible or unsupported supply is ineligible. Greater urgency does not weaken the model contract. If no offer qualifies within the limits, the agent waits or stops.
+
+These are proposed product requirements. Current hardware, transport and controlled procurement acceptance do not implement the entire model-fidelity contract.
+
+## Current paths: NEAR API and a GPU TEE comparison
+
+NEAR currently provides its **existing inference API** for this collaboration. Separately, we have deployed a model in a GPU TEE as a controlled comparison. The two paths help expose procurement and verification requirements; NEAR-native market allocation belongs to the next collaboration stage.
+
+| Path | What it demonstrates | Evidence boundary |
+| --- | --- | --- |
+| **Existing NEAR AI API** | Native inference procurement with recorded test-credit buyers, original usage and provider invoices | No NEAR-side market quotes, queue priority or cache control assumed; evaluate available deployment/response evidence separately |
+| **Self-deployed GPU TEE comparison** | Recorded CPU/GPU attestation, encrypted native calls and pinned model revision metadata for `Qwen/Qwen3.8-27B-FP8` | Model/deployment association depends on the authenticated provider control plane; loaded weights and a complete per-request execution receipt are not independently proven |
+| **Next collaboration: NEAR-native support** | Model contracts and evidence integrated with purchasable service terms, then execution-aware allocation experiments | Proposed work requiring NEAR cooperation, supported interfaces and separate acceptance |
+
+The comparison pins revision `017b9c7af6b5689d5dd426a76e0bc077eb5ca20a`. Its [scoped deployment record](https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/blob/febd7ec4c24c9aff343e185578b7f948a53b1266/docs/acceptance/2026-11-14-chutes-live.md) explicitly describes a **historical live run of a pre-integration release**; it is not live acceptance of subsequent builds. The recorded encrypted path, hardware evidence and model metadata must not be relabeled as a complete model-fidelity proof. Stronger required policies remain unverified until their missing bindings are established.
+
+The November 11 NEAR API evidence is recorded in [batch C](docs/acceptance/2026-11-11-market-batch-c.md). These independent records do not establish one connected, funded agent loop with complete model fidelity.
+
+## Why this matters to NEAR
+
+| Product | Proposed benefit | Next validation |
+| --- | --- | --- |
+| **NEAR AI Cloud** | Become eligible supply for autonomous buyers whose model, cost, timing, privacy and acceptance requirements are explicit | Native model/deployment identity and request/result evidence; purchasable service terms; then measured allocation and provider economics |
+| **NEAR AI Gateway** | Delegate procurement within a model contract and task budget; inspect supply qualification and delivery acceptance while pacing spend across calls | Actual Gateway integration, supported evidence policies, useful controls and task completion under fixed model requirements |
+| **NEAR payments and Intents** | Fund independent agents and purchase under authorization, preserving original payment/execution responsibility through interruptions | G1/P3 qualification of native payments, payment gas, usage settlement, refunds and recovery |
+
+Gateway refers to [NEAR's macOS application](https://gateway.near.ai/), distinct from the Cloud HTTP gateway. Its purchasing-policy integration is proposed. [Cloud](https://near.ai/) and [Gateway's launch description](https://near.ai/blog/introducing-near-ai-gateway) establish the existing product entry points, not an implemented integration with this Market.
+
+For Gateway, task-wide pacing matters as much as a single call's price: preserve resources for later tool steps, retries and final verification. The current call's urgency and the remaining budget inform purchasing decisions without overriding model requirements. No optimality or regret guarantee is claimed for the implemented buyer policy.
+
+For Cloud, priority allocation and cache reuse are a future native collaboration. Even one model at one base token price can have valuable scheduling opportunities under congestion, provided the provider can actually control admission. The experiment should preserve authorized cache sharing and measure whether value-aware ordering can retain serving efficiency. A higher bid alone is not a latency guarantee, and an existing external API supplies no additional scheduling authority.
+
+## Proposed architecture
+
+```mermaid
+flowchart TB
+    O[Owner: model contract, evidence policy and task limits] --> A[Agent: task loop and budget pacing]
+    G[Proposed NEAR AI Gateway integration] --> A
+    A --> Q[Qualify supply against the model contract]
+    Q --> M[MPP Proxy / Market: procurement and accounting]
+    M --> N[Existing NEAR AI inference API]
+    M --> T[Separate self-deployed GPU TEE comparison]
+    N --> V[Delivery: apply the required evidence and result-binding policy]
+    T --> V
+    V --> S[Acceptance state and task continuation]
+    S --> A
+    F[Authorized Intents funding] --> W[Independent agent NEAR account]
+    W --> P[Native NEAR payment to our merchant]
+    P --> M
+    M --> R[Usage settlement and refund recovery]
+    R --> W
+```
+
+The diagram describes the product design. The **buyer policy** owns purchasing decisions; the **Market** owns admission, reservations and accounting; the **Provider** owns execution. Supply qualification and delivery acceptance apply the authorized evidence policy. Current implementations cover only their documented scopes.
+
+Upstream NEAR AI calls retain existing API credentials and account billing. Native NEAR/MPP payments in this design target our Proxy/Market merchant. Intents/1Click supports preparation or authorized replenishment, not a cross-chain swap for every inference call. The current payment target has the agent pay inference principal and payment gas; the merchant pays refund gas.
+
+## Privacy and evidence boundaries
+
+A private Market protects purchase caps, balances and order conditions as well as sensitive request data. Confidentiality and model fidelity are separate requirements: purchase preferences remain private while procurement and acceptance preserve the authorized model contract.
+
+Verify the Market deployment and channel before sending sensitive purchase limits. Evaluate upstream deployment evidence, model association and request/result binding separately. In particular, a NEAR Cloud gateway signature authenticates that gateway's signed bytes and does not alone establish which model executed. See [NEAR response-signature semantics](https://docs.near.ai/cloud/verification/cloud-api/response-signatures).
+
+Hardware attestation, encrypted transport, model identity, response binding and payment receipts must retain their precise meanings. Full arithmetic inference proofs remain separate R&D, outside the hackathon prototype's acceptance. Do not replace missing evidence with an undifferentiated green “model verified” badge.
+
+## Current evidence and next milestone
+
+The agent integration baseline in this branch is **controlled P2**. API inference, GPU TEE deployment, wallet onboarding and controlled agent execution have separate acceptance records.
+
+| Scope | Evidence | Limit |
+| --- | --- | --- |
+| Native NEAR AI inference | Recorded November 11 batch C: three test buyers, original usage and provider invoices | Test-credit Market; does not qualify the new native-payment route or prove complete model fidelity |
+| GPU TEE comparison | Historical hardware, encrypted transport, revision metadata and scoped procurement record linked above | Specific historical release; independent loaded-weight and complete per-request execution bindings remain outstanding |
+| Agent task execution | P2: two real fx sessions, tools, cost/time decisions, budgets and persisted results | Model replies and NEAR chain receipts are fixtures |
+| Wallet onboarding | Separate owner, agent wallet/grant and funding-plan entry point | Does not yet join P2 into a real-money task loop |
+| **Next validation** | G1/P3 payments and real tasks; supported fidelity policies and the required model/result bindings | Outstanding in this baseline; stronger unsupported policies stay unverified |
+| **Next collaboration with NEAR** | Native model contracts, evidence and procurement terms; then priority/cache allocation | Proposed cooperation, not a capability of the existing API integration |
+
+The Market host derives from [Cloud PR 667](https://github.com/bitrouter/bitrouter-cloud/pull/667), pinned to `244177cafa26e8c8b001e61297cf4e7f89ac8de9`. See the [migration spec](docs/specs/2026-11-11-private-market-hackathon.md), [source record](crates/private-market-host/upstream/SOURCES.md) and [P3 plan](docs/specs/2026-11-14-agent-mpp-p3-run-plan.md).
+
+## Validation and future experiments
+
+First validate a complete supported model contract through autonomous procurement and delivery. Fix the required evidence and trust assumptions, exercise wrong model/revision/quantization, altered effective input, missing evidence and unrelated response binding, and report supported versus unverified cases explicitly. Then qualify real funded model tasks with financial recovery under the existing integration contract.
+
+Measure task-wide spend, payment gas, failed attempts and time to usable results. Assess answer quality separately from model fidelity. Test budget pacing across calls and check that urgency or budget exhaustion never silently relaxes authorization.
+
+With NEAR-native admission control, hold workload and model contracts fixed and compare arrival order, cache-only order, bid-only order and cache-aware bidding. Record priority outcomes, urgent-request delays, cache reuse, serving overhead and task completion. Measure provider revenue and utilization separately; improved allocation does not imply higher throughput or revenue. Under light load, avoid unnecessary batch waiting. The sharing domain remains an authorization constraint throughout.
+
+## Proposal page
+
+Both frontends expose the same public **`/proposal`** page and link to it from their header. Its narrative is: autonomous procurement → model-fidelity risk → model contract and acceptance → current API/TEE comparison → NEAR-native collaboration.
+
+The interactive example uses synthetic quotes and policy verdicts. It excludes a cheaper wrong model and a name-only claim without sufficient evidence, applies budget/time limits to qualified supply, and distinguishes matching, mismatched and missing delivery evidence. It performs no real attestation, model verification, inference or payments. The illustrated qualified routes are not real acceptance results from either deployment.
+
+The page is implemented once in [`clients/proposal`](clients/proposal/Proposal.tsx), loaded separately from the terminal/wallet application. Both hosting servers support `/proposal` and `/proposal/`, including fresh-page reloads.
+
+```bash
+npm ci --prefix services/mpp-near-direct
+npm ci --prefix clients/agent-playground
+npm run dev --prefix clients/agent-playground
+# Open the printed local URL at /proposal.
+```
+
+The proposal can be reviewed without a wallet, access code, backend or provider credential. Continue below for technical runs and their recorded limits.
 
 ## Real inference acceptance
 
-Three buyers completed native inference on `Qwen/Qwen3-VL-30B-A3B-Instruct`.
+In the recorded November 11 local acceptance, three buyers completed native inference on `Qwen/Qwen3-VL-30B-A3B-Instruct`.
 Original model/terminal/usage, replay, test-credit receipts and upstream invoices
-are independently auditable. The whole task spent US$0.00015355 of the approved
+are independently auditable. That recorded task spent US$0.00015355 of the approved
 US$0.01, including an earlier calibration. See the [batch C guide](docs/market-batch-c.md)
 and [acceptance record](docs/acceptance/2026-11-11-market-batch-c.md).
 
@@ -20,7 +149,7 @@ bash scripts/accept-market-c.sh
 
 This command runs offline registration checks with zero inference calls. A new
 live run requires a prepared plan and explicit cost authorization as documented.
-Private deployment and final demo delivery remain batches D/E.
+This local batch does not establish deployment or per-request provider verification.
 
 ## Browser playground
 
@@ -35,6 +164,8 @@ wallet-mode failures do not fall back to scripted responses. No deployed Market
 or real funds were changed by this implementation batch.
 
 ## Verify the Market before buying
+
+The following describes the controlled identity acceptance in this integration; deployment evidence must be evaluated for its own exact release and scope.
 
 The optional ACI identity endpoint and Node buyer now support fresh hardware
 evidence, reviewed release/boot policy, the catalog file digest, and actual TLS
@@ -71,7 +202,7 @@ bash scripts/accept-market-a.sh
 
 The script builds the independent host, creates its own temporary PostgreSQL cluster and Redis process, checks native SSE, receipts, balances, buyer isolation and idempotency, and stops its owned services. It sends no GPU requests. See the [acceptance record](docs/acceptance/2026-11-11-market-batch-a.md) for the measured scope.
 
-The host is an independent Cargo package under `crates/private-market-host`, with its own lockfile. It has no `flex-scheduler` dependency. Buy caps authorize spending; they do not promise GPU priority or lower latency. Auto-bidder is deferred.
+The host is an independent Cargo package under `crates/private-market-host`, with its own lockfile. It has no `flex-scheduler` dependency. Buy caps authorize spending; they do not promise GPU priority or lower latency. This legacy core acceptance does not cover the later controlled P2 buyer policy.
 
 ## Fund inference credit with MPP
 

@@ -49,7 +49,8 @@ export function createGateway({ config, store, api, rpc, now = Date.now }) {
       const path = url.pathname;
       if (!path.startsWith('/buyer-api/')) {
         check(request.method === 'GET' || request.method === 'HEAD', 'method_not_allowed', 405);
-        const file = resolve(config.staticDir, '.' + decodeURIComponent(path === '/' ? '/index.html' : path));
+        const pathname = decodeURIComponent(path);
+        const file = resolve(config.staticDir, '.' + (['/', '/proposal', '/proposal/'].includes(pathname) ? '/index.html' : pathname));
         check(file.startsWith(config.staticDir + sep), 'not_found', 404);
         const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
         const type = types[extname(file)];

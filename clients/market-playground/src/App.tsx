@@ -249,7 +249,7 @@ export default function App() {
     <header className="app-header">
       <div className="topbar">
         <a className="wordmark" href="./" aria-label="Private Market"><span className="brand-mark">∕</span> private market</a>
-        <nav aria-label="Main navigation"><span className="nav-current">try</span>
+        <nav aria-label="Main navigation"><span className="nav-current">try</span><a href="/proposal">proposal</a>
           <a href="https://github.com/SPIKESPIGEL404/private-flex-inference-auctions" target="_blank" rel="noreferrer">source ↗</a></nav>
         <div className="header-controls">
           {preview ? <button className="preview-link" onClick={() => setDialog('preview')}>preview</button>

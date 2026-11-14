@@ -25,6 +25,7 @@ WORKDIR /app/clients/agent-playground
 COPY clients/agent-playground/package*.json ./
 RUN npm ci --ignore-scripts
 COPY clients/agent-playground ./
+COPY clients/proposal /app/clients/proposal
 RUN npm run build
 
 FROM ${NODE_IMAGE} AS runtime

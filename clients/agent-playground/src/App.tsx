@@ -47,7 +47,7 @@ export default function App(){
  useEffect(refresh,[refresh]);
  useEffect(()=>{if(!authenticated)return;const t=setInterval(refresh,1000);return()=>clearInterval(t);},[authenticated,refresh]);
  const logout=async()=>{authEpoch.current++;try{await api('logout',{});authEpoch.current++;setOwnerEpoch(n=>n+1);setAgents(null);setParked([]);setNewTask(false);setPrompt('');setChosenAgent('agent-1');setError('');}catch(e){setError((e as Error).message);}};
- return <main><header><h1>Private Market <span>agents · 受控演示</span></h1>{agents?<button onClick={()=>void logout()}>退出 / 切换 owner</button>:null}</header>
+ return <main><header><h1>Private Market <span>agents · 受控演示</span></h1><a href="/proposal" style={{color:'#bee2aa',marginLeft:'auto',marginRight:20}}>proposal ↗</a>{agents?<button onClick={()=>void logout()}>退出 / 切换 owner</button>:null}</header>
   <div className="notice">受控 P2 · 真实 fx、工具工作区与 Market 账本；模型响应和 NEAR 回执为本地 fixtures，未发生真实付款。</div>
   {error?<p className="error" role="alert">{error}</p>:null}
   {!agents?<form className="login" onSubmit={e=>{e.preventDefault();authEpoch.current++;setError('');void api('login',{code}).then(()=>{authEpoch.current++;setCode('');setParked([]);setNewTask(false);setPrompt('');setChosenAgent('agent-1');setOwnerEpoch(n=>n+1);refresh();}).catch(e=>setError(e.message));}}><h2>打开受控工作区</h2><label>访问码<input type="password" autoComplete="off" value={code} onChange={e=>setCode(e.target.value)} required/></label><button type="submit">进入</button><p>此环境使用脚本模型和虚拟资金，不会发生真实付款。</p></form>

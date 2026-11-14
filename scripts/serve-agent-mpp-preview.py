@@ -136,7 +136,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(400)
             return
         path = urlsplit(self.path).path
-        if not (path in ['/', '/healthz', '/v1/chat/completions']
+        if not (path in ['/', '/proposal', '/proposal/', '/healthz', '/v1/chat/completions']
                 or path.startswith(('/assets/', '/buyer-api/'))):
             self.send_error(404)
             return
