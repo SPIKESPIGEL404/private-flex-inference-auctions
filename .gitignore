@@ -12,3 +12,4 @@ __pycache__/
 .phase4-tools/
 .market-c-tools/
 **/node_modules/
+.playwright-cli/
