@@ -1,0 +1,16 @@
+.git
+**/.git
+**/node_modules
+**/target
+**/__pycache__
+clients/**/dist
+.market-runs
+.phase4-tools
+.market-p1-upstream
+output
+deploy/market/rendered
+**/.env
+**/.env.*
+**/*.secret
+**/*.seed
+deploy/market/buyers.public.json

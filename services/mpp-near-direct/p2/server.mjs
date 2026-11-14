@@ -11,9 +11,16 @@ import {Tasks} from './tasks.mjs';
 import {normalizeRecoveryBody} from './intent.mjs';
 import {hash,requireThat} from '../contract.mjs';
 const DIST=fileURLToPath(new URL('../../../clients/agent-playground/dist/',import.meta.url));
+export function publicOrigin(value){
+ if(value===undefined)return null;
+ let u;try{u=new URL(value);}catch{throw new Error('invalid_public_origin');}
+ requireThat(u.origin===value&&!u.username&&!u.password&&(u.protocol==='https:'||(u.protocol==='http:'&&u.hostname==='127.0.0.1'&&u.port)),'invalid_public_origin');
+ return value;
+}
 const json=(res,status,value)=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));};
 async function read(req,raw=false){let n=0;const chunks=[];for await(const b of req){n+=b.length;requireThat(n<=(raw?128*1024:6*1024*1024),'body_too_large');chunks.push(b);}const text=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks));return raw?text:JSON.parse(text||'{}');}
 export async function start(config){
+ const origin=publicOrigin(config.publicOrigin),secureCookie=origin?.startsWith('https:')?'; Secure':'';
  requireThat(config.payments.phase2===true&&config.payments.mode==='controlled','controlled_p2_required');
  const proxy=await startProxy(config.payments,{AuthorityClass:Authority});
  const {authority:a,pool}=proxy,tasks=new Tasks(a);let stopping=false;
@@ -64,11 +71,11 @@ export async function start(config){
  }
  const server=http.createServer(async(req,res)=>{
   try{
-   if(req.headers.origin&&req.headers.origin!==`http://127.0.0.1:${server.address().port}`)throw new Error('origin_denied');
-   if(req.method==='GET'&&req.url==='/healthz')return json(res,200,{ready:true,phase:'P2',mode:'controlled',realPayment:false});
+   if(req.headers.origin&&req.headers.origin!==(origin??`http://127.0.0.1:${server.address().port}`))throw new Error('origin_denied');
+   if(req.method==='GET'&&req.url==='/healthz')return json(res,200,{ready:true,phase:'P2',mode:'controlled',realPayment:false,revision:config.buildRevision??null});
    if(req.method==='POST'&&req.url==='/buyer-api/login'){
     const {code}=await read(req);requireThat(typeof code==='string','unauthorized');await tasks.owner(code);
-    res.setHeader('set-cookie','p2_owner='+encodeURIComponent(code)+'; HttpOnly; SameSite=Strict; Path=/');return json(res,200,{mode:'controlled'});
+    res.setHeader('set-cookie','p2_owner='+encodeURIComponent(code)+'; HttpOnly; SameSite=Strict; Path=/'+secureCookie);return json(res,200,{mode:'controlled'});
    }
    if(req.method==='GET'&&!req.url.startsWith('/buyer-api/')){
     const path=resolve(DIST,'.'+(req.url.split('?')[0]==='/'?'/index.html':decodeURIComponent(req.url.split('?')[0])));
@@ -87,7 +94,7 @@ export async function start(config){
    if(create&&req.method==='POST')return json(res,201,await tasks.create(owner,create[1],await read(req)));
    if(req.method==='POST'&&req.url==='/buyer-api/logout'){
     for(const s of await tasks.list(owner))if(!s.paused&&s.state!=='complete')await tasks.control(owner,'session',s.id,{action:'pause',expectedRevision:s.revision,operation:'logout-'+s.id+'-'+s.revision});
-    res.setHeader('set-cookie','p2_owner=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{loggedOut:true});
+    res.setHeader('set-cookie','p2_owner=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'+secureCookie);return json(res,200,{loggedOut:true});
    }
    const match=req.url.match(/^\/buyer-api\/sessions\/([a-zA-Z0-9_-]{1,96})(?:\/(claim|heartbeat|journal|tool|inference|control|finish))?$/);
    if(match){
