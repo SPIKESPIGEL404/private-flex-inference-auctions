@@ -22,6 +22,15 @@ This command runs offline registration checks with zero inference calls. A new
 live run requires a prepared plan and explicit cost authorization as documented.
 Private deployment and final demo delivery remain batches D/E.
 
+## Browser playground
+
+The separate [browser playground](clients/market-playground/README.md) provides
+an fx-inspired, monochrome UI with independent fx/wterm/just-bash buyer terminals.
+Set the buyer count in the header to retile 1–8 panes automatically; configure
+individual tasks and preview budgets there. Per-call Market procurement is
+deferred: responses and usage are scripted, with no real inference calls or
+changes to the deployed Market.
+
 ## Verify the Market before buying
 
 The optional ACI identity endpoint and Node buyer now support fresh hardware
