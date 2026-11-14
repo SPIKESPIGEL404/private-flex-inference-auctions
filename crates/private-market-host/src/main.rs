@@ -195,6 +195,10 @@ async fn initialize(
     }
     let procurement_config = procurement::configuration(registration.is_some())?;
     let direct_p1 = direct_p1_enabled(registration.is_some())?;
+    ensure!(
+        deploy_buyers.is_none() || (procurement_config.is_none() && !direct_p1),
+        "deploy initialization cannot enable experimental MPP payment modes"
+    );
     let initial_cash = if procurement_config.is_some() || direct_p1 {
         0
     } else {
@@ -421,8 +425,12 @@ async fn serve(dir: &Path) -> Result<()> {
     // Hash before any Market load. Launch reads the same path on its own.
     let policy_digest = catalog_policy_digest(&catalog_path)?;
     let is_live = state.registration_sha256.is_some();
-    direct_p1_enabled(is_live)?;
+    let direct_p1 = direct_p1_enabled(is_live)?;
     let procurement_config = procurement::configuration(is_live)?;
+    ensure!(
+        !state.deploy_golden || (procurement_config.is_none() && !direct_p1),
+        "sealed deployment cannot enable experimental MPP payment modes"
+    );
     if is_live {
         ensure!(
             state.catalog_sha256.as_deref() == policy_digest.strip_prefix("sha256:"),
@@ -636,32 +644,67 @@ async fn main() -> Result<()> {
     );
     match (args[1].as_str(), args.len()) {
         ("quote-native-p1" | "quote-native-p2", 3) => {
-            use std::io::Read;
             use bitrouter_cloud::platform_billing::{meter, money::MicroUsd};
-            use bitrouter_market::{cost::base_charge_cap, order::{RequestSize, TokenRates}};
+            use bitrouter_market::{
+                cost::base_charge_cap,
+                order::{RequestSize, TokenRates},
+            };
+            use std::io::Read;
             ensure!(direct_p1_enabled(false)?, "controlled P1 mode required");
             let p2 = args[1] == "quote-native-p2";
-            ensure!(!p2 || env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled"), "controlled P2 mode required");
+            ensure!(
+                !p2 || env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled"),
+                "controlled P2 mode required"
+            );
             let mut bytes = String::new();
             std::io::stdin().take(131073).read_to_string(&mut bytes)?;
             ensure!(bytes.len() <= 131072, "native body too large");
             let body: Value = serde_json::from_str(&bytes)?;
-            ensure!(body["model"] == MODEL && body["max_completion_tokens"] == 64
-                && (p2 || (body.get("tools").is_none() && body.get("tool_choice").is_none())), "controlled native capability required");
-            let (_, native) = bitrouter_cloud::market::inference::DeliveryOptions::parse(meter::ApiProtocol::ChatCompletions, &body)?;
-            let _: bitrouter_ai::protocol::chat_completions::ChatRequest = serde_json::from_value(native.clone())?;
+            ensure!(
+                body["model"] == MODEL
+                    && body["max_completion_tokens"] == 64
+                    && (p2 || (body.get("tools").is_none() && body.get("tool_choice").is_none())),
+                "controlled native capability required"
+            );
+            let (_, native) = bitrouter_cloud::market::inference::DeliveryOptions::parse(
+                meter::ApiProtocol::ChatCompletions,
+                &body,
+            )?;
+            let _: bitrouter_ai::protocol::chat_completions::ChatRequest =
+                serde_json::from_value(native.clone())?;
             let snapshot = meter::freeze(meter::ApiProtocol::ChatCompletions, &native)?;
-            bitrouter_cloud::market::inference::output_contract(meter::ApiProtocol::ChatCompletions, &body)?;
+            bitrouter_cloud::market::inference::output_contract(
+                meter::ApiProtocol::ChatCompletions,
+                &body,
+            )?;
             let observed_input_units = if p2 { controlled_p2_tokens(&native) } else { 2 };
-            ensure!(!p2 || observed_input_units<=512,"controlled P2 input bound exceeded");
+            ensure!(
+                !p2 || observed_input_units <= 512,
+                "controlled P2 input bound exceeded"
+            );
             let input_tokens = if p2 { 512 } else { 2 };
-            let provider = base_charge_cap(&catalog::spec("chat_completions"), RequestSize { input_tokens,max_output_tokens:64 },
-                TokenRates {input:1_000_000,cache_input:1_000_000,output:11_000_000})?;
-            let platform = MicroUsd::from_input_tokens(u128::from(snapshot.billable_input_tokens)).map_err(anyhow::Error::msg)?.value();
-            println!("{}", json!({"provider_micro":provider.0,"platform_micro":platform,"total_micro":provider.0 + u64::try_from(platform)?,
+            let provider = base_charge_cap(
+                &catalog::spec("chat_completions"),
+                RequestSize {
+                    input_tokens,
+                    max_output_tokens: 64,
+                },
+                TokenRates {
+                    input: 1_000_000,
+                    cache_input: 1_000_000,
+                    output: 11_000_000,
+                },
+            )?;
+            let platform = MicroUsd::from_input_tokens(u128::from(snapshot.billable_input_tokens))
+                .map_err(anyhow::Error::msg)?
+                .value();
+            println!(
+                "{}",
+                json!({"provider_micro":provider.0,"platform_micro":platform,"total_micro":provider.0 + u64::try_from(platform)?,
                 "meter":snapshot,"mode":"controlled","input_tokens":input_tokens,"observed_input_units":observed_input_units,"rates":{"input":1000000,"cache_input":1000000,"output":11000000},
                 "expected_purchase":{"service_type":"on_demand","provider_cap":provider.0,"total_cap":((provider.0+u64::try_from(platform)?)*1000).to_string(),
-                    "wait_budget_ms":null,"max_attempts":1,"options":[{"id":1,"model_ref":MODEL,"providers":[7]}]}}));
+                    "wait_budget_ms":null,"max_attempts":1,"options":[{"id":1,"model_ref":MODEL,"providers":[7]}]}})
+            );
             Ok(())
         }
         ("init", 3) => initialize(Path::new(&args[2]), None, None).await,
@@ -805,14 +848,22 @@ mod policy_digest {
 
 fn direct_p1_enabled(is_live: bool) -> Result<bool> {
     if env::var("PRIVATE_MARKET_AGENT_P2").is_ok() {
-        ensure!(env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") && !is_live
-            && env::var("PRIVATE_MARKET_NEAR_DIRECT_P1").as_deref() == Ok("controlled"), "P2 requires isolated controlled native mode");
+        ensure!(
+            env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled")
+                && !is_live
+                && env::var("PRIVATE_MARKET_NEAR_DIRECT_P1").as_deref() == Ok("controlled"),
+            "P2 requires isolated controlled native mode"
+        );
     }
     match env::var("PRIVATE_MARKET_NEAR_DIRECT_P1").as_deref() {
         Err(env::VarError::NotPresent) => Ok(false),
         Ok("controlled") => {
-            ensure!(!is_live && env::var("PRIVATE_MARKET_MPP_METHOD").is_err()
-                && env::var("PRIVATE_MARKET_MPP_TEST_API").is_err(), "controlled P1 cannot enable live or other funding paths");
+            ensure!(
+                !is_live
+                    && env::var("PRIVATE_MARKET_MPP_METHOD").is_err()
+                    && env::var("PRIVATE_MARKET_MPP_TEST_API").is_err(),
+                "controlled P1 cannot enable live or other funding paths"
+            );
             Ok(true)
         }
         _ => anyhow::bail!("PRIVATE_MARKET_NEAR_DIRECT_P1 must be absent or controlled"),
@@ -823,10 +874,15 @@ fn direct_p1_enabled(is_live: bool) -> Result<bool> {
 // string values in messages/tools plus per-message framing; never a real model.
 fn controlled_p2_tokens(body: &Value) -> u64 {
     fn bytes(v: &Value) -> usize {
-        match v { Value::String(s) => s.len(), Value::Array(a) => a.iter().map(bytes).sum(),
-            Value::Object(o) => o.values().map(bytes).sum(), _ => 0 }
+        match v {
+            Value::String(s) => s.len(),
+            Value::Array(a) => a.iter().map(bytes).sum(),
+            Value::Object(o) => o.values().map(bytes).sum(),
+            _ => 0,
+        }
     }
-    let n = bytes(&body["messages"]) + bytes(&body["tools"])
-        + body["messages"].as_array().map_or(0, |a| a.len()*8);
-    ((n+3)/4).max(1) as u64
+    let n = bytes(&body["messages"])
+        + bytes(&body["tools"])
+        + body["messages"].as_array().map_or(0, |a| a.len() * 8);
+    ((n + 3) / 4).max(1) as u64
 }

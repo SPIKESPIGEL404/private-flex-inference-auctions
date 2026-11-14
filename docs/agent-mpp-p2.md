@@ -1,11 +1,18 @@
 # Agent MPP integration: controlled Phase 2
 
+**2026-11-14 G1 correction:** P2 inherits a v2 fixture that incorrectly debits
+the delegate sender for principal and assumes an incompatible intermediate
+receipt status. Real NEP-366 charges Transfer principal to the relayer.
+Historical P2 acceptance covers the controlled task/ledger flow, not actual
+agent-principal/project-gas attribution. See the [P3 correction and plan](specs/2026-11-14-agent-mpp-p3-run-plan.md).
+
 P2 connects two independent **real libfx engines** to the native MPP inference
 endpoint, persistent virtual bash tools, paid continuation and original Market
 accounting. Native model responses, wallet/sponsor operations, NEAR RPC and the
 seller are deterministic local fixtures. This proves runtime and money wiring;
 it does not establish real model quality, mainnet operation or lower latency.
-Real sponsorship G1 and funding/real-task acceptance P3 remain CLOSED.
+The current target is agent-paid principal and payment gas, with merchant-paid
+refund gas. Native-payment G1 and real-task acceptance P3 remain CLOSED.
 
 ## Reproduce
 

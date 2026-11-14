@@ -1,9 +1,17 @@
 # Agent MPP integration: controlled Phase 1
 
+**2026-11-14 G1 correction:** the v2 fixture below models an agent-funded
+Delegate Transfer, whereas real NEP-366 funds its deposit from the relayer.
+Its intermediate receipt assumption also differs from nearcore. Historical P1
+results remain controlled workflow/accounting evidence; they do not establish
+the stated principal/gas split on NEAR. See the [P3 correction and plan](specs/2026-11-14-agent-mpp-p3-run-plan.md).
+
 The controlled transport purchases one native chat-completion execution through
-MPP. It implements the current project-sponsored gas contract: the agent pays
+MPP. It models the historical controlled project-sponsored contract: the agent pays
 native NEAR inference principal, while the project pays payment and refund gas.
-The real wallet/sponsor route remains unqualified (G1 closed).
+The current target is agent-paid principal and payment gas, with merchant-paid
+refund gas. This historical fixture does not implement that live route; G1 is
+closed. See the [current contract](specs/2026-11-14-agent-mpp-p0-contract.md).
 
 ## Run and inspect
 

@@ -1,5 +1,11 @@
 # P0 owning interfaces and integration boundaries
 
+**Historical sponsored-route design:** the user subsequently selected agent-paid
+principal and payment gas. Sponsored-specific fields below are preserved as
+history, not required interfaces for the current native route. The current
+[P0 contract](2026-11-14-agent-mpp-p0-contract.md) and
+[P3 plan](2026-11-14-agent-mpp-p3-run-plan.md) supersede those parts.
+
 Status: proposed narrow interfaces; not new public APIs already present in the
 pinned dependencies. Payment contract and controlled implementation:
 [P0 v1](2026-11-14-agent-mpp-p0-contract.md).

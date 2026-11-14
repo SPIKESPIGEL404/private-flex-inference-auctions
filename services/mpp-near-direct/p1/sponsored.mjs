@@ -1,4 +1,6 @@
-// Project-sponsored v2. Plain-Transfer v1 remains a historical separate method.
+// Historical controlled v2 only. G1 review found that real Delegate Transfer
+// deposits are paid by the relayer, and real receipt status differs from this
+// fixture. Do not enable for live agent-principal/project-gas attribution.
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import bs58 from 'bs58';
 import { Method, Credential, Receipt, z } from 'mppx';

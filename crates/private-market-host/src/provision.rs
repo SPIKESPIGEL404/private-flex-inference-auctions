@@ -78,14 +78,22 @@ async fn create_with_schedule(
 ) -> Result<Value> {
     bitrouter_cloud::market::pg::install(&db).await?;
     let work = Workload {
-        token_ids: if std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") { (0..512).collect() } else {vec![42,43]},
+        token_ids: if std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") {
+            (0..512).collect()
+        } else {
+            vec![42, 43]
+        },
     };
-    let p2_sellers: Vec<_> = (11..27).map(|id| (id,7,"controlled")).collect();
-    let sellers = if std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") { p2_sellers.as_slice() } else { &[
-        (11, 7, "controlled"),
-        (12, 7, "controlled"),
-        (13, 7, "controlled"),
-    ] };
+    let p2_sellers: Vec<_> = (11..27).map(|id| (id, 7, "controlled")).collect();
+    let sellers = if std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") {
+        p2_sellers.as_slice()
+    } else {
+        &[
+            (11, 7, "controlled"),
+            (12, 7, "controlled"),
+            (13, 7, "controlled"),
+        ]
+    };
     let protocol = "chat_completions";
     let mut config = catalog::config(&work, at, protocol, sellers);
     // Three one-use sell orders from one Provider share one physical slot.

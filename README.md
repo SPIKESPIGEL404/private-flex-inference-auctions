@@ -92,11 +92,30 @@ See the [implementation and configuration](docs/market-nearintents-charge.md),
 [acceptance limits](docs/acceptance/2026-11-13-nearintents-charge.md).
 Real settlement, refunds and deployment of the new adapter remain unaccepted.
 
+## Agent MPP integration status
+
+The current target is agent-paid native NEAR principal **and payment gas**,
+with merchant-paid refund gas. See the [current integration contract](docs/specs/2026-11-14-agent-mpp-inference-integration.md)
+and [P3 run plan](docs/specs/2026-11-14-agent-mpp-p3-run-plan.md).
+
+P0–P2 below provide controlled contracts, execution, budget and recovery tests.
+Their v2 NEP-366 fixture incorrectly debits agent principal: real NEP-366 charges
+both principal and gas to the outer relayer. Those tests do not qualify real
+payments. G1 must verify the selected Agent API native Transfer route; real P3
+wallet funding, inference and refund acceptance remain outstanding. Unfinished
+P3 runtime prototypes are excluded from this integration.
+
+The wallet onboarding playground (`clients/market-playground` plus
+`clients/buyer-gateway`) and controlled inference playground
+(`clients/agent-playground`) remain separate runnable entry points. This branch
+preserves both; it does not claim a single connected real-money UI.
+
 ## Agent native MPP — controlled Phase 1
 
 The P1 integration serves `/v1/chat/completions` through an authenticated MPP
 Proxy. One controlled agent purchases one native Market execution, with native
-NEAR principal attributed to the agent and payment/refund gas to the project.
+NEAR principal attributed to the agent and gas to the project in its historical
+controlled fixture. Its chain-economic limitation is explained above.
 The original Market PostgreSQL ledger, Redis projection, admission, execution
 and usage settlement remain authoritative. JSON and SSE use the same original
 execution on replay.
@@ -109,7 +128,7 @@ Requires Node >=24, Rust, PostgreSQL and Redis command-line tools. Uses a separa
 `crates/private-market-p1` manifest and pinned owning-source patch; it does not
 modify Cargo's shared checkout. The NEAR chain, delegated signer/sponsor and
 single-slot seller are explicit local fixtures. It sends no real transactions
-or provider requests. Real sponsorship qualification G1 stays closed. Browser
+or provider requests. Real native-payment qualification G1 stays closed. Browser
 funding, tool continuation and multiple agents belong to P2/P3.
 
 See the [P1 implementation](docs/agent-mpp-p1.md) and
