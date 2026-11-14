@@ -25,7 +25,7 @@ def prepare(before, market, ui, seed, revision):
     assert len(json.loads(bseed['files']['buyers.public.json'])['public_keys'])==3
     compose=yaml.safe_load(after['docker_compose_file']);service=compose['services']['market']
     service['image']=market['classicImageId']
-    service['command']=['--seed','/run/private-market-chutes/seed.json','--seed-sha256',hashlib.sha256(seed).hexdigest(),'--run-directory','/data/baseline-b-v2','--credential-source-directory','/data/chutes-run']
+    service['command']=['--seed','/opt/market/chutes-seed.json','--seed-sha256',hashlib.sha256(seed).hexdigest(),'--run-directory','/data/baseline-b-v2','--credential-source-directory','/data/chutes-run']
     # The new image owns the updated runtime. Retain the existing ingress helper,
     # certificate evidence and all persistent volume mounts.
     service['volumes']=[v for v in service['volumes'] if not isinstance(v,str) or v.split(':')[1]!='/opt/market/runtime_chutes.py']

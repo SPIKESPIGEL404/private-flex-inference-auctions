@@ -9,7 +9,7 @@ m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 
 class BaselineOverlay(unittest.TestCase):
     def setUp(self):
-        original={'docker_compose_file':yaml.safe_dump({'services':{'market':{'image':'sha256:'+'a'*64,'ports':['8080:8080'],'volumes':['ledger:/data','/run/runtime_chutes.py:/opt/market/runtime_chutes.py:ro'],'environment':{'KEEP':'unchanged'}},'domain-ingress':{'image':'original-domain'}},'volumes':{'ledger':{'name':'original-ledger'}},'networks':{'default':{}}}),'pre_launch_script':'# original measured inputs\n','requirements':{'ephemeral_data_disk':False},'init_script':'','allowed_envs':['SEALED_KEY']}
+        original={'docker_compose_file':yaml.safe_dump({'services':{'market':{'image':'sha256:'+'a'*64,'ports':['8080:8080'],'volumes':['ledger:/data','/run/runtime_chutes.py:/opt/market/runtime_chutes.py:ro','/run/private-market-chutes/seed.json:/opt/market/chutes-seed.json:ro'],'environment':{'KEEP':'unchanged'}},'domain-ingress':{'image':'original-domain'}},'volumes':{'ledger':{'name':'original-ledger'}},'networks':{'default':{}}}),'pre_launch_script':'# original measured inputs\n','requirements':{'ephemeral_data_disk':False},'init_script':'','allowed_envs':['SEALED_KEY']}
         self.ui={'classicImageId':'sha256:'+'b'*64,'archiveSha256':'c'*64,'archiveUrl':'https://github.com/owner/repo/releases/download/release/ui.tar.gz'}
         self.before,_=m.preview.prepare(original,self.ui['classicImageId'],self.ui['archiveUrl'],self.ui['archiveSha256'],'d'*64,'e'*40,'https://preview.example.com')
         self.market={'classicImageId':'sha256:'+'f'*64,'archiveSha256':'1'*64,'archiveUrl':'https://github.com/owner/repo/releases/download/release/b.tar.gz'}
@@ -23,6 +23,10 @@ class BaselineOverlay(unittest.TestCase):
         self.assertIn('ledger:/data',new['services']['market']['volumes']);self.assertEqual(after['allowed_envs'],self.before['allowed_envs'])
         self.assertTrue(report['persistentVolumesUnchanged']);self.assertTrue(after['pre_launch_script'].startswith(self.before['pre_launch_script']))
         self.assertEqual(new['services']['agent-preview']['environment']['AGENT_PREVIEW_SUPPLY_URL'],'http://market:8080/market/v1/supply')
+        command=new['services']['market']['command']
+        seed_target=command[command.index('--seed')+1]
+        self.assertEqual(seed_target,'/opt/market/chutes-seed.json')
+        self.assertIn('/run/private-market-chutes/seed.json:'+seed_target+':ro',new['services']['market']['volumes'])
 
     def test_refuses_reusing_original_namespace_or_unknown_seed_files(self):
         self.seed['files']['plan.json']=json.dumps({'market_id':'original'})
