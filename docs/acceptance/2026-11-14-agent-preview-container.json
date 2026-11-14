@@ -1,13 +1,13 @@
 {
   "passed": true,
-  "image": "private-market:agent-preview-bea14549f5b1",
-  "revision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
+  "image": "private-market:agent-preview-ded7f2edeffe",
+  "revision": "ded7f2edeffe69c5b70c1800642bb477e23298eb",
   "health": {
     "ready": true,
     "phase": "P2",
     "mode": "controlled",
     "realPayment": false,
-    "revision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2"
+    "revision": "ded7f2edeffe69c5b70c1800642bb477e23298eb"
   },
   "twoTaskResults": [
     "42",
@@ -44,22 +44,22 @@
     },
     "limits": [
       {
-        "user_id": "99371c8b-29f4-454a-b8d8-7bde77b363ae",
+        "user_id": "49aa9b15-8f08-409a-874c-255daced1547",
         "spent_nano": 1575000,
         "budget_nano": 20000000,
         "reserved_nano": 0
       },
       {
-        "user_id": "ad280574-64e9-4091-ae91-cfc45ec7f052",
+        "user_id": "abceab88-1e75-4636-aea8-64221ee56af2",
         "spent_nano": 1575000,
         "budget_nano": 20000000,
         "reserved_nano": 0
       }
     ],
-    "chainHash": "5c9bfb82535135fa66b863a210c36cc9",
-    "configHash": "3c4d50728b5dae67c009036f89ef73dacd279de2bfd79e135b47d8c2d8a9f950",
-    "catalogHash": "2708c6ad1739faa3e09c70d33bdea195fce8857178fd23094858a041fac3fac4",
-    "stateHash": "de3b791be1c6a6c53b19d591b380c0ccc314985060533e8c3479cc41f75908e8"
+    "chainHash": "1ffd9af15a5915b7b0b187268ee9e943",
+    "configHash": "3cd36ea5b66c115b6e8ec132a0208cba804ecf23573ba7696601e9db50722e04",
+    "catalogHash": "c2bacaad0168dc5081184546f5c59f31d5638a9d633059c8c99336bad2247eee",
+    "stateHash": "5fe7c491c8f5ee736c746ddf66e0fca2f08d57e3c65ca243deb43a47bba8cc46"
   },
   "afterRestart": {
     "tasks": [
@@ -85,30 +85,31 @@
     },
     "limits": [
       {
-        "user_id": "99371c8b-29f4-454a-b8d8-7bde77b363ae",
+        "user_id": "49aa9b15-8f08-409a-874c-255daced1547",
         "spent_nano": 1575000,
         "budget_nano": 20000000,
         "reserved_nano": 0
       },
       {
-        "user_id": "ad280574-64e9-4091-ae91-cfc45ec7f052",
+        "user_id": "abceab88-1e75-4636-aea8-64221ee56af2",
         "spent_nano": 1575000,
         "budget_nano": 20000000,
         "reserved_nano": 0
       }
     ],
-    "chainHash": "5c9bfb82535135fa66b863a210c36cc9",
-    "configHash": "3c4d50728b5dae67c009036f89ef73dacd279de2bfd79e135b47d8c2d8a9f950",
-    "catalogHash": "2708c6ad1739faa3e09c70d33bdea195fce8857178fd23094858a041fac3fac4",
-    "stateHash": "de3b791be1c6a6c53b19d591b380c0ccc314985060533e8c3479cc41f75908e8"
+    "chainHash": "1ffd9af15a5915b7b0b187268ee9e943",
+    "configHash": "3cd36ea5b66c115b6e8ec132a0208cba804ecf23573ba7696601e9db50722e04",
+    "catalogHash": "c2bacaad0168dc5081184546f5c59f31d5638a9d633059c8c99336bad2247eee",
+    "stateHash": "5fe7c491c8f5ee736c746ddf66e0fca2f08d57e3c65ca243deb43a47bba8cc46"
   },
   "noDuplicateEffectsOrRefill": true,
   "authAndOriginGuards": true,
+  "proposalRoutes": true,
   "onlyPublishedPort": 3000,
-  "isolatedVolume": "agent-mpp-preview-accept-pg18-20261114-data",
-  "containerImageId": "sha256:78793dbbdb6664dc2a559f1ab647ba69d4efd6990acd8dd014ed71ed05c46f00",
+  "isolatedVolume": "agent-mpp-preview-accept-proposal-20261114-data",
+  "containerImageId": "sha256:d14261395ead338f841e59b0f9a3004a96f5dbc4abe8ab58f5a43b3ab2dfe30d",
   "networkMembership": [
-    "agent-mpp-preview-accept-pg18-20261114-private"
+    "agent-mpp-preview-accept-proposal-20261114-private"
   ],
   "networkEgressBlocked": false,
   "resourceCaps": {

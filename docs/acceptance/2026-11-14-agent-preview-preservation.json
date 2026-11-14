@@ -1,9 +1,9 @@
 {
   "passed": true,
-  "sourceRevision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
-  "image": "sha256:b4a42b15ed38942767dbf88c118304e65e7a0339507808f3c7668ac55b00733d",
-  "archiveSha256": "a99b9eb032acedbc843e4457a0ac303c8ab73f55560cf331b73a538c0ee06f80",
-  "expectedComposeHash": "e68bf8bfbf1ee6fe4899d042e167e873ca4938a5441d3944e156e079da5a91ed",
+  "sourceRevision": "ded7f2edeffe69c5b70c1800642bb477e23298eb",
+  "image": "sha256:1a259d7d76616c22c5e5c188b66c845a441dfc6af3d36adaf746fbd66be5b7bb",
+  "archiveSha256": "a0fd995d9b28abb9372b723defd77a82afabcf31cce9c2a2efe42677e642e21b",
+  "expectedComposeHash": "39524f9ff0144d4d3e6c246bac9442068386a113b82fffbcb9cf7fcbc720992e",
   "originalServiceDefinitionsUnchanged": [
     "market"
   ],
@@ -26,7 +26,7 @@
   "dataDiskEphemeral": false,
   "initScriptUnchangedAndEmpty": true,
   "newService": {
-    "image": "sha256:b4a42b15ed38942767dbf88c118304e65e7a0339507808f3c7668ac55b00733d",
+    "image": "sha256:1a259d7d76616c22c5e5c188b66c845a441dfc6af3d36adaf746fbd66be5b7bb",
     "pull_policy": "never",
     "restart": "unless-stopped",
     "ports": [
@@ -41,7 +41,7 @@
     "environment": {
       "AGENT_PREVIEW_ORIGIN": "https://e83279da3fa5b47453cc62317df738b70fedf08c-3000.dstack-pha1-prod9.phala.network",
       "AGENT_PREVIEW_OWNER_HASH": "ca182ada40b9bc6adb147a91744348ad91b842bff285883a3e8ec2ffead6e191",
-      "AGENT_PREVIEW_REVISION": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2"
+      "AGENT_PREVIEW_REVISION": "ded7f2edeffe69c5b70c1800642bb477e23298eb"
     },
     "read_only": true,
     "tmpfs": [

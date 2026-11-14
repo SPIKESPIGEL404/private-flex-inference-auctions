@@ -59,7 +59,7 @@ def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origi
   set -eu
   preview_image='{image}'
   preview_sha='{archive_sha}'
-  preview_cache=/var/lib/agent-mpp-preview-images
+  preview_cache=/dstack/persistent/agent-mpp-preview-images
   if ! docker image inspect "$preview_image" >/dev/null 2>&1; then
     mkdir -p "$preview_cache"
     preview_archive="$preview_cache/$preview_sha.tar.gz"

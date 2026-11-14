@@ -1,51 +1,91 @@
 {
   "reviewer": "gpt-6-astra",
   "verdict": "SCOPED_PREDEPLOY_CONTROLLED_PREVIEW_ACCEPTED",
-  "sourceRevision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
+  "sourceRevision": "ded7f2edeffe69c5b70c1800642bb477e23298eb",
   "artifacts": {
-    "tag": "private-market:agent-preview-bea14549f5b1",
-    "sourceRevision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
-    "localManifestDigest": "sha256:78793dbbdb6664dc2a559f1ab647ba69d4efd6990acd8dd014ed71ed05c46f00",
-    "classicImageConfigDigest": "sha256:b4a42b15ed38942767dbf88c118304e65e7a0339507808f3c7668ac55b00733d",
-    "archiveSha256": "a99b9eb032acedbc843e4457a0ac303c8ab73f55560cf331b73a538c0ee06f80",
-    "archiveBytes": 224583672,
+    "tag": "private-market:agent-preview-ded7f2edeffe",
+    "sourceRevision": "ded7f2edeffe69c5b70c1800642bb477e23298eb",
+    "localManifestDigest": "sha256:d14261395ead338f841e59b0f9a3004a96f5dbc4abe8ab58f5a43b3ab2dfe30d",
+    "classicImageConfigDigest": "sha256:1a259d7d76616c22c5e5c188b66c845a441dfc6af3d36adaf746fbd66be5b7bb",
+    "archiveSha256": "a0fd995d9b28abb9372b723defd77a82afabcf31cce9c2a2efe42677e642e21b",
+    "archiveBytes": 224584545,
     "architecture": "amd64",
     "os": "linux"
   },
-  "expectedComposeHash": "e68bf8bfbf1ee6fe4899d042e167e873ca4938a5441d3944e156e079da5a91ed",
+  "expectedComposeHash": "39524f9ff0144d4d3e6c246bac9442068386a113b82fffbcb9cf7fcbc720992e",
   "blockingFindings": [],
-  "independentlyVerified": [
-    "archive SHA-256 and byte length",
-    "archive classic config digest and Linux amd64 architecture",
-    "local container manifest digest links to the exact classic config digest",
-    "fixture container identity and dedicated bridge membership",
-    "only container port 3000 published; only new fixture data volume mounted",
-    "nonroot user, read-only rootfs, no-new-privileges, cap-drop ALL, tmpfs, 1536MiB memory, 1 CPU, 192 PID limit",
-    "container model/payment/PG/Redis internal ports unreachable on container nonloopback IPv4",
-    "additional startup healthy with expected revision and realPayment=false",
-    "PostgreSQL 18.7 running",
-    "two completed sessions with persisted results 42 and 19 and one application marker each",
-    "four fixture payments, four fixture refunds, all four refund ledger rows confirmed",
-    "two tool rows and four seller execution claims",
-    "after additional startup both task budgets 10000000/spent1575000/reserved0, both agent budgets20000000/spent1575000/reserved0",
-    "runner and P2 server file hashes match reviewed worktree",
-    "fixture container restored to stopped state"
+  "independentlyVerifiedCurrentBuild": [
+    "full archive SHA-256 and byte length",
+    "classic config digest computed from archived config bytes",
+    "archived manifest digest equals inspected test container image and links to exact classic config",
+    "Linux amd64 architecture",
+    "source/image/archive/overlay/report revision and digest consistency",
+    "stopped fresh container user, image, dedicated network, only own data volume and port3000",
+    "fresh container 1536MiB memory,1CPU,192PID,read-only rootfs,tmpfs,no-new-privileges,cap-dropALL",
+    "ded7f2e merge source delta review: unchanged core Rust/payment/persistence/overlay logic",
+    "ded7f2e independent frontend production build,edge3/3,Origin1/1,public route probes"
   ],
-  "parentEvidenceReviewed": [
-    "original two FX task execution and refund completion",
-    "before/after restart report equality and no duplicate effects or refill",
-    "auth and Origin checks",
-    "private original manifest preservation assertions"
-  ],
-  "preservationBoundary": "Reviewer validated generator logic using synthetic manifests and read only explicitly authorized preservation report. Original private manifest and sealed environments were not independently read. Report asserts original market service, six volumes, metadata and sealed environment names preserved; actual deployment remains to be verified.",
+  "independentPreviousCoreEvidence": {
+    "sourceRevision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
+    "checks": [
+      "archive SHA-256 and byte length",
+      "archive classic config digest and Linux amd64 architecture",
+      "local container manifest digest links to the exact classic config digest",
+      "fixture container identity and dedicated bridge membership",
+      "only container port 3000 published; only new fixture data volume mounted",
+      "nonroot user, read-only rootfs, no-new-privileges, cap-drop ALL, tmpfs, 1536MiB memory, 1 CPU, 192 PID limit",
+      "container model/payment/PG/Redis internal ports unreachable on container nonloopback IPv4",
+      "additional startup healthy with expected revision and realPayment=false",
+      "PostgreSQL 18.7 running",
+      "two completed sessions with persisted results 42 and 19 and one application marker each",
+      "four fixture payments, four fixture refunds, all four refund ledger rows confirmed",
+      "two tool rows and four seller execution claims",
+      "after additional startup both task budgets 10000000/spent1575000/reserved0, both agent budgets20000000/spent1575000/reserved0",
+      "runner and P2 server file hashes match reviewed worktree",
+      "fixture container restored to stopped state"
+    ],
+    "applicability": "Core runtime logic unchanged in ded7f2e; new frontend/static-route changes independently reviewed. Previous image identity is not reused as current artifact proof."
+  },
+  "primaryFreshContainerEvidenceReviewed": {
+    "sourceRevision": "ded7f2edeffe69c5b70c1800642bb477e23298eb",
+    "reportedPassed": true,
+    "twoTaskResults": [
+      "42",
+      "19"
+    ],
+    "counts": {
+      "tools": 2,
+      "refunds": 4,
+      "payments": 4,
+      "executions": 4,
+      "confirmedRefunds": 4
+    },
+    "beforeAfterRestartEqual": true,
+    "noDuplicateEffectsOrRefill": true,
+    "authAndOriginGuards": true,
+    "proposalRoutes": true,
+    "scope": "Fresh full FX execution and restart for ded7f2e run by primary agent; reviewer independently checked report consistency and container configuration but did not rerun full fresh tasks."
+  },
+  "preservationBoundary": "Reviewer validated generator with synthetic manifests and read only authorized final preservation report. Original private deployment manifest and sealed environments were not independently read. Actual deployment preservation remains a postdeployment check.",
   "networkEgressBlocked": false,
   "limitations": [
-    "controlled scripted provider and virtual chain/wallet only",
-    "legacy NEP-366 fixtures do not establish real principal/gas economics",
+    "controlled scripted model and virtual wallet/chain only",
+    "legacy NEP366 fixtures do not prove real principal/gas economics",
     "not real P3 payment/provider acceptance",
-    "not live Phala deployment or postdeployment acceptance",
+    "not live Phala deployment/postdeployment acceptance",
     "dedicated bridge is not an egress firewall",
-    "published old gateway remains reachable under its existing authentication"
+    "HTTP200 proposal evidence does not alone establish visual/browser UX acceptance"
   ],
-  "operations": "Reviewer started only the explicitly authorized isolated local fixture container, performed read-only SQL and health/port/hash checks, then stopped it; no reset or credentials/live service access."
+  "operations": "Current review read only four explicitly authorized artifact files and inspected stopped isolated fixture container. No live environment, credentials, private backups, real funds, data resets or deployment operations.",
+  "operatorLoaderUpdate": {
+    "status": "ACCEPTED",
+    "generatorSha256": "12f6db8bfd66c478b9c57258ba609a3e4f7dcf080f4ce434dfff6b30b7cfab61",
+    "change": "Only preview_cache changes to /dstack/persistent/agent-mpp-preview-images; host loader path, not a preview container mount.",
+    "independentChecks": [
+      "one-line generator diff relative to ded7f2e",
+      "synthetic generated loader sh -n passes",
+      "latest authorized preservation report binds unchanged runtime image/archive and updated compose hash"
+    ],
+    "boundary": "Host directory writability and original deployment configuration preservation asserted by primary agent; reviewer did not access live host or private source manifest."
+  }
 }
