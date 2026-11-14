@@ -45,8 +45,9 @@ No mainnet funding or real-wallet end-to-end acceptance is claimed. The current
 funding path uses a NEAR six-decimal stablecoin; native NEAR conversion is future
 work. See the gateway's recovery limits and [acceptance record](../../docs/acceptance/2026-11-14-agent-wallet-onboarding.md).
 
-The provider statistics pane remains a labelled scripted comparison in wallet
-mode as well. It does not read wallet balances, purchases or GPU telemetry.
+The provider statistics pane offers a live engine feed and an explicitly scripted
+comparison in wallet mode as well. Wallet balances/purchases stay separate;
+only Live engine reads actual engine telemetry through the host.
 
 ## Original development preview
 
@@ -69,9 +70,18 @@ mode as well. It does not read wallet balances, purchases or GPU telemetry.
 - Responsive tiling, native modal focus handling,
   precise integer microUSD parsing/display, and reduced-motion support.
 
-## Provider statistics preview
+## Provider statistics
 
-The bottom statistics pane previews a single-GPU vLLM / Qwen3.8-27B seller on
+The default **Live engine** source uses the hosted buyer gateway and Prometheus
+to display actual queues, throughput, KV cache and latency windows. `/gpu` opens
+the standalone view without wallet/terminal WASM. See the [live setup and data
+contract](../../docs/live-gpu-dashboard.md). Missing/stale samples never turn
+into fixtures, and missing window observations display `—`. This feed includes
+all engine traffic and does not imply that these buyer terminals invoked it.
+
+Select **Simulated preview** explicitly for the original comparison below.
+
+The simulated statistics preview illustrates a single-GPU vLLM / Qwen3.8-27B seller on
 RTX PRO 6000. Toggle it from the header or its pane label; terminal sessions stay
 mounted and retile into the available space. Its open state, view and experiment
 mode are retained for this browser session.
@@ -81,19 +91,18 @@ and SLO goodput/GPU. Switch among earnings, cache, latency and trust views, or
 select baseline, matching, priority and combined modes. The sixty-second chart
 updates once per second and can be paused independently of buyer terminals.
 
-**Every statistics value is a scripted fixture, including its baseline and
-uplift.** The feed is independent of terminal activity. No provider telemetry,
-wallet settlement, hardware counters or remote attestation is connected. The
+**Every Simulated preview value is a scripted fixture, including its baseline and
+uplift.** That feed is independent of terminal activity. It connects to no provider
+telemetry, wallet settlement, hardware counters or remote attestation. The
 assumed GPU cost is explicitly shown; missing trust evidence stays unavailable.
 Priority-only fixtures intentionally include a goodput regression, and modes
 without priority service show its fulfillment rate as not applicable.
 
-`src/statistics.ts` owns the sample data; `src/ProviderStatistics.tsx` renders it
-without a charting dependency. Each sample is a rolling-window snapshot, with
-quantiles supplied by the source rather than averaged in the UI. A future live
-adapter must provide actual settlement/cost provenance, aggregate histograms
-before calculating percentiles, distinguish instance epochs/counter resets,
-and keep measured comparisons separate from estimates.
+`src/statistics.ts` owns only preview data. `src/LiveProviderStatistics.tsx` and
+`src/provider-telemetry.ts` render the actual engine feed separately. Both use
+native SVG. The live backend aggregates histogram buckets before computing
+quantiles and guards process/counter resets. Live economics still requires
+settlement/cost provenance and actual experiment comparisons.
 
 `Ctrl B`, then an arrow switches panes; `Ctrl B Z` zooms/restores the selected
 pane. `Ctrl B %` adds a pane and `Ctrl B X` parks the last pane.
@@ -108,7 +117,8 @@ The fx runtime and terminal are real. **Responses, supply, purchase states and
 usage amounts are scripted illustrations.** The fixture transport returns local
 Gateway-format SSE without making a network request. The placeholder credential
 is deliberately fake, remains in this transport, and authorizes nothing.
-All real provider spend is zero. UI budgets and simulated usage are not a ledger,
+The scripted transport submits no real inference. Live telemetry is a separate
+read-only feed; existing GPU wall-clock billing remains separate. UI budgets and simulated usage are not a ledger,
 spend authorization, successful bid, remote-attestation result or proof of model
 execution. This page does not contact NEAR or the deployed Phala Market.
 

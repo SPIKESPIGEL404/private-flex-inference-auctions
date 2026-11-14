@@ -1,4 +1,67 @@
 :root { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace; color: #ededed; background: #000; font-size: 13px; font-synthesis: none; --border: #262626; --muted: #888; }
+.provider-statistics-container { flex: none; min-width: 0; }
+.statistics-source-switch { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 16px; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); }
+.statistics-source-switch label { display: flex; align-items: center; gap: 8px; }
+.statistics-source-switch select, .engine-chart-header select { background: #000; color: #ccc; border: 1px solid #333; padding: 3px 6px; border-radius: 0; }
+.provider-stats.live-stats.stats-expanded { height: 370px; max-height: 60dvh; }
+.live-stats .engine-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.engine-kpis .stats-kpi { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.engine-kpis .stats-kpi-label { font-size: 10px; white-space: normal; min-height: 26px; line-height: 1.4; }
+.engine-kpi-scope { font-size: 9px; color: #777; }
+.engine-age { color: #888; font-size: 10px; white-space: nowrap; }
+.engine-state-live { border-color: #bbb; color: #eee; }
+.engine-state-stale, .engine-state-unavailable, .engine-state-disconnected { border-style: dashed; color: #888; }
+.engine-notice { padding: 8px 16px; color: #aaa; font-size: 11px; border-top: 1px solid var(--border); }
+.engine-chart-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 36px; padding: 0 16px; font-size: 10px; color: #888; }
+.engine-chart-header label { display: flex; align-items: center; gap: 8px; }
+.engine-chart-area { padding: 0 16px; flex: 1; min-height: 0; overflow: auto; }
+.engine-plot { height: clamp(100px, 19vh, 160px); flex: none; min-width: 0; }
+.engine-plot svg { display: block; width: 100%; height: 100%; }
+.engine-details { display: flex; flex-wrap: wrap; gap: 8px 25px; margin: 10px 0 12px; }
+.engine-details > div { gap: 8px; }
+.engine-details dd { font-size: 11px; }
+.gpu-dashboard { height: 100dvh; display: flex; flex-direction: column; overflow: auto; }
+.gpu-topbar { display: flex; gap: 24px; align-items: center; min-height: 70px; padding: 0 30px; border-bottom: 1px solid var(--border); }
+.gpu-topbar h1 { font-size: 15px; font-weight: 400; margin: 0; }
+.gpu-topbar a, .gpu-topbar > span { color: #888; font-size: 11px; }
+.gpu-topbar > span { margin-left: auto; }
+.gpu-dashboard .provider-stats.standalone-stats { height: auto; max-height: none; flex: 1; }
+.gpu-dashboard .provider-stats.live-stats.standalone-stats.stats-expanded { height: auto; max-height: none; flex: 1 0 auto; }
+.standalone-stats .stats-expanded-content { min-height: auto; }
+.standalone-stats .stats-heading { min-height: 52px; padding: 0 30px; }
+.standalone-stats .stats-heading-toggle:disabled { opacity: 1; cursor: default; }
+.standalone-stats .engine-kpis .stats-kpi { padding: 22px; }
+.standalone-stats .engine-kpis .stats-kpi-value { font-size: 29px; }
+.standalone-stats .engine-kpis .stats-kpi-label { min-height: 32px; }
+.standalone-stats .engine-chart-header { padding: 10px 30px; }
+.standalone-stats .engine-chart-area { padding: 0 30px; display: flex; flex-direction: column; justify-content: center; flex: 1 0 auto; overflow: visible; }
+.standalone-stats .engine-plot { height: clamp(170px, 35vh, 350px); }
+.standalone-stats .engine-details { margin: 28px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 40px; }
+.engine-provenance { display: flex; flex-wrap: wrap; gap: 10px 24px; padding: 14px 30px; border-top: 1px solid var(--border); font-size: 10px; color: #777; }
+@media (max-width: 900px) {
+  .live-stats .engine-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .engine-kpis .stats-kpi { border-bottom: 1px solid var(--border); }
+  .engine-kpis .stats-kpi:nth-child(3n) { border-right: 0; }
+  .provider-stats.live-stats.stats-expanded { height: 430px; max-height: 65dvh; }
+  .standalone-stats .engine-kpis .stats-kpi { padding: 16px; }
+  .standalone-stats .engine-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .gpu-topbar { padding: 0 12px; gap: 15px; min-height: 54px; }
+  .gpu-topbar > span { display: none; }
+  .standalone-stats .stats-heading { padding: 8px 12px; gap: 8px; }
+  .live-stats .stats-heading { flex-wrap: wrap; }
+  .live-stats .engine-age { margin-left: auto; font-size: 9px; }
+  .live-stats .engine-kpis .stats-kpi { padding: 10px 8px; }
+  .live-stats .engine-kpis .stats-kpi-value { font-size: 20px; }
+  .live-stats .engine-kpis .stats-kpi-label { font-size: 9px; min-height: 28px; }
+  .live-stats .engine-kpi-scope { font-size: 8px; }
+  .standalone-stats .engine-chart-area, .standalone-stats .engine-chart-header { padding-left: 12px; padding-right: 12px; }
+  .engine-chart-header > span { display: none; }
+  .standalone-stats .engine-details { grid-template-columns: 1fr; gap: 14px; margin: 16px 0; }
+  .engine-provenance { padding: 12px; line-height: 1.5; }
+  .live-stats .stats-footer { flex-wrap: wrap; line-height: 1.5; }
+}
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; width: 100%; height: 100%; overflow: hidden; }
 body { min-width: 320px; }

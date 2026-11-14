@@ -34,6 +34,15 @@ scripted preview is available only through an explicit development switch;
 wallet-mode failures do not fall back to scripted responses. No deployed Market
 or real funds were changed by this implementation batch.
 
+## Live GPU dashboard
+
+The optional [GPU dashboard](docs/live-gpu-dashboard.md) connects the private
+Chutes vLLM metrics to the existing provider pane and a standalone `/gpu` page.
+It shows live queues, token throughput, KV cache and latency windows through
+server-side Prometheus collection. The Chutes key never enters the browser.
+The simulated economics preview stays explicit; real Market revenue and agent
+traffic integration are separate work.
+
 ## Verify the Market before buying
 
 The optional ACI identity endpoint and Node buyer now support fresh hardware

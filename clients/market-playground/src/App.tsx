@@ -110,7 +110,7 @@ function Info({ kind, onClose }: { kind: 'help' | 'preview'; onClose: () => void
       <dl className="key-list"><dt>market</dt><dd>not connected</dd><dt>provider calls</dt><dd>0</dd>
         <dt>actual spend</dt><dd>$0.00</dd><dt>attestation / signatures</dt><dd>not checked</dd></dl>
       <p>Per-call Market procurement is deferred. This preview contains no provider credentials.</p>
-      <p>Provider statistics are an independent, scripted comparison for layout preview. They are not derived from these terminals or a measured GPU experiment. Hardware attestation is not connected.</p>
+      <p>Live engine statistics use the optional host telemetry feed and include all engine traffic. Simulated preview is an explicit scripted comparison. Neither establishes that these terminals invoked the engine; hardware attestation is separate.</p>
     </>}
   </dialog>;
 }
@@ -299,7 +299,7 @@ export default function App() {
           onSelect={setSelected} onStatus={status} onUsage={usage} onRuntime={register} onInput={terminalInput} />
       </div>;
     })}</main>
-    <ProviderStatistics open={statistics.open} mode={statistics.mode} view={statistics.view}
+    <ProviderStatistics open={statistics.open} mode={statistics.mode} view={statistics.view} accessScope={ownerScope}
       onOpenChange={open => setStatistics(old => ({ ...old, open }))}
       onModeChange={mode => setStatistics(old => ({ ...old, mode }))}
       onViewChange={view => setStatistics(old => ({ ...old, view }))} />

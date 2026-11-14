@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { check } from './errors.mjs';
 import { accountPattern } from './near.mjs';
+import { telemetryConfig } from './provider-telemetry.mjs';
 
 export function configFromEnv(env = process.env) {
   const origin = env.BUYER_APP_ORIGIN ?? 'http://127.0.0.1:4173';
@@ -26,5 +27,6 @@ export function configFromEnv(env = process.env) {
     ownerTermsUrl: env.BUYER_OWNER_TERMS_URL ?? null, outlayerTermsUrl: 'https://app.outlayer.ai/terms', acceptanceVersion: 'agent-wallet-setup-v1',
     symbol: tokenContract === 'usdt.tether-token.near' ? 'USDT' : 'USDC',
     fundingEnabled: env.BUYER_WALLET_FUNDING_ENABLED === '1',
-    staticDir: resolve(env.BUYER_STATIC_DIR ?? '../market-playground/dist') };
+    staticDir: resolve(env.BUYER_STATIC_DIR ?? '../market-playground/dist'),
+    providerTelemetry: telemetryConfig(env) };
 }
