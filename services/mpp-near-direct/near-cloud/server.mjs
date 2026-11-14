@@ -13,6 +13,7 @@ import { inspectStream, sdkClient } from '../../inference-comparison/near-bridge
 import { MODEL } from '../../inference-comparison/core.mjs';
 import { METHOD, hash, requireThat } from '../contract.mjs';
 import { verifyRefund, verifyBinding } from '../near.mjs';
+import { verifyAgentPaidTransfer } from '../p3/outlayer-native-verification.mjs';
 
 const json = (res, status, value) => { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(value)); };
 const authorized = (actual, expected) => typeof actual === 'string' && Buffer.byteLength(actual) === Buffer.byteLength(expected)
@@ -22,7 +23,7 @@ async function read(req) {
   for await (const part of req) { n += part.length; requireThat(n <= 8192, 'request_too_large'); parts.push(part); }
   return new TextDecoder('utf8', { fatal: true }).decode(Buffer.concat(parts));
 }
-export async function startCloudMpp(config, { client, store, rpc, merchantSender, now = Date.now } = {}) {
+export async function startCloudMpp(config, { client, store, rpc, merchantSender, beforeRefund, now = Date.now } = {}) {
   requireThat(config.network === 'testnet' && config.agentToken?.length >= 32 && config.secret?.length >= 32, 'private_testnet_configuration_required');
   store ??= new Store(config.storePath, Buffer.from(config.storageKey, 'hex'));
   rpc ??= new TestnetAcceptanceRpc(store);
@@ -52,6 +53,11 @@ export async function startCloudMpp(config, { client, store, rpc, merchantSender
     try {
       for (const order of authority.orders()) {
         try {
+          if (!order.payment && order.refundOnly) {
+            const proof = await verifyAgentPaidTransfer({ challenge: await authority.loadChallenge(order.refundOnly.challengeId),
+              txHash: order.refundOnly.txHash, publicKey: config.agent.publicKey, rpc });
+            await authority.consumeVerifiedPayment({ ...proof, assignmentMissing: true });
+          }
           if (!order.payment && order.paymentCredential) {
             const proof = await verifyAgentPaidCredential({ credential: order.paymentCredential,
               expectedChallenge: await authority.loadChallenge(order.paymentCredential.challenge.id), rpc });
@@ -62,6 +68,7 @@ export async function startCloudMpp(config, { client, store, rpc, merchantSender
       }
       for (const order of authority.orders().filter(o => o.principal.W !== '0')) {
         try {
+          await beforeRefund?.(order);
           const plan = authority.refundFor(order.id), original = await merchantSender.prepare(plan);
           let final = original;
           if (original.state === 'signed') final = await merchantSender.broadcast(plan.idempotencyKey);
@@ -121,7 +128,13 @@ export async function startCloudMpp(config, { client, store, rpc, merchantSender
       requireThat(authorized(req.headers.authorization, 'Bearer ' + agentToken), 'unauthorized');
       const register = req.url.match(/^\/v1\/orders\/([a-f0-9]{64})\/payment$/);
       if (req.method === 'POST' && register) {
-        const body = JSON.parse(await read(req)), credential = Credential.deserialize(body.credential);
+        const body = JSON.parse(await read(req));
+        if (body.refundOnly === true) {
+          authority.journalRefundOnly({ orderRef: register[1], txHash: body.txHash, challengeId: body.challengeId });
+          void refundTick();
+          return json(res, 202, { orderId: register[1], refundOnly: true });
+        }
+        const credential = Credential.deserialize(body.credential);
         requireThat(credential.challenge.request.orderRef === register[1]
           && credential.payload.publicKey === config.agent.publicKey, 'original_payment_resource_required');
         verifyBinding(credential.challenge, credential.payload);
@@ -143,6 +156,13 @@ export async function startCloudMpp(config, { client, store, rpc, merchantSender
           receipt = Receipt.serialize(await method.verify({ credential }));
           store.transaction(() => { const latest = authority.get(order.id); authority.put({ ...latest, paymentReceipt: receipt }); });
         } else {
+        // Capture/nonce metadata may depend on the HTTP origin. Persist and
+        // replay the first 402 verbatim, including across ephemeral-port restarts.
+        const originalChallenge = authority.originalChallenge(order.id);
+        if (originalChallenge) {
+          res.writeHead(402, { 'www-authenticate': Challenge.serialize(originalChallenge), 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(JSON.stringify({ error: 'payment_required' })); return;
+        }
         const request = new Request('http://127.0.0.1:' + server.address().port + req.url, { method: 'POST', headers: req.headers, body: raw });
         const result = await mpp[METHOD].charge({ ...order.request, expires: new Date(order.request.expiresAtMs).toISOString() })(request);
         if (result.status === 402) {

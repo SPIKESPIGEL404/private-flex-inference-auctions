@@ -54,9 +54,10 @@ export class CloudAuthority {
       const old = this.get(id);
       if (old) { requireThat(old.bodyHash === hash(raw), 'original_request_conflict'); return old; }
       const existing = this.orders();
+      const cancelledUnsent = existing.length > 0 && existing.length < 4 && existing.every(o => o.state === 'cancelled' && o.knownUnsent);
       const settledWaiver = existing.length === 1 && existing[0].waiver && existing[0].state === 'refunded'
         && existing[0].principal.R === existing[0].principal.P;
-      requireThat(existing.length === 0 || settledWaiver, 'cloud_order_authorization_exhausted');
+      requireThat(existing.length === 0 || settledWaiver || cancelledUnsent, 'cloud_order_authorization_exhausted');
       requireThat(existing.reduce((n, o) => n + uint(o.terms.maximumMicro), 0n) + uint(this.maximumMicro) <= uint(this.config.upstreamBudgetMicro), 'cloud_upstream_budget_exhausted');
       validateTariff(this.tariff, this.now());
       const now = this.now(), maximumNano = String(uint(this.maximumMicro) * 1000n);
@@ -81,6 +82,19 @@ export class CloudAuthority {
     this.store.put('cloud-challenge', challenge.id, this.config.namespace, challenge);
   }
   async loadChallenge(id) { return this.store.get('cloud-challenge', id, this.config.namespace); }
+  originalChallenge(orderRef) {
+    return this.store.list('cloud-challenge', this.config.namespace).find(c => c.request.orderRef === orderRef) ?? null;
+  }
+  cancelUnsent(orderRef, operation) {
+    this.store.transaction(() => {
+      const order = this.get(orderRef);
+      requireThat(order?.state === 'quoted' && !order.paymentCredential && !order.refundOnly && !order.provider
+        && order.principal.P === '0' && this.now() >= order.request.expiresAtMs
+        && operation?.state === 'cancelled' && operation.attempts === 0 && !operation.txHash && !operation.requestId
+        && operation.orderRef === orderRef && hash(operation.frozen.challenge.request) === hash(order.request), 'known_unsent_expired_quote_required');
+      this.put({ ...order, state: 'cancelled', knownUnsent: { operationId: operation.id, attempts: 0, cancelledAtMs: this.now() } });
+    });
+  }
   async journalPresentation(credential) {
     this.store.transaction(() => {
       const order = this.get(credential.challenge.request.orderRef); requireThat(order, 'unknown_cloud_order');
@@ -102,12 +116,25 @@ export class CloudAuthority {
       requireThat(!order.payment || order.payment.movementKey === proof.movementKey, 'original_payment_already_assigned');
       if (!old) {
         this.store.put('cloud-movement', identity, this.config.namespace, { orderRef: order.id, proof });
-        const refundable = proof.late || this.now() >= order.request.expiresAtMs || uint(proof.gasActualYocto) > uint(this.config.agentGasReserveYocto);
+        const refundable = order.state === 'cancelled' || order.refundOnly || proof.assignmentMissing || proof.late || this.now() >= order.request.expiresAtMs || uint(proof.gasActualYocto) > uint(this.config.agentGasReserveYocto);
         this.put({ ...order, payment: proof, state: refundable ? 'refund_due' : 'paid',
           principal: { P: proof.amount, C: '0', H: refundable ? '0' : proof.amount, W: refundable ? proof.amount : '0', R: '0' } });
       }
       const latest = this.get(order.id);
       return { committed: true, projectionReady: !proof.late && (latest.state === 'paid' || !!latest.response), orderRef: order.id };
+    });
+  }
+  journalRefundOnly({ orderRef, txHash, challengeId }) {
+    return this.store.transaction(() => {
+      const order = this.get(orderRef), challenge = this.store.get('cloud-challenge', challengeId, this.config.namespace);
+      requireThat(order && challenge?.request.orderRef === orderRef && typeof txHash === 'string'
+        && bs58.decode(txHash).length === 32, 'refund_only_original_unassigned_payment_required');
+      if (order.refundOnly) {
+        requireThat(order.refundOnly.txHash === txHash && order.refundOnly.challengeId === challengeId, 'refund_only_original_hash_conflict');
+        return;
+      }
+      requireThat(order.state === 'quoted' && !order.paymentCredential && !order.provider, 'refund_only_original_unassigned_payment_required');
+      this.put({ ...order, refundOnly: { txHash, challengeId } });
     });
   }
   claimInference(id) {

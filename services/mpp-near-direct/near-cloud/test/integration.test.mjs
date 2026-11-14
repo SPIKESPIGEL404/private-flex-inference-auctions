@@ -12,7 +12,10 @@ import { fixture } from '../../test/support.mjs';
 import { startCloudMpp } from '../server.mjs';
 import { verifyReceipt } from '../authority.mjs';
 import { freezeNearTariff, MODEL } from '../../../inference-comparison/core.mjs';
-import { checkConservation } from '../../contract.mjs';
+import { checkConservation, challengeIdentity } from '../../contract.mjs';
+import { hash } from '../../contract.mjs';
+import { outlayerCloudBuyer } from '../outlayer-client.mjs';
+import { WalletError } from '../../p3/outlayer.mjs';
 const token = 'a'.repeat(64);
 const request = { messages: [{ role: 'user', content: 'Reply 4.' }], temperature: 0, max_completion_tokens: 128 };
 const body = JSON.stringify({ ...request, model: MODEL, stream: true, stream_options: { include_usage: true } });
@@ -167,4 +170,86 @@ test('explicit merchant waiver retains the original reserve and allows at most o
     assert.throws(() => app.authority.prepare('unauthorized-third-case', body), /cloud_order_authorization_exhausted/);
     assert.equal(app.authority.orders().length, 2); assert.equal(f.provider.calls, 1);
   } finally { await app.close(); }
+});
+test('paid without NEP413 is refund-only; a later credential cannot purchase inference', async () => {
+  const f = setup(), app = await f.start();
+  try {
+    const first = await fetch(app.url + '/v1/chat/completions', { method: 'POST', headers: f.headers, body });
+    const challenge = Challenge.fromResponse(first); await first.text();
+    f.originalProof(challenge); // Set the independently readable FINAL transaction fixture.
+    const registered = await fetch(app.url + '/v1/orders/' + challenge.request.orderRef + '/payment', {
+      method: 'POST', headers: f.headers, body: JSON.stringify({ refundOnly: true, txHash: f.f.txHash, challengeId: challenge.id }),
+    });
+    assert.equal(registered.status, 202); await registered.text();
+    const later = await f.client.fetch(app.url + '/v1/chat/completions', { method: 'POST', headers: f.headers, body });
+    assert.notEqual(later.status, 200); await later.text();
+    const final = await refunded(app);
+    assert.equal(final.principal.C, '0'); assert.equal(final.principal.R, final.principal.P);
+    assert.equal(f.provider.calls, 0); assert.equal(final.payment.assignmentMissing, true);
+    const repeat = await fetch(app.url + '/v1/orders/' + challenge.request.orderRef + '/payment', {
+      method: 'POST', headers: f.headers, body: JSON.stringify({ refundOnly: true, txHash: f.f.txHash, challengeId: challenge.id }),
+    });
+    assert.equal(repeat.status, 202); await repeat.text(); assert.equal(f.counts().refunds, 1);
+  } finally { await app.close(); }
+});
+test('original unpaid MPP challenge survives retry and restart on a different port', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'cloud-challenge-')), path = join(dir, 'journal.sqlite');
+  const f = setup({ storePath: path }); let app = await f.start();
+  try {
+    const first = await fetch(app.url + '/v1/chat/completions', { method: 'POST', headers: f.headers, body });
+    const original = Challenge.fromResponse(first); await first.text(); const oldUrl = app.url;
+    await app.close(); app = null;
+    app = await startCloudMpp(f.config, { client: f.provider, store: new Store(path, Buffer.alloc(32, 5)), rpc: f.rpc, merchantSender: f.sender });
+    assert.notEqual(app.url, oldUrl);
+    for (let n = 0; n < 2; n++) {
+      const again = await fetch(app.url + '/v1/chat/completions', { method: 'POST', headers: f.headers, body });
+      assert.equal(challengeIdentity(Challenge.fromResponse(again)), challengeIdentity(original)); await again.text();
+    }
+    assert.equal(f.provider.calls, 0);
+  } finally { await app?.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+test('expired quote renewal requires durable known-unsent cancellation; old late payment only refunds', async () => {
+  const f = setup(), app = await f.start();
+  try {
+    const first = await fetch(app.url + '/v1/chat/completions', { method: 'POST', headers: f.headers, body });
+    const challenge = Challenge.fromResponse(first); await first.text(); const id = challenge.request.orderRef;
+    f.advance(180000);
+    const op = { id: 'near-pay-v1-' + id, orderRef: id, state: 'cancelled', attempts: 0, txHash: null, requestId: null, frozen: { challenge } };
+    assert.throws(() => app.authority.cancelUnsent(id, { ...op, attempts: 1 }), /known_unsent_expired_quote_required/);
+    app.authority.cancelUnsent(id, op);
+    const next = app.authority.prepare('known-unsent-replacement', body); assert.notEqual(next.id, id);
+    const credential = f.originalProof(challenge);
+    f.f.blocks.settlement = challenge.request.expiresAtMs + 10;
+    const { Credential } = await import('mppx');
+    const late = await fetch(app.url + '/v1/chat/completions', { method: 'POST', headers: { ...f.headers, 'payment-authorization': Credential.serialize(credential) }, body });
+    assert.notEqual(late.status, 200); await late.text();
+    const final = await refunded(app); assert.equal(final.principal.C, '0'); assert.equal(final.principal.R, final.principal.P); assert.equal(f.provider.calls, 0);
+  } finally { await app.close(); }
+});
+test('OutLayer client joins paid-but-signing-frozen to proxy refund without inference or another transfer', async () => {
+  const f = setup(), app = await f.start(), clientStore = new Store(':memory:', Buffer.alloc(32, 7));
+  let buyer, sends = 0;
+  const binding = { agentId: 'a', walletId: '11111111-1111-4111-8111-111111111111', credentialRef: 'a',
+    payer: f.config.agent.accountId, refundTo: f.config.agent.accountId, version: f.config.agent.bindingVersion,
+    publicKey: f.config.agent.publicKey, merchant: f.config.merchant, network: 'testnet', signingRecipient: f.config.realm,
+    policy: { controller: 'owner.testnet', version: 1, encryptedHash: hash('fixture-encrypted') } };
+  const rpc = Object.create(f.rpc);
+  rpc.call = async (method, p) => p.request_type === 'call_function'
+    ? { result: [...Buffer.from(JSON.stringify({ owner: 'owner.testnet', version: 1, encrypted_data: 'fixture-encrypted', locked: false, frozen: false }))] }
+    : { amount: '1000000000000000000000000', locked: '0', storage_usage: 0 };
+  const api = { identity: async () => {}, async transfer() {
+    sends++; const original = buyer.operations.rows().find(r => r.state === 'sending');
+    f.originalProof(original.frozen.challenge);
+    return { status: 'success', request_id: '22222222-2222-4222-8222-222222222222', tx_hash: f.f.txHash };
+  }, async sign() { throw new WalletError('wallet_frozen', { definiteRefusal: true }); } };
+  buyer = outlayerCloudBuyer({ url: app.url, token, binding, api, store: clientStore, rpc, body,
+    limits: { totalYocto: '20000000000000000000000', principalCapYocto: '1000000000000000000000',
+      gasReserveYocto: f.config.agentGasReserveYocto, gasFloorYocto: '100', storagePriceYocto: '1', nanoUsdPerNear: '1000000000' } });
+  try {
+    await assert.rejects(buyer.invoke('original'), /wallet_frozen/);
+    const final = await refunded(app);
+    assert.equal(final.principal.R, final.principal.P); assert.equal(final.principal.C, '0');
+    assert.equal(f.provider.calls, 0); assert.equal(sends, 1); assert.equal(final.payment.assignmentMissing, true);
+    const again = await buyer.invoke('original'); assert.equal(again.status, 409); await again.text(); assert.equal(sends, 1);
+  } finally { clientStore.close(); await app.close(); }
 });
