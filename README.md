@@ -128,8 +128,8 @@ The page is implemented once in [`clients/proposal`](clients/proposal/Proposal.t
 
 ```bash
 npm ci --prefix services/mpp-near-direct
-npm ci --prefix clients/agent-playground
-npm run dev --prefix clients/agent-playground
+npm ci --prefix clients/market-playground
+npm run dev --prefix clients/market-playground
 # Open the printed local URL at /proposal.
 ```
 
@@ -153,15 +153,17 @@ This local batch does not establish deployment or per-request provider verificat
 
 ## Browser playground
 
-The separate [browser playground](clients/market-playground/README.md) provides
-an fx-inspired, monochrome UI with independent fx/wterm/just-bash buyer terminals.
-Set the buyer count in the header to retile 1–8 panes automatically. The default
-mode now uses a [hosted buyer gateway](clients/buyer-gateway/README.md) for NEAR
-owner login, independent agent wallets/grants and equal funding plans. Funding
-defaults off and real inference procurement remains disabled. The original
-scripted preview is available only through an explicit development switch;
-wallet-mode failures do not fall back to scripted responses. No deployed Market
-or real funds were changed by this implementation batch.
+The [canonical browser playground](clients/market-playground/README.md) combines
+Mono fx/wterm terminals, controlled P2 tasks and ordinary NEAR wallets. Public
+preview visitors sign in with a NEAR mainnet wallet; no access code or Agent API
+key is required. Each owner receives an isolated pair of controlled agents.
+Their optional real wallets use independent browser-held keys and encrypted
+backups. Funding and returning NEAR are explicit mainnet operations.
+
+Controlled inference uses a separate virtual ledger, scripted model replies,
+and simulated payment/refund receipts. Funding real agent wallets does not pay
+for these tasks. Real agent-paid inference remains an unqualified P3 gate.
+The older Agent API gateway remains available as a compatibility adapter.
 
 ## Verify the Market before buying
 
@@ -232,14 +234,11 @@ and [P3 run plan](docs/specs/2026-11-14-agent-mpp-p3-run-plan.md).
 P0–P2 below provide controlled contracts, execution, budget and recovery tests.
 Their v2 NEP-366 fixture incorrectly debits agent principal: real NEP-366 charges
 both principal and gas to the outer relayer. Those tests do not qualify real
-payments. G1 must verify the selected Agent API native Transfer route; real P3
+payments. G1 must verify the selected native Transfer route with agent-paid principal and gas; real P3
 wallet funding, inference and refund acceptance remain outstanding. Unfinished
 P3 runtime prototypes are excluded from this integration.
 
-The wallet onboarding playground (`clients/market-playground` plus
-`clients/buyer-gateway`) and controlled inference playground
-(`clients/agent-playground`) remain separate runnable entry points. This branch
-preserves both; it does not claim a single connected real-money UI.
+The canonical Mono workspace is `clients/market-playground`. It discovers backend capabilities and uses the existing P2 task runtime or wallet-preparation adapter in the same UI. `clients/agent-playground` is a compatibility launch alias. A unified interface does not establish a connected real-money loop; real G1/P3 qualification remains outstanding.
 
 ## Agent native MPP — controlled Phase 1
 

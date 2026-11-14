@@ -72,6 +72,9 @@ export function createGateway({ config, store, api, rpc, now = Date.now }) {
           procurementReady: false, termsUrl: 'https://docs.agentsonintents.com/integration/agent-api/overview',
           ownerTermsUrl: config.ownerTermsUrl, outlayerTermsUrl: config.outlayerTermsUrl, acceptanceVersion: config.acceptanceVersion }); return;
       }
+      if (path === '/buyer-api/capabilities' && request.method === 'GET') {
+        json(response, 200, { version: 1, mode: 'wallet-setup', tasks: false, walletSetup: true, realInferencePayments: false, walletFunding: config.fundingEnabled }); return;
+      }
       const jar = cookies(request);
       if (path === '/buyer-api/auth/challenge' && request.method === 'POST') {
         const challenge = auth.challenge();

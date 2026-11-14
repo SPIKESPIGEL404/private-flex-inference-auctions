@@ -11,9 +11,9 @@ export class Tasks{
   requireThat(row,'unknown_session');return row;
  }
  guard(s,writer,generation,at){requireThat(s.writer_hash===hash(writer??'')&&String(s.generation)===String(generation)&&Number(s.writer_until_ms)>at,'writer_fenced');}
- async list(owner){return (await this.pool.query(`SELECT a.agent_id,a.payer,s.id,s.state,s.generation,s.task_id,s.prompt,s.workspace_version,s.result,
+ async list(owner){return (await this.pool.query(`SELECT a.agent_id,a.payer,s.id,s.state,s.generation,s.task_id,s.prompt,s.workspace_version,s.result,s.created_ms,
   t.budget_nano,t.reserved_nano,t.spent_nano,t.deadline_ms,t.preference,t.paused,t.revision FROM mpp_direct_agents a
-  JOIN mpp_direct_p2_sessions s ON s.user_id=a.user_id JOIN mpp_direct_tasks t ON t.id=s.task_id WHERE a.owner_id=$1 ORDER BY a.agent_id,s.id`,[owner])).rows;}
+  JOIN mpp_direct_p2_sessions s ON s.user_id=a.user_id JOIN mpp_direct_tasks t ON t.id=s.task_id WHERE a.owner_id=$1 ORDER BY a.agent_id,s.created_ms,s.id`,[owner])).rows;}
  async create(owner,agentId,input){
   requireThat(typeof input.prompt==='string'&&input.prompt.trim().length>0&&input.prompt.length<=1000&&/^[1-9][0-9]{0,12}$/.test(input.budgetNano)
    &&['save','balanced','fast'].includes(input.preference),'invalid_task');

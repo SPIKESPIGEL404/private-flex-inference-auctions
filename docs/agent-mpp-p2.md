@@ -36,7 +36,7 @@ processes and temporary data. Dependency/source retrieval can use the network;
 inference and payment tests contact only loopback fixtures. Remove a previous
 `.stop` file before starting a demo with the same path.
 
-The browser is built in `clients/agent-playground`. It uses libfx WASM and
+The browser is built in `clients/market-playground`. It uses libfx WASM and
 wterm/Ghostty; Node acceptance uses the same runtime module with libfx's native
 addon. It is served by `services/mpp-near-direct/p2/server.mjs` alongside the
 authenticated endpoint. The standalone Vite development server is for layout

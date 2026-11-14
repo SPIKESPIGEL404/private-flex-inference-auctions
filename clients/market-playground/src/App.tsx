@@ -1,314 +1,265 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Terminal } from '@wterm/react';
-import { GhosttyCore } from '@wterm/ghostty';
-import ghosttyWasm from '@wterm/ghostty/ghostty-vt.wasm?url';
-import type { WTerm } from '@wterm/dom';
-import { BuyerRuntime } from './runtime';
-import { browserSessionKey, loadBrowserSession, maxBuyers, money, parseBudget, resizeSession, tilePanes } from './model';
-import type { Buyer, BuyerStatus } from './model';
-import type { RuntimeOptions } from './runtime';
-import { WalletController } from './wallet-api';
-import { WalletSetup } from './WalletSetup';
-import { ProviderStatistics } from './ProviderStatistics';
-import { loadStatisticsPreferences, statisticsStorageKey } from './statistics';
+import {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
+import {TaskPane} from './TaskPane';
+import type {PaneHandle} from './TaskPane';
+import {Modal, NewTask, TaskSettings} from './WorkspaceDialogs';
+import {TaskActivity} from './TaskActivity';
+import {NativeWalletController} from './native-wallet';
+import {NativeWallets} from './NativeWallets';
+import {WalletController} from './wallet-api';
+import {WalletSetup} from './WalletSetup';
+import {loadBrowserSession, resizeSession, tilePanes} from './model';
+import type {Buyer} from './model';
+import {taskApi, TaskApiError, nanoUsd} from './task-api';
+import type {AgentSession, AgentLimit, Call, Capabilities, Preference, TaskStatus} from './task-api';
 
-type Dialog = 'settings' | 'help' | 'preview' | 'wallet' | null;
-type Registry = (id: string, runtime?: BuyerRuntime) => void;
-
-function BuyerPane({ buyer, selected, status, options, onSelect, onStatus, onUsage, onRuntime, onInput }: {
-  buyer: Buyer; selected: boolean; status: BuyerStatus;
-  options: RuntimeOptions;
-  onSelect: (id: string) => void; onStatus: (id: string, value: BuyerStatus) => void;
-  onUsage: (id: string, micros: number, turns: number) => void;
-  onRuntime: Registry; onInput: (id: string, value: string) => boolean;
-}) {
-  const [core, setCore] = useState<GhosttyCore>();
-  const runtime = useRef<BuyerRuntime | null>(null);
-  const currentBuyer = useRef(buyer);
-  const currentOptions = useRef(options);
-  useEffect(() => { currentBuyer.current = buyer; runtime.current?.update(buyer); }, [buyer]);
-  useEffect(() => {
-    let cancelled = false;
-    onStatus(buyer.id, { phase: 'booting' });
-    void GhosttyCore.load({ wasmPath: ghosttyWasm, backgroundColor: '#000000', foregroundColor: '#ededed',
-      scrollbackLines: 1200, imageStorageLimit: 0 }).then(value => {
-      if (cancelled) value.dispose(); else setCore(value);
-    }).catch(() => { if (!cancelled) onStatus(buyer.id, { phase: 'error', detail: 'Terminal could not load. Refresh to try again.' }); });
-    return () => { cancelled = true; runtime.current?.dispose(); onRuntime(buyer.id); };
-  }, [buyer.id, onStatus, onRuntime]);
-  const ready = useCallback((wt: WTerm) => {
-    if (runtime.current) return;
-    const controller = new BuyerRuntime(currentBuyer.current, value => onStatus(buyer.id, value),
-      (micros, turns) => onUsage(buyer.id, micros, turns), currentOptions.current);
-    runtime.current = controller;
-    void controller.mount(bytes => wt.write(bytes), () => ({ cols: wt.cols, rows: wt.rows }))
-      .then(mounted => { if (mounted) onRuntime(buyer.id, controller); })
-      .catch(error => onStatus(buyer.id, { phase: 'error', detail: error instanceof Error ? error.message : 'Session could not start.' }));
-  }, [buyer.id, onRuntime, onStatus, onUsage]);
-  return <section className={`buyer-terminal ${selected ? 'is-selected' : ''}`} aria-label={`Buyer ${buyer.number} terminal`}
-    onPointerDown={() => onSelect(buyer.id)} onFocusCapture={() => onSelect(buyer.id)}>
-    {core ? <Terminal core={core} autoResize onReady={ready}
-      onData={data => { if (!onInput(buyer.id, data)) runtime.current?.input(data); }}
-      onResize={() => runtime.current?.resize()} scrollbackLines={1200}
-      onError={() => onStatus(buyer.id, { phase: 'error', detail: 'Terminal rendering failed.' })} />
-      : <div className="terminal-loading">starting fx<span className="cursor">▌</span></div>}
-    {status.phase === 'error' && <div className="terminal-error" role="alert">! {status.detail}</div>}
-  </section>;
-}
-
-function Settings({ buyer, preview, onClose, onSave }: { buyer: Buyer; preview: boolean; onClose: () => void;
-  onSave: (task: string, budget: number, scenario: Buyer['scenario'], all: boolean) => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const [task, setTask] = useState(buyer.task);
-  const [budget, setBudget] = useState(String(buyer.budgetMicros / 1e6));
-  const [scenario, setScenario] = useState(buyer.scenario);
-  const [all, setAll] = useState(false);
-  const [error, setError] = useState('');
-  useEffect(() => { ref.current?.showModal(); ref.current?.querySelector('textarea')?.focus(); }, []);
-  return <dialog ref={ref} aria-labelledby="settings-title" onCancel={onClose}
-    onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <form onChange={() => setError('')} onSubmit={e => {
-      e.preventDefault(); const amount = parseBudget(budget);
-      if (!task.trim() || task.length > 2000) { setError('Enter a task of 1–2,000 characters.'); return; }
-      if (amount === null) { setError('Budget must be $0.000001–$100, with at most six decimal places.'); return; }
-      onSave(task.trim(), amount, scenario, all);
-    }}>
-      <div className="dialog-heading"><h1 id="settings-title">buyer-{String(buyer.number).padStart(2, '0')}</h1>
-        <button type="button" className="close-button" aria-label="Close settings" onClick={onClose}>×</button></div>
-      <label htmlFor="task">task</label>
-      <textarea id="task" rows={4} maxLength={2000} value={task} onChange={e => setTask(e.target.value)} required />
-      <label htmlFor="budget">budget <span>{preview ? 'USD · preview' : 'USD · local task limit'}</span></label>
-      <div className="money-input"><span>$</span><input id="budget" value={budget} onChange={e => setBudget(e.target.value)} inputMode="decimal" required /></div>
-      {preview && <div className="setting-summary"><span>simulated usage</span><span>{money(buyer.previewMicros)}</span></div>}
-      <label className="checkbox-label"><input type="checkbox" checked={all} onChange={e => setAll(e.target.checked)} />apply to all buyers</label>
-      {preview && <details className="advanced"><summary>preview response</summary>
-        <select aria-label="Preview response" value={scenario} onChange={e => setScenario(e.target.value as Buyer['scenario'])}>
-          <option value="complete">complete</option><option value="waiting">waiting for supply</option><option value="limit">budget stop</option>
-        </select>
-      </details>}
-      {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="dialog-footer"><button type="button" className="outline-button" onClick={onClose}>cancel</button><button className="solid-button" type="submit">apply ↵</button></div>
-    </form>
-  </dialog>;
-}
-
-function Info({ kind, onClose }: { kind: 'help' | 'preview'; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { ref.current?.showModal(); }, []);
-  return <dialog ref={ref} className="info-dialog" aria-labelledby="info-title" onCancel={onClose}
-    onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <div className="dialog-heading"><h1 id="info-title">{kind === 'help' ? 'keys' : 'preview'}</h1>
-      <button className="close-button" aria-label="Close information" onClick={onClose}>×</button></div>
-    {kind === 'help' ? <>
-      <dl className="key-list"><dt>configure buyer</dt><dd>⌘ / Ctrl K</dd><dt>run buyer</dt><dd>⌘ / Ctrl ↵</dd>
-        <dt>switch pane</dt><dd>Ctrl B ← / →</dd><dt>zoom / restore</dt><dd>Ctrl B Z</dd>
-        <dt>add pane</dt><dd>Ctrl B %</dd><dt>close last pane</dt><dd>Ctrl B X</dd>
-        <dt>fx commands</dt><dd>/help</dd></dl>
-      <p>Set the buyer count in the header. Panes retile automatically. Reducing the count pauses the extra buyers; increasing it restores them.</p>
-    </> : <>
-      <p>Real fx terminals and independent just-bash workspaces. Responses and purchase states are scripted fixtures.</p>
-      <dl className="key-list"><dt>market</dt><dd>not connected</dd><dt>provider calls</dt><dd>0</dd>
-        <dt>actual spend</dt><dd>$0.00</dd><dt>attestation / signatures</dt><dd>not checked</dd></dl>
-      <p>Per-call Market procurement is deferred. This preview contains no provider credentials.</p>
-      <p>Provider statistics are an independent, scripted comparison for layout preview. They are not derived from these terminals or a measured GPU experiment. Hardware attestation is not connected.</p>
-    </>}
-  </dialog>;
-}
+interface Hosted {ownerScope: string; agents: AgentSession[]; limits: AgentLimit[]}
+type Dialog = 'settings' | 'new' | 'wallet' | 'help' | 'mode' | null;
+const layoutKey = (scope: string) => 'private-market.workspace.layout.v1:' + scope;
 
 export default function App() {
-  const preview = import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === '1';
+  const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
+  const [connection, setConnection] = useState('loading');
+  const [hosted, setHosted] = useState<Hosted | null>(null);
+  const [nativeController] = useState(() => new NativeWalletController());
+  const native = useSyncExternalStore(nativeController.subscribe,nativeController.snapshot);
   const [walletController] = useState(() => new WalletController());
   const wallet = useSyncExternalStore(walletController.subscribe, walletController.snapshot);
-  const ownerScope = wallet.owner ? `${wallet.owner.account_id}:${wallet.owner.public_key}` : 'disconnected';
+  const [draft, setDraft] = useState(() => loadBrowserSession('disconnected'));
+  const walletScope = wallet.owner ? wallet.owner.account_id + ':' + wallet.owner.public_key : 'disconnected';
   const allocation = wallet.allocations.at(-1);
-  useEffect(() => { if (!preview) void walletController.load(); }, [preview, walletController]);
-  const scope = preview ? 'preview' : ownerScope;
-  const [sessionScope, setSessionScope] = useState(scope);
-  const [session, setSession] = useState(() => loadBrowserSession(preview ? undefined : scope));
-  const buyers = session.buyers;
-  const [statuses, setStatuses] = useState<Record<string, BuyerStatus>>({});
-  const [selected, setSelected] = useState(() => buyers[0].id);
-  const [zoomed, setZoomed] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<Dialog>(null);
-  const [countDraft, setCountDraft] = useState(String(buyers.length));
-  const [storageError, setStorageError] = useState(false);
-  const [statistics, setStatistics] = useState(loadStatisticsPreferences);
-  const workspace = useRef<HTMLElement>(null);
-  const [size, setSize] = useState({ width: 1280, height: 720 });
-  const runtimes = useRef(new Map<string, BuyerRuntime>());
-  useEffect(() => {
-    if (sessionScope === scope) return;
-    for (const runtime of runtimes.current.values()) runtime.pause();
-    let next = loadBrowserSession(preview ? undefined : scope);
-    // Move a first-time user's unsigned draft into their new owner namespace.
-    // Do not copy an authenticated owner's configuration into another scope.
-    if (!preview && sessionScope === 'disconnected' && scope !== 'disconnected' && !allocation) {
-      try {
-        if (!sessionStorage.getItem(browserSessionKey(scope))) {
-          next = session;
-          sessionStorage.removeItem(browserSessionKey('disconnected'));
-        }
-      } catch { /* Keep isolated defaults if browser storage is unavailable. */ }
+  const [visible, setVisible] = useState<string[]>([]), [selected, setSelected] = useState('');
+  const [zoomed, setZoomed] = useState<string | null>(null), [countDraft, setCountDraft] = useState('2');
+  const [dialog, setDialog] = useState<Dialog>(null), [newPrompt, setNewPrompt] = useState('');
+  const [error, setError] = useState(''), [busy, setBusy] = useState(false);
+  const [viewEpoch, setViewEpoch] = useState(0), [details, setDetails] = useState<Record<string, TaskStatus>>({});
+  const [ready, setReady] = useState<Set<string>>(() => new Set()), [activity, setActivity] = useState(false);
+  const epoch = useRef(0), switching = useRef(false), ownerScope = useRef('');
+  const handles = useRef(new Map<string, PaneHandle>()), prefix = useRef(0);
+  const workspace = useRef<HTMLElement>(null), [size, setSize] = useState({width: 1280, height: 720});
+  const tasks = capabilities?.tasks === true;
+  const buyers: Buyer[] = allocation ? allocation.buyers.map((b, i) => draft.buyers.find(x => x.id === b.id) ?? {
+    id: b.id, number: i + 1, task: 'Complete the configured task.', budgetMicros: 10000, scenario: 'complete', previewMicros: 0, turns: 0,
+  }) : draft.buyers;
+  const sessions: AgentSession[] = tasks ? hosted?.agents ?? [] : capabilities ? buyers.map((b, i) => ({
+    id: b.id, agent_id: 'agent-' + (i + 1), payer: allocation?.buyers[i]?.wallet ?? 'wallet not prepared',
+    state: allocation?.buyers[i]?.phase ?? 'wallet setup', paused: true, task_id: b.id, revision: '0', generation: '0',
+    preference: 'balanced', budget_nano: String(b.budgetMicros * 1000), reserved_nano: '0', spent_nano: '0', prompt: b.task, deadline_ms: '0',
+  })) : [];
+  const shown = visible.map(id => sessions.find(s => s.id === id)).filter((s): s is AgentSession => !!s);
+  const current = sessions.find(s => s.id === selected) ?? shown[0];
+  const authenticated = tasks ? hosted !== null : capabilities?.walletSetup === true;
+
+  const clearOwner = useCallback((force = false) => {
+    if (!ownerScope.current && !force) return;
+    epoch.current++; ownerScope.current = ''; setViewEpoch(epoch.current); setHosted(null);
+    setDetails({}); setReady(new Set()); setVisible([]); setSelected(''); setZoomed(null); setDialog(null);
+  }, []);
+  const refresh = useCallback(async () => {
+    if (switching.current) return;
+    const requestEpoch = epoch.current;
+    try {
+      const value = await taskApi<Hosted>('agents');
+      if (requestEpoch !== epoch.current || switching.current) return;
+      if (ownerScope.current !== value.ownerScope) {
+        epoch.current++; setViewEpoch(epoch.current); setDetails({}); setReady(new Set()); setDialog(null); setZoomed(null);
+        let ids = value.agents.map(s => s.id), chosen = ids[0] ?? '';
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(layoutKey(value.ownerScope)) ?? 'null');
+          if (Array.isArray(saved?.visible)) { const valid = [...new Set<string>(saved.visible)].filter(id => ids.includes(id)); if (valid.length) ids = valid; }
+          chosen = ids.includes(saved?.selected) ? saved.selected : ids[0] ?? '';
+        } catch { /* Layout preferences never authorize a session. */ }
+        ownerScope.current = value.ownerScope; setVisible(ids); setSelected(chosen);
+      }
+      setHosted(value); setError('');
+    } catch (e) {
+      if (requestEpoch !== epoch.current || switching.current) return;
+      if (e instanceof TaskApiError && ['unauthorized','login_required'].includes(e.code)) { clearOwner(); void nativeController.load(); }
+      else setError('Workspace unavailable. Existing tasks and orders are retained.');
     }
-    setSession(next);
-    setSessionScope(scope);
-  }, [scope, sessionScope, preview, allocation, session]);
+  }, [clearOwner,nativeController]);
+  const discover = useCallback(async () => {
+    setConnection('loading'); setError('');
+    try {
+      const value = await taskApi<Capabilities>('capabilities');
+      if (value.version !== 1 || value.realInferencePayments !== false
+        || !((value.mode === 'controlled' && value.tasks && !value.walletSetup) || (value.mode === 'wallet-setup' && !value.tasks && value.walletSetup))) throw new Error('unsupported workspace');
+      setCapabilities(value); setConnection('ready');
+    } catch { setConnection('error'); setError('Workspace API unavailable. No task or payment was started.'); }
+  }, []);
+  useEffect(() => { void discover(); }, [discover]);
   useEffect(() => {
-    if (!allocation || sessionScope !== scope) return;
-    setSession(old => {
-      if (old.buyers.length === allocation.buyers.length && old.buyers.every((buyer, i) => buyer.id === allocation.buyers[i].id)) return old;
-      const local = [...old.buyers, ...old.parked];
-      return { buyers: allocation.buyers.map(buyer => local.find(b => b.id === buyer.id) ?? {
-        id: buyer.id, number: buyer.number, task: 'Explain confidential inference in three short sentences.',
-        budgetMicros: Number(allocation.perAgentRaw), scenario: 'complete' as const, previewMicros: 0, turns: 0,
-      }), parked: [] };
-    });
-  }, [allocation, sessionScope, scope]);
-  const prefix = useRef(0);
-  const status = useCallback((id: string, value: BuyerStatus) => setStatuses(old => ({ ...old, [id]: value })), []);
-  const usage = useCallback((id: string, previewMicros: number, turns: number) => setSession(old => ({ ...old,
-    buyers: old.buyers.map(b => b.id === id ? { ...b, previewMicros, turns } : b) })), []);
-  const register = useCallback<Registry>((id, runtime) => {
-    if (runtime) runtimes.current.set(id, runtime); else runtimes.current.delete(id);
+    if (!capabilities) return;
+    if (!capabilities.tasks) { void walletController.load(); return; }
+    if(capabilities.nativeWallets && !native.owner) return;
+    let disposed = false, timer: ReturnType<typeof setTimeout>;
+    async function poll() { await refresh(); if (!disposed) timer = setTimeout(() => void poll(), 1000); }
+    void poll(); return () => { disposed = true; clearTimeout(timer); };
+  }, [capabilities, refresh, walletController, native.owner]);
+  useEffect(()=>{if(capabilities?.nativeWallets)void nativeController.load();},[capabilities?.nativeWallets,nativeController]);
+  useEffect(()=>{if(capabilities?.nativeWallets&&!native.owner)clearOwner();},[native.owner,capabilities?.nativeWallets,clearOwner]);
+  useEffect(() => {
+    if (capabilities?.walletSetup !== true) return;
+    const next = loadBrowserSession(walletScope); setDraft(next); setVisible(next.buyers.map(b => b.id));
+    setSelected(next.buyers[0].id); setZoomed(null); setDetails({}); setReady(new Set());
+  }, [walletScope, capabilities?.walletSetup]);
+  useEffect(() => {
+    if (tasks || !allocation) return;
+    const ids = allocation.buyers.map(b => b.id); setVisible(ids); setSelected(ids[0] ?? '');
+    setDraft(old => ({buyers: allocation.buyers.map((b, i) => old.buyers.find(x => x.id === b.id) ?? {
+      id: b.id, number: i + 1, task: 'Complete the configured task.', budgetMicros: 10000, scenario: 'complete', previewMicros: 0, turns: 0,
+    }), parked: []}));
+  }, [tasks, allocation]);
+  useEffect(() => {
+    if (!hosted || switching.current) return;
+    try { sessionStorage.setItem(layoutKey(hosted.ownerScope), JSON.stringify({visible, selected})); } catch { /* Optional, owner-scoped layout only. */ }
+  }, [hosted, visible, selected]);
+  useEffect(() => { setCountDraft(String(shown.length)); }, [shown.length]);
+  useEffect(() => {
+    const element = workspace.current; if (!element) return;
+    const observer = new ResizeObserver(([entry]) => { const {width, height} = entry.contentRect; if (width && height) setSize({width, height}); });
+    observer.observe(element); return () => observer.disconnect();
   }, []);
-  const focusBuyer = useCallback((id: string) => {
-    setSelected(id); setZoomed(old => old ? id : null);
-    requestAnimationFrame(() => document.getElementById(`pane-${id}`)?.querySelector<HTMLElement>('textarea')?.focus());
-  }, []);
-  const zoom = useCallback((id: string) => { setSelected(id); setZoomed(old => old === id ? null : id); }, []);
-  const resize = useCallback((count: number) => {
-    if (!preview && allocation) return;
-    if (!Number.isInteger(count) || count < 1 || count > maxBuyers) return;
-    for (const buyer of buyers.slice(count)) runtimes.current.get(buyer.id)?.pause();
-    setSession(old => resizeSession(old, count)); setZoomed(null);
-  }, [buyers, preview, allocation]);
-  const nextPane = useCallback((id: string, direction: number) => {
-    const index = buyers.findIndex(b => b.id === id);
-    focusBuyer(buyers[(index + direction + buyers.length) % buyers.length].id);
-  }, [buyers, focusBuyer]);
+  const recordDetail = useCallback((id: string, value: TaskStatus) => {
+    if (epoch.current === viewEpoch) setDetails(old => ({...old, [id]: value}));
+  }, [viewEpoch]);
+  const paneReady = useCallback((id: string) => {
+    if (epoch.current === viewEpoch) setReady(old => new Set(old).add(id));
+  }, [viewEpoch]);
+  const focus = useCallback((id: string) => { setSelected(id); setZoomed(old => old ? id : null); handles.current.get(id)?.focus(); }, []);
+  const resize = useCallback(async (count: number) => {
+    if (busy || !Number.isInteger(count) || count < 1 || count > (tasks ? sessions.length : allocation ? buyers.length : 8)) return;
+    const requestEpoch = epoch.current; setBusy(true); setError('');
+    try {
+      if (!tasks && !allocation) {
+        const next = resizeSession(draft, count); setDraft(next); setVisible(next.buyers.map(b => b.id)); return;
+      }
+      if (count < shown.length) {
+        const answers = await Promise.all(shown.slice(count).map(s => handles.current.get(s.id)?.pause() ?? Promise.resolve(false)));
+        if (answers.some(x => !x)) throw new Error('Pause was not confirmed for every pane. Layout was retained.');
+      }
+      if (requestEpoch !== epoch.current) return;
+      const ids = visible.slice(0, count);
+      for (const s of sessions) if (ids.length < count && !ids.includes(s.id)) ids.push(s.id);
+      setVisible(ids); setZoomed(null); if (!ids.includes(selected)) setSelected(ids[0]);
+    } catch (e) { if (requestEpoch === epoch.current) setError((e as Error).message); }
+    finally { if (requestEpoch === epoch.current) setBusy(false); }
+  }, [busy, tasks, sessions, allocation, buyers.length, draft, shown, visible, selected]);
   const prefixAction = useCallback((id: string, key: string) => {
-    if (key === 'z') zoom(id);
-    else if (key === '%' && buyers.length < maxBuyers) resize(buyers.length + 1);
-    else if (key === 'x' && buyers.length > 1) resize(buyers.length - 1);
-    else if (key === 'ArrowRight' || key === '\x1b[C') nextPane(id, 1);
-    else if (key === 'ArrowLeft' || key === '\x1b[D') nextPane(id, -1);
-    else return false;
+    if (key === 'z') { setSelected(id); setZoomed(old => old === id ? null : id); }
+    else if (key === '%') void resize(shown.length + 1);
+    else if (key === 'x') void resize(shown.length - 1);
+    else if (['ArrowLeft', '\x1b[D', 'ArrowRight', '\x1b[C'].includes(key)) {
+      const i = shown.findIndex(s => s.id === id), direction = ['ArrowLeft', '\x1b[D'].includes(key) ? -1 : 1;
+      if (shown.length) focus(shown[(i + direction + shown.length) % shown.length].id);
+    } else return false;
     return true;
-  }, [buyers.length, resize, zoom, nextPane]);
+  }, [shown, resize, focus]);
   const terminalInput = useCallback((id: string, data: string) => {
     if (data === '\x02') { prefix.current = Date.now(); return true; }
     if (Date.now() - prefix.current >= 10000) return false;
     prefix.current = 0; return prefixAction(id, data);
   }, [prefixAction]);
   useEffect(() => {
-    if (sessionScope !== scope) return;
-    try { sessionStorage.setItem(browserSessionKey(preview ? undefined : scope), JSON.stringify(session)); } catch { setStorageError(true); }
-  }, [session, sessionScope, scope, preview]);
-  useEffect(() => { setCountDraft(String(buyers.length)); }, [buyers.length]);
-  useEffect(() => {
-    try { sessionStorage.setItem(statisticsStorageKey, JSON.stringify(statistics)); } catch { /* Optional presentation preferences. */ }
-  }, [statistics]);
-  useEffect(() => {
-    if (!buyers.some(b => b.id === selected)) setSelected(buyers[0].id);
-    if (zoomed && !buyers.some(b => b.id === zoomed)) setZoomed(null);
-  }, [buyers, selected, zoomed]);
-  useEffect(() => {
-    const element = workspace.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      if (width > 0 && height > 0) setSize(old => old.width === width && old.height === height ? old : { width, height });
-    });
-    observer.observe(element); return () => observer.disconnect();
-  }, []);
-  useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
-      if (dialog) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault(); e.stopPropagation(); setDialog('settings'); return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault(); e.stopPropagation(); if (preview) runtimes.current.get(selected)?.start(); else setDialog('wallet'); return;
-      }
-      if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') || e.key === '\x02') {
-        e.preventDefault(); e.stopPropagation(); prefix.current = Date.now(); return;
-      }
-      if (Date.now() - prefix.current < 10000) {
-        prefix.current = 0;
-        if (prefixAction(selected, e.key.length === 1 ? e.key.toLowerCase() : e.key)) { e.preventDefault(); e.stopPropagation(); }
-      }
+      if (dialog || !authenticated) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); e.stopPropagation(); if (current) setDialog('settings'); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (tasks) void handles.current.get(selected)?.run(); else setDialog('wallet'); return; }
+      if (e.ctrlKey && e.key.toLowerCase() === 'b') { e.preventDefault(); e.stopPropagation(); prefix.current = Date.now(); return; }
+      if (Date.now() - prefix.current < 10000) { prefix.current = 0; if (prefixAction(selected, e.key.length === 1 ? e.key.toLowerCase() : e.key)) { e.preventDefault(); e.stopPropagation(); } }
     };
     window.addEventListener('keydown', keydown, true); return () => window.removeEventListener('keydown', keydown, true);
-  }, [selected, dialog, prefixAction, preview]);
-  const current = buyers.find(b => b.id === selected) ?? buyers[0];
-  const currentStatus = statuses[current.id]?.phase ?? 'booting';
-  const running = buyers.some(b => statuses[b.id]?.phase === 'running');
-  const ready = buyers.some(b => statuses[b.id] && !['booting', 'error'].includes(statuses[b.id].phase));
-  const layout = tilePanes(buyers.length, size.width, size.height);
+  }, [dialog, authenticated, current, selected, tasks, prefixAction]);
+  async function login() {
+    setBusy(true); setError('');
+    try { await nativeController.connect(); if(nativeController.snapshot().owner)await refresh(); }
+    finally { setBusy(false); }
+  }
+  async function logout() {
+    switching.current = true; epoch.current++; setBusy(true); setError('');
+    try { if(capabilities?.nativeWallets)await nativeController.disconnect(); else if (tasks) await taskApi('logout', {}); else await walletController.disconnect(); clearOwner(true); }
+    catch (e) { setError((e as Error).message); setViewEpoch(epoch.current); }
+    finally { switching.current = false; setBusy(false); }
+  }
+  function newTask(prompt = '') { setNewPrompt(prompt); setDialog(tasks ? 'new' : 'settings'); }
+  const hasRunning = shown.some(s => !s.paused && s.state === 'running');
+  async function runAll() { setError(''); if (hasRunning) await Promise.all(shown.map(s => handles.current.get(s.id)?.pause())); else await Promise.all(shown.map(s => handles.current.get(s.id)?.run())); }
+  async function saveSettings(budget: string, preference: Preference, prompt: string) {
+    if (!current) return;
+    if (!tasks) {
+      if (BigInt(budget) > 100_000_000_000n || BigInt(budget) % 1000n) throw new Error('Unsigned drafts support up to $100 and six decimal places.');
+      setDraft(old => ({...old, buyers: old.buyers.map(b => b.id === current.id ? {...b, task: prompt, budgetMicros: Number(BigInt(budget) / 1000n)} : b)})); setDialog(null); return;
+    }
+    const requestEpoch = epoch.current;
+    let revision = current.revision, saved = false;
+    try {
+      if (preference !== current.preference) {
+        const r = await taskApi<{revision: string}>('sessions/' + current.id + '/control', {action: 'preference', preference, expectedRevision: revision, operation: crypto.randomUUID()}); revision = r.revision; saved = true;
+      }
+      if (requestEpoch !== epoch.current) throw new Error('Owner session changed.');
+      if (budget !== current.budget_nano) await taskApi('sessions/' + current.id + '/control', {action: 'budget', budgetNano: budget, expectedRevision: revision, operation: crypto.randomUUID()});
+      await refresh(); if (requestEpoch === epoch.current) setDialog(null);
+    } catch (e) { await refresh(); throw new Error((saved ? 'Preference saved; budget update failed: ' : '') + (e as Error).message); }
+  }
+  async function createTask(agent: string, prompt: string, budgetNano: string, preference: Preference) {
+    const requestEpoch = epoch.current;
+    const result = await taskApi<{id: string}>('agents/' + agent + '/tasks', {prompt, budgetNano, preference});
+    await refresh(); if (requestEpoch !== epoch.current) return;
+    setVisible(old => [...new Set([...old, result.id])]); setSelected(result.id); setZoomed(null); setDialog(null);
+  }
+  async function changeBid(call: Call, action: string, bidNano?: string) {
+    await taskApi('calls/' + call.id, {action, ...(bidNano ? {bidNano} : {}), expectedRevision: call.revision, operation: crypto.randomUUID()}, 'PATCH'); await refresh();
+  }
+  const layout = tilePanes(shown.length, size.width, size.height);
   return <div className="app-shell">
-    <header className="app-header">
-      <div className="topbar">
-        <a className="wordmark" href="./" aria-label="Private Market"><span className="brand-mark">∕</span> private market</a>
-        <nav aria-label="Main navigation"><span className="nav-current">try</span><a href="/proposal">proposal</a>
-          <a href="https://github.com/SPIKESPIGEL404/private-flex-inference-auctions" target="_blank" rel="noreferrer">source ↗</a></nav>
-        <div className="header-controls">
-          {preview ? <button className="preview-link" onClick={() => setDialog('preview')}>preview</button>
-            : <button className="preview-link wallet-connect" onClick={() => setDialog('wallet')}>{wallet.owner?.account_id ?? 'connect NEAR'}</button>}
-          <button className="outline-button stats-header-toggle" aria-expanded={statistics.open} aria-label="Toggle provider statistics"
-            onClick={() => setStatistics(old => ({ ...old, open: !old.open }))}>stats</button>
-          <label className="pane-count">buyers <input aria-label="Buyer count" type="number" min={1} max={maxBuyers} value={countDraft}
-            disabled={!preview && !!allocation}
-            onChange={e => { setCountDraft(e.target.value); if (/^[1-8]$/.test(e.target.value)) resize(Number(e.target.value)); }}
-            onBlur={() => setCountDraft(String(buyers.length))} /></label>
-          <button className="outline-button" aria-label="Configure buyer" onClick={() => setDialog('settings')}><span className="configure-full">configure</span><span className="configure-short">config</span> <kbd>⌘K</kbd></button>
-          <button className="outline-button" disabled={!ready || !preview} title={preview ? undefined : 'Real inference procurement is not connected yet.'} onClick={() => {
-            if (running) for (const b of buyers) runtimes.current.get(b.id)?.pause();
-            else for (const b of buyers) runtimes.current.get(b.id)?.start();
-          }}>{running ? 'pause all' : 'run all'}</button>
-          {!preview && wallet.owner && <button className="help-button" aria-label="Disconnect wallet" onClick={() => {
-            for (const runtime of runtimes.current.values()) runtime.pause(); void walletController.disconnect();
-          }}>disconnect</button>}
-          <button className="help-button" aria-label="Keyboard shortcuts" onClick={() => setDialog('help')}>?</button>
-        </div>
+    <header className="app-header"><div className="topbar">
+      <a className="wordmark" href="/" aria-label="Private Market"><span className="brand-mark">∕</span> private market</a>
+      <nav aria-label="Main navigation"><span className="nav-current">try</span><a href="/proposal">proposal</a><a href="https://github.com/SPIKESPIGEL404/private-flex-inference-auctions" target="_blank" rel="noreferrer">source ↗</a></nav>
+      <div className="header-controls">
+        <button className="preview-link" onClick={() => setDialog('mode')}>{tasks ? 'controlled' : capabilities ? 'wallet setup' : 'connecting'}</button>
+        {authenticated && <><button className="outline-button" onClick={() => setDialog('wallet')}>{capabilities?.nativeWallets ? native.owner?.account_id ?? 'wallets' : tasks ? 'wallets' : wallet.owner?.account_id ?? 'connect NEAR'}</button>
+          <button className="outline-button" aria-expanded={activity} onClick={() => setActivity(old => !old)}>activity</button>
+          <label className="pane-count">panes <input aria-label="Pane count" type="number" min={1} max={tasks ? sessions.length : allocation ? buyers.length : 8} value={countDraft} disabled={busy || !sessions.length}
+            onChange={e => {setCountDraft(e.target.value); if (/^[1-8]$/.test(e.target.value)) void resize(Number(e.target.value));}} onBlur={() => setCountDraft(String(shown.length))} /></label>
+          <button className="outline-button" aria-label="Configure task" disabled={busy || !current} onClick={() => setDialog('settings')}><span className="configure-full">configure</span><span className="configure-short">config</span> <kbd>⌘K</kbd></button>
+          <button className="outline-button" aria-label="New task" disabled={busy || !tasks || !sessions.length} onClick={() => newTask()}>+ task</button>
+          <button className="outline-button" disabled={busy || !tasks || !shown.some(s => ready.has(s.id) && s.state !== 'complete')} onClick={() => void runAll()}>{hasRunning ? 'pause all' : 'run all'}</button>
+          {(tasks || wallet.owner) && <button className="help-button" disabled={busy} onClick={() => void logout()}>disconnect</button>}</>}
+        <button className="help-button" aria-label="Keyboard shortcuts" onClick={() => setDialog('help')}>?</button>
       </div>
-      <div className="sessionbar">
-        <span className="session-name">[market]</span>
-        <div className="window-list" aria-label="Buyer sessions">{buyers.map(b => <button key={b.id}
-          className={current.id === b.id ? 'window-current' : ''} aria-label={`Select buyer ${b.number}`}
-          aria-pressed={current.id === b.id} onClick={() => focusBuyer(b.id)} onDoubleClick={() => zoom(b.id)}>
-          {b.number}:fx{current.id === b.id ? '*' : ''}</button>)}</div>
-        <div className="session-actions">{storageError && <span className="storage-error">not saved</span>}
-          <button className="selected-state" aria-label="Configure selected buyer" onClick={() => setDialog('settings')}>buyer-{String(current.number).padStart(2, '0')} · {currentStatus}</button>
-          <button className="zoom-button" aria-label={zoomed ? 'Restore panes' : 'Zoom selected pane'} onClick={() => zoom(current.id)}>{zoomed ? 'unzoom' : 'zoom'}</button>
-        </div>
-      </div>
-    </header>
-    {!preview && <div className="gateway-status" role="status">
-      <button onClick={() => setDialog('wallet')}>{wallet.loading ? 'connecting to wallet service…' : wallet.error
-        ? wallet.error : !wallet.config?.configured ? 'wallet service awaiting host configuration'
-        : allocation ? 'agent wallets · open setup to continue' : 'connect your NEAR wallet to prepare agents'}</button>
-      <span>inference procurement pending</span>
-    </div>}
-    <main className="terminal-workspace" ref={workspace} aria-label="Buyer terminals">{buyers.map((buyer, index) => {
-      const rect = layout[index];
-      return <div key={buyer.id} id={`pane-${buyer.id}`} className={`pane-slot ${zoomed === buyer.id ? 'is-zoomed' : ''} ${zoomed && zoomed !== buyer.id ? 'is-hidden' : ''}`}
-        style={{ left: `${rect.left}%`, top: `${rect.top}%`, width: `${rect.width}%`, height: `${rect.height}%`,
-          borderRightWidth: rect.rightEdge ? 0 : 1, borderBottomWidth: rect.bottomEdge ? 0 : 1 }}>
-        <BuyerPane key={`${preview ? 'preview' : ownerScope}:${buyer.id}`} buyer={buyer} selected={selected === buyer.id} status={statuses[buyer.id] ?? { phase: 'booting' }}
-          options={{ preview, ownerScope, walletStatus: () => walletController.snapshot().allocations.flatMap(plan => plan.buyers).find(b => b.id === buyer.id) ?? null }}
-          onSelect={setSelected} onStatus={status} onUsage={usage} onRuntime={register} onInput={terminalInput} />
-      </div>;
-    })}</main>
-    <ProviderStatistics open={statistics.open} mode={statistics.mode} view={statistics.view}
-      onOpenChange={open => setStatistics(old => ({ ...old, open }))}
-      onModeChange={mode => setStatistics(old => ({ ...old, mode }))}
-      onViewChange={view => setStatistics(old => ({ ...old, view }))} />
-    {dialog === 'settings' && <Settings key={current.id} buyer={current} preview={preview} onClose={() => setDialog(null)} onSave={(task, budgetMicros, scenario, all) => {
-      for (const b of buyers) if (all || b.id === current.id) runtimes.current.get(b.id)?.pause();
-      const update = (b: Buyer) => all || b.id === current.id ? { ...b, task, budgetMicros, scenario, previewMicros: Math.min(b.previewMicros, budgetMicros) } : b;
-      setSession(old => ({ buyers: old.buyers.map(update), parked: old.parked.map(update) })); setDialog(null);
-    }} />}
-    {dialog === 'wallet' && <WalletSetup controller={walletController} buyers={buyers} onClose={() => setDialog(null)} />}
-    {(dialog === 'help' || dialog === 'preview') && <Info kind={dialog} onClose={() => setDialog(null)} />}
+    </div><div className="sessionbar"><span className="session-name">[market]</span>
+      <div className="window-list" aria-label="Agent sessions">{shown.map((s, i) => <button key={s.id} className={current?.id === s.id ? 'window-current' : ''} aria-label={'Select ' + s.id} aria-pressed={current?.id === s.id}
+        onClick={() => focus(s.id)} onDoubleClick={() => setZoomed(old => old === s.id ? null : s.id)} title={s.agent_id + ' · ' + s.prompt}>{i + 1}:fx{current?.id === s.id ? '*' : ''}</button>)}</div>
+      <div className="session-actions">{current && <><button className="selected-state" onClick={() => setDialog('settings')}>{current.agent_id} · {current.state}</button>
+        <button className="zoom-button" aria-label={zoomed ? 'Restore panes' : 'Zoom selected pane'} onClick={() => setZoomed(old => old ? null : current.id)}>{zoomed ? 'unzoom' : 'zoom'}</button></>}</div>
+    </div></header>
+    <div className="gateway-status" role="status"><button onClick={() => setDialog('mode')}>{tasks ? capabilities?.nativeWallets ? 'Controlled inference · virtual settlement · wallet funding is real NEAR' : 'Controlled inference · virtual settlement · no real inference payments' : 'Wallet preparation · inference procurement not enabled'}</button>
+      <span>{tasks ? 'independent agents · MPP / Market' : 'owner authorization required'}</span></div>
+    {error && <div className="workspace-error" role="alert">{error}</div>}
+    <main className="terminal-workspace" ref={workspace} aria-label="Agent terminals">
+      {connection === 'loading' && <div className="workspace-empty">connecting to workspace…</div>}
+      {connection === 'error' && <div className="workspace-empty"><p>Workspace service unavailable.</p><button className="outline-button" onClick={() => void discover()}>retry connection</button></div>}
+      {connection === 'ready' && tasks && !hosted && <div className="workspace-login"><span className="login-eyebrow">PRIVATE MARKET · PUBLIC PLAYGROUND</span><h1>Give each agent a task.</h1><p>Connect an ordinary NEAR wallet to open your own workspace. No access code. Sign-in is a message signature, with no on-chain fee.</p>
+        <p>Run controlled agent tasks for free, or create and fund independent agent wallets. Real inference payments are not enabled in this release.</p>
+        {native.error&&<p role="alert">{native.error}</p>}<button className="solid-button" disabled={busy||native.busy} onClick={()=>void login()}>{busy||native.busy?'connecting…':'connect NEAR wallet ↗'}</button></div>}
+      {shown.map((session, i) => {const rect = layout[i]; return <div key={viewEpoch + ':' + session.id} id={'pane-' + session.id}
+        className={`pane-slot ${zoomed === session.id ? 'is-zoomed' : ''} ${zoomed && zoomed !== session.id ? 'is-hidden' : ''}`}
+        style={{left: rect.left + '%', top: rect.top + '%', width: rect.width + '%', height: rect.height + '%', borderRightWidth: rect.rightEdge ? 0 : 1, borderBottomWidth: rect.bottomEdge ? 0 : 1}}>
+        <TaskPane ref={value => {if (value) handles.current.set(session.id, value); else handles.current.delete(session.id);}}
+          session={session} hosted={tasks} selected={selected === session.id} enabled={!busy} onSelect={() => setSelected(session.id)}
+          refresh={refresh} onDetail={recordDetail} onReady={paneReady} onUnauthorized={clearOwner} onInput={data => terminalInput(session.id, data)}
+          configure={() => {setSelected(session.id); setDialog('settings');}} newTask={prompt => {setSelected(session.id); newTask(prompt);}} wallet={() => setDialog('wallet')} />
+      </div>;})}
+    </main>
+    {authenticated && tasks && <TaskActivity open={activity} session={current} status={current ? details[current.id] : undefined} toggle={() => setActivity(old => !old)} change={changeBid} />}
+    {dialog === 'settings' && current && <TaskSettings key={current.id} session={current} limit={hosted?.limits.find(l => l.agent_id === current.agent_id)} hosted={tasks}
+      onClose={() => setDialog(null)} onSave={saveSettings} onNew={() => {if (tasks) newTask(); else setDialog('wallet');}} />}
+    {dialog === 'new' && tasks && hosted && <NewTask sessions={sessions} limits={hosted.limits} maxTasks={capabilities?.maxTasksPerAgent ?? 2} initialAgent={current?.agent_id}
+      initialPrompt={newPrompt || undefined} windowMs={capabilities?.taskWindowMs ?? 180000} onClose={() => setDialog(null)} onCreate={createTask} />}
+    {dialog === 'wallet' && capabilities?.walletSetup && <WalletSetup controller={walletController} buyers={buyers} onClose={() => setDialog(null)} />}
+    {dialog === 'wallet' && capabilities?.nativeWallets && <NativeWallets controller={nativeController} ids={sessions.map(s=>s.agent_id)} onClose={()=>setDialog(null)} />}
+    {dialog === 'wallet' && !capabilities?.walletSetup && !capabilities?.nativeWallets && <Modal title="agent wallets" onClose={() => setDialog(null)}><p className="dialog-note">This controlled release uses virtual balances. Real wallet connection and funding are not enabled.</p>
+      {hosted?.limits.map(l => <div className="wallet-limit" key={l.agent_id}><strong>{l.agent_id}</strong><span>authorization {nanoUsd(l.budget_nano)}</span><span>spent {nanoUsd(l.spent_nano)}</span><span>reserved {nanoUsd(l.reserved_nano)}</span></div>)}</Modal>}
+    {dialog === 'mode' && <Modal title={tasks ? 'controlled workspace' : 'wallet preparation'} onClose={() => setDialog(null)}><p className="dialog-note">{tasks ? 'Independent fx sessions call the MPP proxy. The server owns procurement, budget reservations, durable workspaces and refund reconciliation. Inference model replies and settlement receipts are local fixtures. Ordinary agent wallet funding is a separate real NEAR mainnet transfer; it does not pay for these controlled tasks.' : 'This backend supports owner wallet authorization and agent preparation. Task procurement is not enabled. Funding availability follows the host configuration and owner approval.'}</p></Modal>}
+    {dialog === 'help' && <Modal title="keys" onClose={() => setDialog(null)}><dl className="key-list"><dt>configure task</dt><dd>⌘ / Ctrl K</dd><dt>run selected task</dt><dd>⌘ / Ctrl ↵</dd><dt>switch pane</dt><dd>Ctrl B ← / →</dd><dt>zoom / restore</dt><dd>Ctrl B Z</dd><dt>restore pane</dt><dd>Ctrl B %</dd><dt>pause & park last pane</dt><dd>Ctrl B X</dd><dt>terminal commands</dt><dd>/help</dd></dl><p className="dialog-note">Pane count changes only the view. Parking first pauses the original task. Restoring never creates an agent or replenishes funds. Use + task to create another bounded task for an existing agent.</p></Modal>}
   </div>;
 }

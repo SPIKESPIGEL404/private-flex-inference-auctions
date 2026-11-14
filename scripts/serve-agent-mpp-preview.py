@@ -16,6 +16,7 @@ import socket
 import subprocess
 import threading
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 from urllib.parse import urlsplit
@@ -25,7 +26,9 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = Path(os.environ.get('AGENT_PREVIEW_DATA', '/data'))
 BINARY = os.environ.get('AGENT_PREVIEW_BINARY', '/usr/local/bin/private-market-host-p2')
 NODE = os.environ.get('P1_NODE', '/usr/local/bin/node')
-DIRECT = 'postgres://preview@127.0.0.1:25432/private_market_agent_preview'
+# The prior private preview database and market files remain archived in /data.
+DATABASE = 'private_market_agent_public_v1'
+DIRECT = 'postgres://preview@127.0.0.1:25432/' + DATABASE
 ORIGIN = os.environ['AGENT_PREVIEW_ORIGIN']
 OWNER_HASH = os.environ['AGENT_PREVIEW_OWNER_HASH']
 BIND_PORT = int(os.environ.get('AGENT_PREVIEW_PORT', '3000'))
@@ -57,7 +60,14 @@ def private(path, value):
     tmp = path.with_suffix('.new')
     tmp.write_text(json.dumps(value))
     tmp.chmod(0o600)
+    with tmp.open("rb") as f:
+        os.fsync(f.fileno())
     tmp.replace(path)
+    fd=os.open(str(path.parent),os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def wait(check, seconds=90):
@@ -219,9 +229,9 @@ def main():
                 '-h 127.0.0.1 -p 25432 -k /tmp -c shared_buffers=32MB -c max_connections=64', '-w', 'start')
         pg_started = True
         found = command('psql', '-h', '127.0.0.1', '-p', '25432', '-U', 'preview', '-d', 'postgres', '-At',
-                        '-c', "SELECT 1 FROM pg_database WHERE datname='private_market_agent_preview'").strip()
+                        '-c', "SELECT 1 FROM pg_database WHERE datname=" + literal(DATABASE)).strip()
         if not found:
-            command('createdb', '-h', '127.0.0.1', '-p', '25432', '-U', 'preview', 'private_market_agent_preview')
+            command('createdb', '-h', '127.0.0.1', '-p', '25432', '-U', 'preview', DATABASE)
         redis = DATA / 'redis'
         redis.mkdir(exist_ok=True)
         launch(['redis-server', '--bind', '127.0.0.1', '--port', '26379', '--dir', str(redis), '--save', '',
@@ -234,8 +244,11 @@ def main():
         config = json.loads(secrets_path.read_text())
         if config['ownerHash'] != OWNER_HASH or config['origin'] != ORIGIN:
             raise RuntimeError('preview ownership/configuration changed')
-        state = DATA / 'market'
-        env = {**os.environ, 'DATABASE_URL': DIRECT, 'REDIS_URL': 'redis://127.0.0.1:26379',
+        if 'publicStorageKey' not in config:
+            config['publicStorageKey'] = secrets.token_hex(32)
+            private(secrets_path, config)
+        state = DATA / 'market-public-v1'
+        env = {**os.environ, 'DATABASE_URL': DIRECT, 'REDIS_URL': 'redis://127.0.0.1:26379/1',
                'BITROUTER_PREVIEW_BOOTSTRAP_BINDING': config['binding'], 'REDIS_BALANCE_CUTOVER_TOKEN': config['cutover'],
                'PRIVATE_MARKET_SELLER_KEY': config['seller'], 'PRIVATE_MARKET_LISTEN': '127.0.0.1:28084',
                'PRIVATE_MARKET_NEAR_DIRECT_P1': 'controlled', 'PRIVATE_MARKET_AGENT_P2': 'controlled',
@@ -246,31 +259,30 @@ def main():
         if initial:
             command(BINARY, 'init', str(state), env=env)
         data = json.loads((state / 'state.json').read_text())
-        seed_count = sql('SELECT count(*) FROM mpp_direct_p2_owners')
-        if seed_count == '0':
-            if sql('SELECT (SELECT count(*) FROM mpp_direct_tasks)+(SELECT count(*) FROM mpp_direct_orders)') != '0':
-                raise RuntimeError('refusing to seed an occupied preview')
-            # All additions commit together. Never refills or resets on restart.
-            statements = ['BEGIN', 'INSERT INTO mpp_direct_p2_owners VALUES(' + literal(OWNER_HASH) + ",'preview-owner')"]
-            for index, payer in enumerate(['agent.testnet', 'agent2.testnet']):
-                buyer = data['buyers'][index]
-                user, token = buyer['user'], buyer['token']
-                task, session = 'task-' + str(index + 1), 'session-' + str(index + 1)
-                statements.append('INSERT INTO mpp_direct_agents(user_id,token_hash,agent_id,payer,binding_version,native_balance,owner_id) VALUES(' +
-                                  ','.join(map(literal, [user, hashlib.sha256(token.encode()).hexdigest(), 'agent-' + str(index + 1), payer, 'binding-1', '{}', 'preview-owner'])) + ')')
-                statements.append('INSERT INTO mpp_direct_p2_agent_limits(user_id,budget_nano) VALUES(' + literal(user) + ',20000000)')
-                statements.append('INSERT INTO mpp_direct_tasks(id,user_id,budget_nano,hard_bid_nano,call_cap_nano,deadline_ms) VALUES(' +
-                                  ','.join(map(literal, [task, user, 10000000, 3000000, 3000000, int(time.time() * 1000) + TTL])) + ')')
-                workspace = {'/workspace/task.txt': 'Compute the sum of numbers.txt, write result.txt, and verify the result.',
-                             '/workspace/numbers.txt': '3\n7\n32\n' if index == 0 else '5\n5\n9\n'}
-                statements.append('INSERT INTO mpp_direct_p2_sessions(id,user_id,task_id,prompt,workspace,created_ms) VALUES(' +
-                                  ','.join(map(literal, [session, user, task, workspace['/workspace/task.txt'], json.dumps(workspace), int(time.time() * 1000)])) + ')')
-            statements += ['INSERT INTO mpp_direct_project_budget(id,budget_yocto) VALUES(1,10000000000000000000000)',
-                           'INSERT INTO mpp_direct_p2_market(singleton,observed_ms,usable_ms) VALUES(true,' + str(int(time.time() * 1000)) + ',500)',
-                           'CREATE TABLE p2_fixture_seller_claims(order_id text PRIMARY KEY,body jsonb NOT NULL)', 'COMMIT']
-            sql(';'.join(statements))
-        if sql('SELECT count(*) FROM mpp_direct_p2_owners WHERE token_hash=' + literal(OWNER_HASH)) != '1':
-            raise RuntimeError('preview owner binding missing')
+        # Durable public slot pool. Credentials are server-only; claims never refill.
+        # Prepare state first, then idempotent SQL, before the host can serve it.
+        if len(data['buyers']) == 3:
+            for _ in range(128):
+                credential = str(uuid.uuid4())
+                data['buyers'].append({'user': str(uuid.uuid4()), 'credential_id': credential,
+                                      'token': 'brk_' + credential + '.' + secrets.token_hex(32), 'public_key': data['buyers'][0]['public_key']})
+            private(state / 'state.json', data)
+        if len(data['buyers']) != 131 or any(not re.fullmatch(r'brk_[A-Za-z0-9_-]{16,128}\.[A-Za-z0-9_-]{32,128}', b['token']) for b in data['buyers'][3:]):
+            raise RuntimeError('unexpected public buyer pool')
+        statements = ['BEGIN']
+        payers = []
+        for index, buyer in enumerate(data['buyers'][3:]):
+            user, token = buyer['user'], buyer['token']
+            payer = 'p2-public-' + str(index) + '.testnet'
+            payers.append(payer)
+            statements.append('INSERT INTO credit_accounts(id,user_id,balance_micro_usd) VALUES(' +
+                              ','.join(map(literal, [str(uuid.uuid4()), user, 0])) + ') ON CONFLICT(user_id) DO NOTHING')
+            statements.append('INSERT INTO mpp_direct_agents(user_id,token_hash,agent_id,payer,binding_version,native_balance) VALUES(' +
+                              ','.join(map(literal, [user, hashlib.sha256(token.encode()).hexdigest(), 'public-' + str(index).zfill(3), payer, 'binding-1', '{}'])) + ') ON CONFLICT(user_id) DO NOTHING')
+        statements += ['INSERT INTO mpp_direct_project_budget(id,budget_yocto) VALUES(1,10000000000000000000000) ON CONFLICT DO NOTHING',
+                       'INSERT INTO mpp_direct_p2_market(singleton,observed_ms,usable_ms) VALUES(true,' + str(int(time.time() * 1000)) + ',500) ON CONFLICT DO NOTHING',
+                       'CREATE TABLE IF NOT EXISTS p2_fixture_seller_claims(order_id text PRIMARY KEY,body jsonb NOT NULL)', 'COMMIT']
+        sql(';'.join(statements))
         host, port = data['fixture_addr'].split(':')
         seller = ThreadingHTTPServer((host, int(port)), p2.SellerHandler)
         seller.daemon_threads = True
@@ -290,7 +302,7 @@ def main():
                 c.close()
         wait(lambda: healthy(28084))
         wallet = {'databaseUrl': DIRECT, 'buyerWalletKey': config['buyer'], 'walletFixtureKey': config['merchant'],
-                  'faultControlKey': config['control'], 'port': 28083}
+                  'faultControlKey': config['control'], 'payers': payers, 'port': 28083}
         private(DATA / 'wallet.json', wallet)
         launch([NODE, str(ROOT / 'services/mpp-near-direct/p2/test/wallet-fixture.mjs'), str(DATA / 'wallet.json')], 'wallet')
         def wallet_ready():
@@ -306,7 +318,8 @@ def main():
                     'gasEstimateYocto': '100000000000000000000', 'paymentWindowMs': 60000, 'leaseTailMs': 15000,
                     'paymentEstimateMs': 100, 'estimatedTerminalMs': 500, 'refundAuto': True, 'port': 28082}
         app = {'port': 28081, 'publicOrigin': ORIGIN, 'buildRevision': os.environ.get('AGENT_PREVIEW_REVISION'),
-               'agentCredentials': [{'userId': b['user'], 'token': b['token']} for b in data['buyers'][:2]], 'payments': payments}
+               'agentCredentials': [{'userId': b['user'], 'token': b['token']} for b in data['buyers'][3:]], 'payments': payments, 'publicWorkspace': {'storePath': str(DATA / 'public-auth.sqlite'),
+                'storageKey': config['publicStorageKey']}}
         private(DATA / 'app.json', app)
         launch([NODE, str(ROOT / 'services/mpp-near-direct/p2/server.mjs'), str(DATA / 'app.json')], 'app')
         wait(lambda: healthy(28081))
