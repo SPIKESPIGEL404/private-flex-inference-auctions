@@ -168,3 +168,11 @@ dialog textarea { resize: vertical; min-height: 108px; }
 }
 
 .native-field{display:flex;flex-direction:column;gap:8px;margin:20px 0}.native-field input,.native-transfer input{background:#101010;color:#ededed;border:1px solid #333;padding:10px;font:inherit}.native-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.native-confirm{display:flex;gap:10px;line-height:1.6;margin:20px 0;font-size:12px}.native-agent{padding:20px 0;border-top:1px solid #333}.native-agent h3{font-size:14px}.native-agent small{color:#777;font-weight:400}.native-address{font-size:11px;overflow-wrap:anywhere;color:#aaa}.native-transfer{display:flex;flex-direction:column;gap:8px;font-size:12px;padding:12px 0}.native-transfer a{color:#ccc}.wallet-error{color:#ffaaaa}
+
+/* Both views share the same viewport, navigation and mounted application state. */
+.playground, .route-view { width: 100%; height: 100%; }
+.route-view[hidden] { display: none; }
+.main-navigation a[aria-current=page] { color: #ededed; }
+.main-navigation a:not(.source-link) { display: block; }
+@media (max-width: 600px) { .main-navigation { gap: 14px; } }
+@media (max-width: 420px) { .main-navigation { padding-right: 0; } }

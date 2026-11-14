@@ -122,11 +122,11 @@ With NEAR-native admission control, hold workload and model contracts fixed and 
 
 ## Proposal page
 
-Both frontends expose the same public **`/proposal`** page and link to it from their header. Its narrative is: autonomous procurement → model-fidelity risk → model contract and acceptance → current API/TEE comparison → NEAR-native collaboration.
+The canonical playground and its compatibility entry expose the same public **`/proposal`** page and link to it from their header. Its narrative is: autonomous procurement → model-fidelity risk → model contract and acceptance → current API/TEE comparison → NEAR-native collaboration.
 
 The interactive example uses synthetic quotes and policy verdicts. It excludes a cheaper wrong model and a name-only claim without sufficient evidence, applies budget/time limits to qualified supply, and distinguishes matching, mismatched and missing delivery evidence. It performs no real attestation, model verification, inference or payments. The illustrated qualified routes are not real acceptance results from either deployment.
 
-The page is implemented once in [`clients/proposal`](clients/proposal/Proposal.tsx), loaded separately from the terminal/wallet application. Both hosting servers support `/proposal` and `/proposal/`, including fresh-page reloads.
+The page lives in [`clients/market-playground/src/proposal`](clients/market-playground/src/proposal/Proposal.tsx) and shares the Mono navigation, fonts and controls with the workspace. In-app navigation keeps visited views mounted, preserving terminal sessions, proposal inputs and reading position. Opening the proposal directly does not initialize the wallet/workspace application. Both hosting servers support `/proposal` and `/proposal/`, including fresh-page reloads.
 
 ```bash
 npm ci --prefix services/mpp-near-direct

@@ -78,3 +78,13 @@ and browser vaults remain local to each host. Moving to the other host requires
 restoring the same encrypted backup if real wallets have already been registered.
 The overlay's optional `--fallback-origin` records this extra preview environment
 field explicitly in its preservation report.
+
+## Frontend-only updates
+
+`Dockerfile.frontend` builds the canonical playground (including `/proposal`)
+over the exact currently deployed runtime image. Load and verify that image
+first, then pass its immutable pin as `RUNTIME_IMAGE` and the reviewed frontend
+commit as `FRONTEND_REVISION`. The `ai.bitrouter.frontend.revision` label records
+the UI source separately from the inherited runtime revision. No backend binary,
+entrypoint or persistent data is replaced. Publish and apply the resulting image
+with the same digest-checked release overlay and preservation checks above.

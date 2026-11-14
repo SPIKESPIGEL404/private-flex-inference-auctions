@@ -19,3 +19,18 @@ Open the wallet panel to create two independent ordinary NEAR implicit accounts.
 Owner-wallet funding is a real NEAR mainnet Transfer, limited to 0.1 NEAR per request. Returning funds signs a Transfer locally from the agent to the connected owner and retains 0.002 NEAR for storage and gas. Pending operations block replacements, including after restoring an old backup. An unknown owner-wallet result requires the original hash from wallet history. A pending withdrawal can rebroadcast only its original signed bytes. No automatic payment retries occur.
 
 Real funding does not buy or increase controlled inference credit, and virtual refunds are not chain deposits. Real agent-paid inference remains a separate P3 qualification gate. The legacy Agent API adapter is retained for compatibility and is not used by this public path.
+
+## Proposal
+
+`/proposal` and `/proposal/` belong to this application. The proposal uses the same
+`SiteHeader`, Geist Mono fonts, monochrome palette and button styles as the task
+workspace. Chapter links scroll the reading pane while the header stays in place.
+The procurement example remains synthetic and needs no wallet or backend.
+
+Internal try/proposal links use browser history without reloading. Visited views
+stay mounted: terminals and wallet state survive the switch, as do proposal
+inputs and reading position. Workspace keyboard shortcuts are disabled while
+reading. Backend tasks continue under their original limits; switching pages
+does not pause, cancel, fund or restart them. Opening `/proposal` directly defers
+the workspace bundle and its API discovery until the first visit to try. Modified
+clicks and external links retain normal browser behavior.
