@@ -8,6 +8,7 @@ import {NativeWalletController} from './native-wallet';
 import {NativeWallets} from './NativeWallets';
 import {WalletController} from './wallet-api';
 import {WalletSetup} from './WalletSetup';
+import {AttestationPanel} from './AttestationPanel';
 import {loadBrowserSession, resizeSession, tilePanes} from './model';
 import type {Buyer} from './model';
 import {taskApi, TaskApiError, nanoUsd} from './task-api';
@@ -253,6 +254,7 @@ export default function App() {
       </div>;})}
     </main>
     {authenticated && tasks && <TaskActivity open={activity} session={current} status={current ? details[current.id] : undefined} toggle={() => setActivity(old => !old)} change={changeBid} />}
+    <AttestationPanel />
     {dialog === 'settings' && current && <TaskSettings key={current.id} session={current} limit={hosted?.limits.find(l => l.agent_id === current.agent_id)} hosted={tasks}
       onClose={() => setDialog(null)} onSave={saveSettings} onNew={() => {if (tasks) newTask(); else setDialog('wallet');}} />}
     {dialog === 'new' && tasks && hosted && <NewTask sessions={sessions} limits={hosted.limits} maxTasks={capabilities?.maxTasksPerAgent ?? 2} initialAgent={current?.agent_id}

@@ -99,6 +99,8 @@ Verify the Market deployment and channel before sending sensitive purchase limit
 
 Hardware attestation, encrypted transport, model identity, response binding and payment receipts must retain their precise meanings. Full arithmetic inference proofs remain separate R&D, outside the hackathon prototype's acceptance. Do not replace missing evidence with an undifferentiated green “model verified” badge.
 
+The implemented Market controls and their limits are listed under [Verify the Market before buying](#verify-the-market-before-buying).
+
 ## Current evidence and next milestone
 
 The agent integration baseline in this branch is **controlled P2**. API inference, GPU TEE deployment, wallet onboarding and controlled agent execution have separate acceptance records.
@@ -171,20 +173,28 @@ The older Agent API gateway remains available as a compatibility adapter.
 
 ## Verify the Market before buying
 
-The following describes the controlled identity acceptance in this integration; deployment evidence must be evaluated for its own exact release and scope.
+The Market runs in an Intel TDX confidential VM (dstack). The buyer client verifies the deployment and channel first, and sends no credential or purchase limit if any check fails. These controls cover the Market's own deployment and the purchase route. They do not establish upstream model fidelity.
 
-The optional ACI identity endpoint and Node buyer now support fresh hardware
-evidence, reviewed release/boot policy, the catalog file digest, and actual TLS
-SPKI binding before sending credentials or purchase limits. Local controlled integration is covered without
-deployment; real hardware and confidential deployment acceptance remain pending.
-See the [buyer verification guide](docs/market-buyer-verification.md).
+| Control | What it does | Limit |
+| --- | --- | --- |
+| Attested identity | Checks the hardware quote, the compose hash computed from this repository, the catalog policy digest and the actual TLS key before sending anything | Proves which release ran, not that the release is correct |
+| TLS inside the VM | The certificate key is generated in the VM and bound to the attested keyset | Covers the channel to the Market, not the upstream provider |
+| Signed purchases | Each purchase is signed by a registered buyer key with a nonce and time window; forged or replayed purchases are refused | Purchase route only |
+| Encrypted purchase limits | `bitrouter_purchase` is encrypted to a key held only by the attested Market; plaintext purchases are refused when attestation is on | Purchase route only. Funding and procurement-intent routes use the attested channel and bearer authentication |
+| Signed receipts | The attested Market signs each financial receipt; the client verifies it against the verified keyset | Proves what the Market recorded, not when. Keep the verified keyset to check old receipts |
+| No-leak acceptance | Marked values are sent through success and failure paths and searched for in logs, responses, Redis, container files and the upstream request | Controlled local stack. Excludes memory, timing and the Market database, which relies on the encrypted VM disk. Found and fixed two leaks |
 
 ```bash
 bash scripts/accept-market-identity.sh
+bash scripts/accept-market-dstack-local.sh
+bash scripts/accept-market-no-leak.sh
 ```
 
-This command creates only local controlled infrastructure and sends no external
-inference calls. The production buyer rejects the test's simulated hardware proof.
+These commands create only local controlled infrastructure and send no external inference calls. The production buyer rejects the tests' simulated hardware proof.
+
+The browser playground shows the buyer verifier's result in a "Market deployment and channel" panel. It reports the Market deployment only and makes no claim about the model.
+
+An earlier release, before purchase encryption, signed receipts and the leak fixes, was deployed to a Phala Cloud TDX VM with TLS ending inside the VM. Buyer-side acceptance of a live deployment of the current release is not recorded. See the [buyer verification guide](docs/market-buyer-verification.md), [deployment guide](docs/market-dstack.md) and [no-leak test](docs/market-no-leak.md).
 
 ## Run business and recovery regressions
 
@@ -294,7 +304,7 @@ bash scripts/accept-phase3.sh
 ```
 
 The new Market does not read the scheduler journal, spool or execution plans.
-The [earlier security design](docs/designs/2026-11-03-security-design.md) is preserved as historical context; its proposed capabilities are not current acceptance claims.
+The [earlier security design](docs/designs/2026-11-03-security-design.md) is preserved as historical context. Only the controls listed under "Verify the Market before buying" are current claims.
 
 [MIT](LICENSE).
 

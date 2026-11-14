@@ -8,6 +8,6 @@
     "provider_cap_micro_usd": 4500,
     "total_cap_micro_usd": 4510
   },
-  "ciphertext_hex": "38456a0daeb677593b0ca6c564e8d53d214496a49459563cf2c734d4cf6fa153c8212f84530185f69f7816ab3c667777d9bb6589541e5df19ad1a6b206c940feb8fdeeab52220cc6780746ca6c3e598f98e89bca4850c742ac1a2a71085b3b1ed2069e5d88ce71b7252c30a4636b1d7764a1cfd671d062e4d7a0c1af383862b5781c89e38d36258878b2eccded4ea554ea",
+  "ciphertext_hex": "3cdf1f1ce028166b10254ad86ef030d6758a6d5ccd0a619e766f92fdc14df428447e83db2ae8b5677194d0e59f902ce8c6671a849197060c9af4f3e5344cf397408fc49620de9a5c10d3bdd9de5601db66569df8160ec95a63be7ba931eb7b8e7c43da8103a3ed6b6e19be9b926aa586ac4f310eae86e705abcebe9518b819f05ed14bc9c52a6c83f0b0fc961fd50c4a02",
   "aad_utf8": "{\"algo\":\"x25519-aes-256-gcm-hkdf-sha256\",\"field\":\"bitrouter_purchase\",\"model\":\"m/external\",\"nonce\":\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\",\"purpose\":\"aci.e2ee.request.v2\",\"ts\":1700000001}"
 }
