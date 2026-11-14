@@ -1,0 +1,1038 @@
+{
+  "phase": "P2",
+  "mode": "controlled",
+  "realChainTransactions": 0,
+  "realProviderCalls": 0,
+  "checks": [
+    {
+      "case": "two-real-fx-tasks-tool-continuations",
+      "passed": true,
+      "counts": {
+        "tools": 2,
+        "refunds": 4,
+        "payments": 4,
+        "executions": 4
+      },
+      "tasks": [
+        {
+          "id": "session-1",
+          "state": "complete",
+          "generation": "1",
+          "fxStarted": true,
+          "task": {
+            "id": "task-1",
+            "user_id": "77e00d4b-48cd-4ba5-aa04-cba4a8e6a260",
+            "budget_nano": "10000000",
+            "reserved_nano": "638000",
+            "spent_nano": "1575000",
+            "hard_bid_nano": "3000000",
+            "call_cap_nano": "3000000",
+            "deadline_ms": "1794667676614",
+            "revision": "0",
+            "active": true,
+            "paused": false,
+            "preference": "balanced",
+            "max_wait_ms": "60000"
+          },
+          "workspace": {
+            "/workspace/task.txt": "Compute the sum of numbers.txt, write result.txt, and verify the result.",
+            "/workspace/result.txt": "42\n",
+            "/workspace/numbers.txt": "3\n7\n32\n",
+            "/workspace/applications.log": "applied\n"
+          },
+          "workspaceVersion": "1",
+          "result": {
+            "usage": {
+              "inputTokens": 1024,
+              "outputTokens": 50
+            },
+            "stopReason": "end_turn"
+          },
+          "calls": [
+            {
+              "id": "b152790934de07d1c8f6b8ef26e8d55473a6b5d1e1e4fbb96af0e461414affc6",
+              "state": "terminal",
+              "revision": "0",
+              "bid_nano": "1500000",
+              "manual": false,
+              "started_ms": "1794667497484",
+              "deadline_ms": "1794667676614",
+              "decision": {
+                "nowMs": 1794667499436,
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 864,
+                    "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "69a6cb90a5d090ea2149f0e1eb3d0e0c481e21847279b100a398c6faef40f17e",
+                    "total_input_tokens": 96,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 96
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1216,
+                  "input_tokens": 512,
+                  "platform_micro": 0,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1216000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 106
+                },
+                "policy": "cost-speed-p2-v1",
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1115040",
+                  "endToEndMs": 2652,
+                  "reserveNano": "1216000",
+                  "urgencyMultiplier": "1"
+                },
+                "bidNano": "1500000",
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667498935"
+                },
+                "deadlineMs": 1794667676614,
+                "preference": "balanced",
+                "startedAtMs": 1794667497484,
+                "availableNano": "10000000",
+                "supplyAvailable": true,
+                "futureReserveBps": 2500
+              },
+              "order_id": "cf981dd7500de8da1b5e4f95ba3914521acc2e088fd45e3f071cac30a8c4af42"
+            },
+            {
+              "id": "02580828e0dfc337c1679496f8327ff634cf8f89c7f0fef7f8dbd8f0eaa5021d",
+              "state": "terminal",
+              "revision": "0",
+              "bid_nano": "1500000",
+              "manual": false,
+              "started_ms": "1794667501094",
+              "deadline_ms": "1794667676614",
+              "decision": {
+                "nowMs": 1794667502979,
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 1283,
+                    "input_sha256": "a795ee5eabb94236e3f9bcbc56b36bb907e12c9853d80b905de7203780df344e",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "e053f0eddb60850880c94e0debe594cffe16512b3b52118fe0c3f0bb0023a9f0",
+                    "total_input_tokens": 151,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 151
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1217,
+                  "input_tokens": 512,
+                  "platform_micro": 1,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1217000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 175
+                },
+                "policy": "cost-speed-p2-v1",
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1114700",
+                  "endToEndMs": 2585,
+                  "reserveNano": "1217000",
+                  "urgencyMultiplier": "1"
+                },
+                "bidNano": "1500000",
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667502944"
+                },
+                "deadlineMs": 1794667676614,
+                "preference": "balanced",
+                "startedAtMs": 1794667501094,
+                "availableNano": "9004000",
+                "supplyAvailable": true,
+                "futureReserveBps": 2500
+              },
+              "order_id": "e8be614ed8c4418becaef0e1084c9044ff82e53a539e8bcddcf4b7df4d356b05"
+            }
+          ],
+          "orders": [
+            {
+              "id": "cf981dd7500de8da1b5e4f95ba3914521acc2e088fd45e3f071cac30a8c4af42",
+              "state": "refunded",
+              "nativeId": "5118581c-1474-49c7-ab71-fc1e0e0566f0",
+              "principal": {
+                "P": "608000000000000000000",
+                "C": "498000000000000000000",
+                "H": "0",
+                "W": "0",
+                "R": "110000000000000000000"
+              },
+              "expectedP": "608000000000000000000",
+              "mode": "controlled",
+              "realPayment": false,
+              "financial": {
+                "seller": "seller-fixture",
+                "cash_micro_usd": 996,
+                "promo_micro_usd": 0,
+                "platform_micro_usd": 0,
+                "provider_micro_usd": 996,
+                "released_micro_usd": 220
+              },
+              "anomalies": [],
+              "timings": [
+                {
+                  "atMs": 1794667499441,
+                  "clock": "postgres_wall_clock",
+                  "stage": "quote_prepared"
+                },
+                {
+                  "atMs": 1794667499478,
+                  "clock": "postgres_wall_clock",
+                  "stage": "proof_presented"
+                },
+                {
+                  "atMs": 1794667499492,
+                  "clock": "postgres_wall_clock",
+                  "stage": "funds_recorded"
+                },
+                {
+                  "atMs": 1794667499936,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_admission_requested"
+                },
+                {
+                  "atMs": 1794667499944,
+                  "clock": "postgres_wall_clock",
+                  "stage": "admission_committed"
+                },
+                {
+                  "atMs": 1794667500841,
+                  "clock": "postgres_wall_clock",
+                  "stage": "financial_committed"
+                },
+                {
+                  "atMs": 1794667501060,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_response_read_finished"
+                }
+              ],
+              "decision": {
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 864,
+                    "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "69a6cb90a5d090ea2149f0e1eb3d0e0c481e21847279b100a398c6faef40f17e",
+                    "total_input_tokens": 96,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 96
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1216,
+                  "input_tokens": 512,
+                  "platform_micro": 0,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1216000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 106
+                },
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1115040",
+                  "endToEndMs": 2652,
+                  "reserveNano": "1216000",
+                  "urgencyMultiplier": "1"
+                },
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667498935"
+                },
+                "buyerRouteFeeNano": "0",
+                "projectEstimateYocto": "100000000000000000000"
+              }
+            },
+            {
+              "id": "e8be614ed8c4418becaef0e1084c9044ff82e53a539e8bcddcf4b7df4d356b05",
+              "state": "refund_due",
+              "nativeId": "9cfc713d-ccd8-4119-8aa1-161d2262a36d",
+              "principal": {
+                "P": "608500000000000000000",
+                "C": "289500000000000000000",
+                "H": "0",
+                "W": "319000000000000000000",
+                "R": "0"
+              },
+              "expectedP": "608500000000000000000",
+              "mode": "controlled",
+              "realPayment": false,
+              "financial": {
+                "seller": "seller-fixture",
+                "cash_micro_usd": 579,
+                "promo_micro_usd": 0,
+                "platform_micro_usd": 1,
+                "provider_micro_usd": 578,
+                "released_micro_usd": 638
+              },
+              "anomalies": [],
+              "timings": [
+                {
+                  "atMs": 1794667503321,
+                  "clock": "postgres_wall_clock",
+                  "stage": "quote_prepared"
+                },
+                {
+                  "atMs": 1794667503359,
+                  "clock": "postgres_wall_clock",
+                  "stage": "proof_presented"
+                },
+                {
+                  "atMs": 1794667503369,
+                  "clock": "postgres_wall_clock",
+                  "stage": "funds_recorded"
+                },
+                {
+                  "atMs": 1794667503695,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_admission_requested"
+                },
+                {
+                  "atMs": 1794667503717,
+                  "clock": "postgres_wall_clock",
+                  "stage": "admission_committed"
+                },
+                {
+                  "atMs": 1794667505420,
+                  "clock": "postgres_wall_clock",
+                  "stage": "financial_committed"
+                },
+                {
+                  "atMs": 1794667505846,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_response_read_finished"
+                }
+              ],
+              "decision": {
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 1283,
+                    "input_sha256": "a795ee5eabb94236e3f9bcbc56b36bb907e12c9853d80b905de7203780df344e",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "e053f0eddb60850880c94e0debe594cffe16512b3b52118fe0c3f0bb0023a9f0",
+                    "total_input_tokens": 151,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 151
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1217,
+                  "input_tokens": 512,
+                  "platform_micro": 1,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1217000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 175
+                },
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1114700",
+                  "endToEndMs": 2585,
+                  "reserveNano": "1217000",
+                  "urgencyMultiplier": "1"
+                },
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667502944"
+                },
+                "buyerRouteFeeNano": "0",
+                "projectEstimateYocto": "100000000000000000000"
+              }
+            }
+          ],
+          "transcript": "> Compute the sum of numbers.txt, write result.txt, and verify the result.\n[bash] echo applied >> /workspace/applications.log; awk '{s+=$1} END {print s}' /workspace/numbers.txt > /workspace/result.txt; cat /workspace/result.txt\n42\n[exit 0]\nVerified result: 42\n[end_turn]\n"
+        },
+        {
+          "id": "session-2",
+          "state": "complete",
+          "generation": "1",
+          "fxStarted": true,
+          "task": {
+            "id": "task-2",
+            "user_id": "6e6563de-e25c-4187-87d1-827d5afd6c9e",
+            "budget_nano": "10000000",
+            "reserved_nano": "0",
+            "spent_nano": "1575000",
+            "hard_bid_nano": "3000000",
+            "call_cap_nano": "3000000",
+            "deadline_ms": "1794667676675",
+            "revision": "0",
+            "active": true,
+            "paused": false,
+            "preference": "balanced",
+            "max_wait_ms": "60000"
+          },
+          "workspace": {
+            "/workspace/task.txt": "Compute the sum of numbers.txt, write result.txt, and verify the result.",
+            "/workspace/result.txt": "19\n",
+            "/workspace/numbers.txt": "5\n5\n9\n",
+            "/workspace/applications.log": "applied\n"
+          },
+          "workspaceVersion": "1",
+          "result": {
+            "usage": {
+              "inputTokens": 1024,
+              "outputTokens": 50
+            },
+            "stopReason": "end_turn"
+          },
+          "calls": [
+            {
+              "id": "5113cf119c1dff37be485259d53e08f079b255821cc3458fbac5b3e0c8a709c4",
+              "state": "terminal",
+              "revision": "0",
+              "bid_nano": "1500000",
+              "manual": false,
+              "started_ms": "1794667497484",
+              "deadline_ms": "1794667676675",
+              "decision": {
+                "nowMs": 1794667497808,
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 864,
+                    "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "99a335ba86e9f2c170f378824427b728e3b87d31acef271c415a6a5ff145ab07",
+                    "total_input_tokens": 96,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 96
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1216,
+                  "input_tokens": 512,
+                  "platform_micro": 0,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1216000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 106
+                },
+                "policy": "cost-speed-p2-v1",
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1082480",
+                  "endToEndMs": 1024,
+                  "reserveNano": "1216000",
+                  "urgencyMultiplier": "1"
+                },
+                "bidNano": "1500000",
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667496719"
+                },
+                "deadlineMs": 1794667676675,
+                "preference": "balanced",
+                "startedAtMs": 1794667497484,
+                "availableNano": "10000000",
+                "supplyAvailable": true,
+                "futureReserveBps": 2500
+              },
+              "order_id": "327e85ba3ef747511e1e483e3f946f81c94774dff4713b7b069bc3362b78155a"
+            },
+            {
+              "id": "f5ff2beac696a154ea7ed8ed96db9d4fb4e04f806b7e4027b9f83763c93b6155",
+              "state": "terminal",
+              "revision": "0",
+              "bid_nano": "1500000",
+              "manual": false,
+              "started_ms": "1794667499495",
+              "deadline_ms": "1794667676675",
+              "decision": {
+                "nowMs": 1794667501010,
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 1283,
+                    "input_sha256": "c47c62faa8cf04e10c14dc72f9528ae2c0b7ec8798913fc62dd898009c519240",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "deef8777cb809cb7d211f8ed21f162e198346b7ceab765b633675fbfc8659ef3",
+                    "total_input_tokens": 151,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 151
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1217,
+                  "input_tokens": 512,
+                  "platform_micro": 1,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1217000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 175
+                },
+                "policy": "cost-speed-p2-v1",
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1107300",
+                  "endToEndMs": 2215,
+                  "reserveNano": "1217000",
+                  "urgencyMultiplier": "1"
+                },
+                "bidNano": "1500000",
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667500940"
+                },
+                "deadlineMs": 1794667676675,
+                "preference": "balanced",
+                "startedAtMs": 1794667499495,
+                "availableNano": "9004000",
+                "supplyAvailable": true,
+                "futureReserveBps": 2500
+              },
+              "order_id": "7367449ff58b9ea4c87d581457f18f978ce7505bd1ab297c6f7090a0d463b7a9"
+            }
+          ],
+          "orders": [
+            {
+              "id": "327e85ba3ef747511e1e483e3f946f81c94774dff4713b7b069bc3362b78155a",
+              "state": "refunded",
+              "nativeId": "5abd99f3-80b9-441a-83e1-42d2c0fc0684",
+              "principal": {
+                "P": "608000000000000000000",
+                "C": "498000000000000000000",
+                "H": "0",
+                "W": "0",
+                "R": "110000000000000000000"
+              },
+              "expectedP": "608000000000000000000",
+              "mode": "controlled",
+              "realPayment": false,
+              "financial": {
+                "seller": "seller-fixture",
+                "cash_micro_usd": 996,
+                "promo_micro_usd": 0,
+                "platform_micro_usd": 0,
+                "provider_micro_usd": 996,
+                "released_micro_usd": 220
+              },
+              "anomalies": [],
+              "timings": [
+                {
+                  "atMs": 1794667497827,
+                  "clock": "postgres_wall_clock",
+                  "stage": "quote_prepared"
+                },
+                {
+                  "atMs": 1794667497857,
+                  "clock": "postgres_wall_clock",
+                  "stage": "proof_presented"
+                },
+                {
+                  "atMs": 1794667497873,
+                  "clock": "postgres_wall_clock",
+                  "stage": "funds_recorded"
+                },
+                {
+                  "atMs": 1794667498360,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_admission_requested"
+                },
+                {
+                  "atMs": 1794667498627,
+                  "clock": "postgres_wall_clock",
+                  "stage": "admission_committed"
+                },
+                {
+                  "atMs": 1794667499304,
+                  "clock": "postgres_wall_clock",
+                  "stage": "financial_committed"
+                },
+                {
+                  "atMs": 1794667499436,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_response_read_finished"
+                }
+              ],
+              "decision": {
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 864,
+                    "input_sha256": "049810de914e8e107cf189672e0082489b1bda000c229bc7613c9dd33491ef6c",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "99a335ba86e9f2c170f378824427b728e3b87d31acef271c415a6a5ff145ab07",
+                    "total_input_tokens": 96,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 96
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1216,
+                  "input_tokens": 512,
+                  "platform_micro": 0,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1216000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 106
+                },
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1082480",
+                  "endToEndMs": 1024,
+                  "reserveNano": "1216000",
+                  "urgencyMultiplier": "1"
+                },
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667496719"
+                },
+                "buyerRouteFeeNano": "0",
+                "projectEstimateYocto": "100000000000000000000"
+              }
+            },
+            {
+              "id": "7367449ff58b9ea4c87d581457f18f978ce7505bd1ab297c6f7090a0d463b7a9",
+              "state": "refunded",
+              "nativeId": "1557b989-3811-4439-a9d5-f882b9af65e6",
+              "principal": {
+                "P": "608500000000000000000",
+                "C": "289500000000000000000",
+                "H": "0",
+                "W": "0",
+                "R": "319000000000000000000"
+              },
+              "expectedP": "608500000000000000000",
+              "mode": "controlled",
+              "realPayment": false,
+              "financial": {
+                "seller": "seller-fixture",
+                "cash_micro_usd": 579,
+                "promo_micro_usd": 0,
+                "platform_micro_usd": 1,
+                "provider_micro_usd": 578,
+                "released_micro_usd": 638
+              },
+              "anomalies": [],
+              "timings": [
+                {
+                  "atMs": 1794667501062,
+                  "clock": "postgres_wall_clock",
+                  "stage": "quote_prepared"
+                },
+                {
+                  "atMs": 1794667501076,
+                  "clock": "postgres_wall_clock",
+                  "stage": "proof_presented"
+                },
+                {
+                  "atMs": 1794667501084,
+                  "clock": "postgres_wall_clock",
+                  "stage": "funds_recorded"
+                },
+                {
+                  "atMs": 1794667501287,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_admission_requested"
+                },
+                {
+                  "atMs": 1794667501294,
+                  "clock": "postgres_wall_clock",
+                  "stage": "admission_committed"
+                },
+                {
+                  "atMs": 1794667502790,
+                  "clock": "postgres_wall_clock",
+                  "stage": "financial_committed"
+                },
+                {
+                  "atMs": 1794667503316,
+                  "clock": "postgres_wall_clock",
+                  "stage": "native_response_read_finished"
+                }
+              ],
+              "decision": {
+                "quote": {
+                  "mode": "controlled",
+                  "meter": {
+                    "version": "cl100k_0_7_text_tools_micro_v3",
+                    "protocol": "chat_completions",
+                    "streaming": true,
+                    "input_bytes": 1283,
+                    "input_sha256": "c47c62faa8cf04e10c14dc72f9528ae2c0b7ec8798913fc62dd898009c519240",
+                    "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+                    "normalization": "cloud_text_tools_json_micro_v3",
+                    "execution_sha256": "deef8777cb809cb7d211f8ed21f162e198346b7ceab765b633675fbfc8659ef3",
+                    "total_input_tokens": 151,
+                    "reused_input_tokens": 0,
+                    "billable_input_tokens": 151
+                  },
+                  "rates": {
+                    "input": 1000000,
+                    "output": 11000000,
+                    "cache_input": 1000000
+                  },
+                  "total_micro": 1217,
+                  "input_tokens": 512,
+                  "platform_micro": 1,
+                  "provider_micro": 1216,
+                  "expected_purchase": {
+                    "options": [
+                      {
+                        "id": 1,
+                        "model_ref": "m/external",
+                        "providers": [
+                          7
+                        ]
+                      }
+                    ],
+                    "total_cap": "1217000",
+                    "max_attempts": 1,
+                    "provider_cap": 1216,
+                    "service_type": "on_demand",
+                    "wait_budget_ms": null
+                  },
+                  "observed_input_units": 175
+                },
+                "result": {
+                  "id": "controlled-native",
+                  "action": "accept",
+                  "version": "cost-speed-v1",
+                  "scoreNano": "1107300",
+                  "endToEndMs": 2215,
+                  "reserveNano": "1217000",
+                  "urgencyMultiplier": "1"
+                },
+                "forecast": {
+                  "source": "controlled-seller-synthetic-p95",
+                  "available": true,
+                  "singleton": true,
+                  "usable_ms": "500",
+                  "observed_ms": "1794667500940"
+                },
+                "buyerRouteFeeNano": "0",
+                "projectEstimateYocto": "100000000000000000000"
+              }
+            }
+          ],
+          "transcript": "> Compute the sum of numbers.txt, write result.txt, and verify the result.\n[bash] echo applied >> /workspace/applications.log; awk '{s+=$1} END {print s}' /workspace/numbers.txt > /workspace/result.txt; cat /workspace/result.txt\n19\n[exit 0]\nVerified result: 19\n[end_turn]\n"
+        }
+      ],
+      "slowBootstrapRegression": {
+        "bootstrapElapsedMs": 1715,
+        "syntheticObservationMs": 1
+      }
+    },
+    {
+      "case": "all-process-restart-after_model_1",
+      "passed": true,
+      "before": {
+        "tools": 0,
+        "refunds": 0,
+        "payments": 1,
+        "executions": 1
+      },
+      "after": {
+        "tools": 1,
+        "refunds": 2,
+        "payments": 2,
+        "executions": 2
+      }
+    },
+    {
+      "case": "all-process-restart-after_tool",
+      "passed": true,
+      "before": {
+        "tools": 1,
+        "refunds": 1,
+        "payments": 1,
+        "executions": 1
+      },
+      "after": {
+        "tools": 1,
+        "refunds": 2,
+        "payments": 2,
+        "executions": 2
+      }
+    },
+    {
+      "case": "all-process-restart-after_model_2",
+      "passed": true,
+      "before": {
+        "tools": 1,
+        "refunds": 1,
+        "payments": 2,
+        "executions": 2
+      },
+      "after": {
+        "tools": 1,
+        "refunds": 2,
+        "payments": 2,
+        "executions": 2
+      }
+    },
+    {
+      "case": "owner-agent-writer-isolation-and-independent-pause",
+      "passed": true
+    },
+    {
+      "case": "persistent-cost-speed-wait-and-bid-revisions",
+      "passed": true,
+      "revisions": [
+        {
+          "actor": "initial",
+          "decision": {
+            "policy": "cost-speed-p2-v1",
+            "bidNano": "750000",
+            "preference": "save"
+          }
+        },
+        {
+          "actor": "auto",
+          "decision": {
+            "policy": "cost-speed-p2-v1",
+            "reason": "urgency_accept_existing_service",
+            "bidNano": "1216000"
+          }
+        },
+        {
+          "actor": "initial",
+          "decision": {
+            "policy": "cost-speed-p2-v1",
+            "bidNano": "750000",
+            "preference": "save"
+          }
+        },
+        {
+          "actor": "auto",
+          "decision": {
+            "policy": "cost-speed-p2-v1",
+            "reason": "urgency_accept_existing_service",
+            "bidNano": "1217000"
+          }
+        }
+      ]
+    },
+    {
+      "case": "manual-cas-pause-resume-preserves-original-clock",
+      "passed": true
+    },
+    {
+      "case": "two-layer-hard-budget-stops-before-payment",
+      "passed": true
+    },
+    {
+      "case": "malformed-native-tool-stream-never-applies-tool",
+      "passed": true
+    },
+    {
+      "case": "unconfirmed-refund-cannot-fund-paid-continuation",
+      "passed": true
+    },
+    {
+      "case": "waiting-all-process-restart-preserves-original-deadline",
+      "passed": true
+    },
+    {
+      "case": "stale-forecast-rejected-without-clock-reset",
+      "passed": true
+    },
+    {
+      "case": "concurrent-tasks-share-one-agent-authorization",
+      "passed": true
+    },
+    {
+      "case": "unknown-native-outcome-retains-money-and-dispatch-custody",
+      "passed": true
+    },
+    {
+      "case": "fx-native-payment-and-refund-ack-loss-recovers-original",
+      "passed": true
+    }
+  ]
+}

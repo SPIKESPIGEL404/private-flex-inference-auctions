@@ -1,0 +1,69 @@
+{
+  "passed": true,
+  "sourceRevision": "ded7f2edeffe69c5b70c1800642bb477e23298eb",
+  "image": "sha256:1a259d7d76616c22c5e5c188b66c845a441dfc6af3d36adaf746fbd66be5b7bb",
+  "archiveSha256": "a0fd995d9b28abb9372b723defd77a82afabcf31cce9c2a2efe42677e642e21b",
+  "expectedComposeHash": "39524f9ff0144d4d3e6c246bac9442068386a113b82fffbcb9cf7fcbc720992e",
+  "originalServiceDefinitionsUnchanged": [
+    "market"
+  ],
+  "originalVolumesUnchanged": [
+    "chutes-first-history",
+    "chutes-data",
+    "near-data",
+    "tls-ca",
+    "controlled-history",
+    "first-near-history"
+  ],
+  "sealedEnvironmentNamesUnchanged": true,
+  "manifestMetadataUnchanged": true,
+  "preLaunchPrefixUnchanged": true,
+  "originalNetworksUnchanged": [],
+  "newNetwork": {
+    "agent-preview-private": {}
+  },
+  "networkEgressBlocked": false,
+  "dataDiskEphemeral": false,
+  "initScriptUnchangedAndEmpty": true,
+  "newService": {
+    "image": "sha256:1a259d7d76616c22c5e5c188b66c845a441dfc6af3d36adaf746fbd66be5b7bb",
+    "pull_policy": "never",
+    "restart": "unless-stopped",
+    "ports": [
+      "3000:3000"
+    ],
+    "volumes": [
+      "agent-preview-data:/data"
+    ],
+    "networks": [
+      "agent-preview-private"
+    ],
+    "environment": {
+      "AGENT_PREVIEW_ORIGIN": "https://e83279da3fa5b47453cc62317df738b70fedf08c-3000.dstack-pha1-prod9.phala.network",
+      "AGENT_PREVIEW_OWNER_HASH": "ca182ada40b9bc6adb147a91744348ad91b842bff285883a3e8ec2ffead6e191",
+      "AGENT_PREVIEW_REVISION": "ded7f2edeffe69c5b70c1800642bb477e23298eb"
+    },
+    "read_only": true,
+    "tmpfs": [
+      "/tmp:rw,nosuid,noexec,size=134217728,mode=1777"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "cap_drop": [
+      "ALL"
+    ],
+    "mem_limit": "1536m",
+    "cpus": 1.0,
+    "pids_limit": 192,
+    "stop_grace_period": "60s",
+    "logging": {
+      "driver": "json-file",
+      "options": {
+        "max-size": "5m",
+        "max-file": "2"
+      }
+    }
+  },
+  "newVolume": "agent-preview-data"
+}

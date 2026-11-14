@@ -1,0 +1,40 @@
+--- a/src/market/pg/mod.rs
++++ b/src/market/pg/mod.rs
+@@ -1,6 +1,7 @@
+ //! The inference market writer is fenced by a persistent epoch and a locked PostgreSQL
+ //! head. Each commit advances kernel, original request, outbox and money.
+ mod commands;
++pub mod paid_orders;
+ pub mod coordinator;
+ mod funding;
+ mod matching;
+--- a/src/market/pg/store.rs
++++ b/src/market/pg/store.rs
+@@ -89,6 +89,7 @@
+         tx.execute_unprepared(include_str!("cash_ledger.sql"))
+             .await?;
+         tx.execute_unprepared(include_str!("stream.sql")).await?;
++        super::paid_orders::install(&tx).await?;
+         let hash = catalog_hash(&tx).await?;
+         tx.execute(sql(
+             "INSERT INTO public.market_inference_schema VALUES(true,$1,$2)",
+@@ -113,6 +114,7 @@
+ }
+ 
+ pub(super) async fn verify_schema(db: &impl ConnectionTrait) -> Result<()> {
++    super::paid_orders::verify(db).await?;
+     verify_legacy_absent(db).await?;
+     ensure!(
+         present(db).await?,
+--- a/src/core_gateway/market_inference.rs
++++ b/src/core_gateway/market_inference.rs
+@@ -753,7 +753,8 @@
+         })
+         .ok_or(invalid)?
+         .to_owned();
+-    let id = Uuid::new_v4().to_string();
++    let id = crate::market::pg::paid_orders::request_identity(state.db.conn(), &principal.subject_user_id, &key)
++        .await.map_err(|_| unavailable)?.unwrap_or_else(|| Uuid::new_v4().to_string());
+     let mut policy = state.strategy.clone();
+     if let Some(wait) = purchase
+         .wait_budget_ms

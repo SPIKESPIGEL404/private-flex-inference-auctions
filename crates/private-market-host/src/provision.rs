@@ -35,6 +35,21 @@ fn ms() -> UnixMillis {
     UnixMillis(chrono::Utc::now().timestamp_millis() as u64)
 }
 
+fn preview_validity_ms(value: Option<&str>, controlled_p2: bool) -> Result<u64> {
+    let Some(value) = value else {
+        return Ok(1_800_000);
+    };
+    ensure!(controlled_p2, "preview validity requires controlled P2");
+    let ttl: u64 = value
+        .parse()
+        .context("invalid controlled preview validity")?;
+    ensure!(
+        (1_800_000..=604_800_000).contains(&ttl),
+        "preview validity must be 30 minutes to 7 days"
+    );
+    Ok(ttl)
+}
+
 /// Lab path: wall-clock schedule (unchanged).
 pub async fn create(
     db: sea_orm::DatabaseConnection,
@@ -42,14 +57,38 @@ pub async fn create(
     seller_url: &str,
 ) -> Result<Value> {
     let at = ms();
+    let ttl = preview_validity_ms(
+        std::env::var("PRIVATE_MARKET_P2_PREVIEW_TTL_MS")
+            .ok()
+            .as_deref(),
+        std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled"),
+    )?;
     create_with_schedule(
         db,
         tokenizer_url,
         seller_url,
         at,
-        UnixMillis(at.0 + 1_800_000),
+        UnixMillis(at.0 + ttl),
+        true,
     )
     .await
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    #[test]
+    fn extended_validity_is_bounded_and_requires_the_controlled_fixture() {
+        assert_eq!(preview_validity_ms(None, false).unwrap(), 1_800_000);
+        assert_eq!(
+            preview_validity_ms(Some("604800000"), true).unwrap(),
+            604_800_000
+        );
+        for value in ["0", "1799999", "604800001", "-1", "18446744073709551616"] {
+            assert!(preview_validity_ms(Some(value), true).is_err());
+        }
+        assert!(preview_validity_ms(Some("604800000"), false).is_err());
+    }
 }
 
 /// Deploy path: frozen past `at`, far-future `until`. Deterministic given an
@@ -65,6 +104,7 @@ pub async fn create_deploy(
         seller_url,
         UnixMillis(DEPLOY_CATALOG_AT_MS),
         UnixMillis(DEPLOY_CATALOG_VALID_UNTIL_MS),
+        false,
     )
     .await
 }
@@ -75,16 +115,24 @@ async fn create_with_schedule(
     seller_url: &str,
     at: UnixMillis,
     until: UnixMillis,
+    allow_agent_fixture: bool,
 ) -> Result<Value> {
     bitrouter_cloud::market::pg::install(&db).await?;
+    let p2 = allow_agent_fixture
+        && std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled");
     let work = Workload {
-        token_ids: vec![42, 43],
+        token_ids: if p2 { (0..512).collect() } else { vec![42, 43] },
     };
-    let sellers = &[
-        (11, 7, "controlled"),
-        (12, 7, "controlled"),
-        (13, 7, "controlled"),
-    ];
+    let p2_sellers: Vec<_> = (11..27).map(|id| (id, 7, "controlled")).collect();
+    let sellers = if p2 {
+        p2_sellers.as_slice()
+    } else {
+        &[
+            (11, 7, "controlled"),
+            (12, 7, "controlled"),
+            (13, 7, "controlled"),
+        ]
+    };
     let protocol = "chat_completions";
     let mut config = catalog::config(&work, at, protocol, sellers);
     // Three one-use sell orders from one Provider share one physical slot.
@@ -163,8 +211,14 @@ async fn create_with_schedule(
             )
             .await?;
     }
-    // Deterministic relative to `at` (lab and deploy). Do not call wall clock.
-    let observed = UnixMillis(at.0 + 1);
+    // The sealed deploy catalog stays deterministic. P2's lab fixture records
+    // bootstrap elapsed time separately; its synthetic observation window
+    // below is still exactly 1ms and does not measure database startup.
+    let observed = if p2 {
+        UnixMillis(ms().0.max(at.0 + 1))
+    } else {
+        UnixMillis(at.0 + 1)
+    };
     market
         .publish_supply(
             "observation-clock".into(),
@@ -184,7 +238,10 @@ async fn create_with_schedule(
                     ThroughputObservation {
                         offering,
                         profile: catalog::profile(&work, protocol),
-                        started_at: at,
+                        // This catalog is an explicit synthetic fixture. PG
+                        // bootstrap time is not an inference measurement: using
+                        // it here can spuriously fail the 1 request/sec claim.
+                        started_at: UnixMillis(observed.0 - 1),
                         ended_at: observed,
                         valid_until: until,
                         demand_sufficient: true,

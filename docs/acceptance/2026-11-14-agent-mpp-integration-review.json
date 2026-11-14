@@ -1,0 +1,94 @@
+{
+  "reviewer": "gpt-6-astra independent reviewer",
+  "result": "SCOPED_CONTROLLED_INTEGRATION_ACCEPTED",
+  "reviewedCodeCommit": "fbbbbcfa538490f6da3f37d0905fa2956a3a0414",
+  "checkedAt": "2026-11-14T17:10:24.041310+00:00",
+  "blockingFindings": [],
+  "scope": "Publishing completed P0-P2 controlled implementation, PR5 wallet/browser foundation, and main security/deployment changes; excludes unfinished P3 native payment components",
+  "preservedMainSecurity": {
+    "baseCommit": "154581f",
+    "byteUnchangedPaths": [
+      "crates/private-market-host/src/attestation.rs",
+      "crates/private-market-host/src/purchase_auth.rs",
+      "crates/private-market-host/src/catalog.rs",
+      "deploy/market"
+    ],
+    "catalogStartupDoubleCheck": true,
+    "procurementMergedBeforeAttestationAndPurchaseGuard": true,
+    "sealedExperimentalModesRejectedBeforeDatabaseWorkers": true
+  },
+  "directlyExecuted": {
+    "nodeMppUnitTests": {
+      "passed": 62,
+      "sourceUnchangedByFinalRustFixes": true
+    },
+    "buyerGatewayUnitTests": {
+      "passed": 15,
+      "sourceUnchangedByFinalRustFixes": true
+    },
+    "finalBinaryDeployNegativeChecks": {
+      "passed": 10,
+      "artifact": "docs/acceptance/2026-11-14-agent-mpp-integration-deploy-gates.json"
+    },
+    "finalBinaryGoldenRegeneration": {
+      "passed": 2,
+      "artifact": "docs/acceptance/2026-11-14-agent-mpp-integration-golden.json",
+      "ordinaryAndP2EnvironmentBothByteEqual": true
+    },
+    "diffCheck": "PASS"
+  },
+  "reviewedRunnerArtifacts": {
+    "p1": {
+      "path": "docs/acceptance/2026-11-14-agent-mpp-integration-p1.json",
+      "sha256": "f4648e6d81fdbf1064769223e9b8d6776e6973700a0a787d7d546af7430dac78",
+      "checks": 22
+    },
+    "p2": {
+      "path": "docs/acceptance/2026-11-14-agent-mpp-integration-p2.json",
+      "sha256": "b5df9090bff73cb90fb0dc37a66be1783577cd0a52056e4f17293f632f63a601",
+      "checks": 15,
+      "slowBootstrapRegression": {
+        "bootstrapElapsedMs": 1902,
+        "syntheticObservationMs": 1
+      }
+    },
+    "nearintents": {
+      "path": "docs/acceptance/2026-11-14-agent-mpp-integration-nearintents.json",
+      "sha256": "75b1f7f3425bec022c96e42c01b0d789d275ddd7e505cfa4e0ea5c77aab742ee",
+      "checks": 21
+    },
+    "identity": {
+      "path": "docs/acceptance/2026-11-14-agent-mpp-integration-identity.json",
+      "sha256": "2e15b9120ac757a4b6e07da86e69fd4230caddb714424a3d9dc4919a0ffc6dc0",
+      "checks": 0,
+      "buyer_market_identity": "controlled-pass",
+      "refusal_cases": 18,
+      "signed_purchase_refusals": 8,
+      "controlled_tls_purchases": 1,
+      "controlled_tls_posts": 2,
+      "idempotent_signed_retry": true,
+      "binarySha256": "d8fc0ea2014ad63a6a9b8888eaf86c14a6231ed9ba22433add4da967b6b19e3e"
+    }
+  },
+  "implementationAgentReportedChecks": [
+    "cargo tests PASS",
+    "root/P1/P2 locked builds PASS",
+    "clippy -D warnings PASS",
+    "both frontend clean builds PASS"
+  ],
+  "limitations": [
+    "Sealed serve dynamically fails closed at missing /etc/market/catalog.json; its later MPP-specific guard is source-reviewed, not dynamically reached.",
+    "P2 happy-path task snapshots are captured before awaiting four refund chain actions: one embedded order remains refund_due. Those snapshots do not prove all final refund ledger confirmations.",
+    "P1/P2 NEP-366 fixtures have a documented incorrect real-chain principal/gas assumption; acceptance is controlled workflow/accounting only.",
+    "Wallet onboarding and controlled inference UIs are separate; no connected real-money UI claim.",
+    "No real Agent API payment, cross-chain funding, real provider, deployed hardware attestation, or production rollout is accepted."
+  ],
+  "realP3": "NOT_ACCEPTED",
+  "G1": "CLOSED",
+  "productionDeployment": "NOT_ACCEPTED",
+  "postReviewFormatting": {
+    "path": "crates/private-market-host/src/provision.rs",
+    "change": "rustfmt only; multiline if expression collapsed to one line",
+    "normalizedWhitespaceEqualToReviewedCode": true
+  }
+}

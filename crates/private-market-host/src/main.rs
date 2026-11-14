@@ -6,6 +6,7 @@ mod e2ee;
 mod financial_receipt;
 mod fixtures;
 mod live;
+mod procurement;
 mod provision;
 mod purchase_auth;
 
@@ -201,6 +202,17 @@ async fn initialize(
     if let Some(input) = &registration {
         input.validate()?;
     }
+    let procurement_config = procurement::configuration(registration.is_some())?;
+    let direct_p1 = direct_p1_enabled(registration.is_some())?;
+    ensure!(
+        deploy_buyers.is_none() || (procurement_config.is_none() && !direct_p1),
+        "deploy initialization cannot enable experimental MPP payment modes"
+    );
+    let initial_cash = if procurement_config.is_some() || direct_p1 {
+        0
+    } else {
+        CASH
+    };
     let (database, redis) = targets()?;
     let binding = required("BITROUTER_PREVIEW_BOOTSTRAP_BINDING")?;
     let cutover = required("REDIS_BALANCE_CUTOVER_TOKEN")?;
@@ -270,13 +282,18 @@ async fn initialize(
             vec![
                 account.clone().into(),
                 buyer.user.clone().into(),
-                CASH.into(),
+                initial_cash.into(),
             ],
         ))
         .await?;
-        tx.execute(sql("INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,idempotency_key,metadata) VALUES($1,$2,'test_credit',$3,$1,'{\"source\":\"batch-a-isolated-test-credit\"}'::jsonb)", vec![entry.into(), account.into(), CASH.into()])).await?;
+        if initial_cash > 0 {
+            tx.execute(sql("INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,idempotency_key,metadata) VALUES($1,$2,'test_credit',$3,$1,'{\"source\":\"batch-a-isolated-test-credit\"}'::jsonb)", vec![entry.into(), account.into(), initial_cash.into()])).await?;
+        }
     }
     tx.commit().await?;
+    if let Some(config) = &procurement_config {
+        procurement::initialize(&db, config).await?;
+    }
     let deploy = deploy_buyers.is_some();
     let mut registration_sha256 = None;
     let (fixture_addr, deploy_golden) = if deploy {
@@ -335,7 +352,7 @@ async fn initialize(
         .await?;
     println!(
         "{}",
-        json!({"initialized":true,"buyers":3,"test_credit_micro_usd":CASH,"attested":false})
+        json!({"initialized":true,"buyers":3,"test_credit_micro_usd":initial_cash,"attested":false})
     );
     Ok(())
 }
@@ -430,6 +447,12 @@ async fn serve(dir: &Path) -> Result<()> {
     // Hash before any Market load. Launch reads the same path on its own.
     let policy_digest = catalog_policy_digest(&catalog_path)?;
     let is_live = state.registration_sha256.is_some();
+    let direct_p1 = direct_p1_enabled(is_live)?;
+    let procurement_config = procurement::configuration(is_live)?;
+    ensure!(
+        !state.deploy_golden || (procurement_config.is_none() && !direct_p1),
+        "sealed deployment cannot enable experimental MPP payment modes"
+    );
     if is_live {
         ensure!(
             state.catalog_sha256.as_deref() == policy_digest.strip_prefix("sha256:"),
@@ -478,6 +501,26 @@ async fn serve(dir: &Path) -> Result<()> {
         )
         .with_source_realm(ISSUER.into())?,
     );
+    // Validate pinned payment configuration before starting any market worker.
+    // Closing the database on failure also drains its owned background tasks.
+    let procurement_router = match procurement::mount(
+        Router::new(),
+        db.clone(),
+        redis.clone(),
+        resolver.clone(),
+        cash_users.clone(),
+        procurement_config,
+    )
+    .await
+    {
+        Ok(router) => router,
+        Err(error) => {
+            db.shutdown_handle()
+                .close(tokio::time::Instant::now() + Duration::from_secs(5))
+                .await?;
+            return Err(error);
+        }
+    };
     let process_start = chrono::Utc::now().timestamp();
     let (stop, stopped) = tokio::sync::watch::channel(false);
     let mut tasks = tokio::task::JoinSet::new();
@@ -558,6 +601,7 @@ async fn serve(dir: &Path) -> Result<()> {
             }),
         )
         .nest("/market", native);
+    let router = router.merge(procurement_router);
     let (router, mounted) = attestation::mount(router, &policy_digest).await?;
     let attestation_available = mounted.is_some();
     // Deploy/local may require signed purchases without ACI by setting
@@ -650,6 +694,70 @@ async fn main() -> Result<()> {
         "usage: private-market-host <init|init-deploy|serve|emit-deploy-catalog|init-live|qualify-live|validate-live> <state-or-profile> [input]"
     );
     match (args[1].as_str(), args.len()) {
+        ("quote-native-p1" | "quote-native-p2", 3) => {
+            use bitrouter_cloud::platform_billing::{meter, money::MicroUsd};
+            use bitrouter_market::{
+                cost::base_charge_cap,
+                order::{RequestSize, TokenRates},
+            };
+            use std::io::Read;
+            ensure!(direct_p1_enabled(false)?, "controlled P1 mode required");
+            let p2 = args[1] == "quote-native-p2";
+            ensure!(
+                !p2 || env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled"),
+                "controlled P2 mode required"
+            );
+            let mut bytes = String::new();
+            std::io::stdin().take(131073).read_to_string(&mut bytes)?;
+            ensure!(bytes.len() <= 131072, "native body too large");
+            let body: Value = serde_json::from_str(&bytes)?;
+            ensure!(
+                body["model"] == MODEL
+                    && body["max_completion_tokens"] == 64
+                    && (p2 || (body.get("tools").is_none() && body.get("tool_choice").is_none())),
+                "controlled native capability required"
+            );
+            let (_, native) = bitrouter_cloud::market::inference::DeliveryOptions::parse(
+                meter::ApiProtocol::ChatCompletions,
+                &body,
+            )?;
+            let _: bitrouter_ai::protocol::chat_completions::ChatRequest =
+                serde_json::from_value(native.clone())?;
+            let snapshot = meter::freeze(meter::ApiProtocol::ChatCompletions, &native)?;
+            bitrouter_cloud::market::inference::output_contract(
+                meter::ApiProtocol::ChatCompletions,
+                &body,
+            )?;
+            let observed_input_units = if p2 { controlled_p2_tokens(&native) } else { 2 };
+            ensure!(
+                !p2 || observed_input_units <= 512,
+                "controlled P2 input bound exceeded"
+            );
+            let input_tokens = if p2 { 512 } else { 2 };
+            let provider = base_charge_cap(
+                &catalog::spec("chat_completions"),
+                RequestSize {
+                    input_tokens,
+                    max_output_tokens: 64,
+                },
+                TokenRates {
+                    input: 1_000_000,
+                    cache_input: 1_000_000,
+                    output: 11_000_000,
+                },
+            )?;
+            let platform = MicroUsd::from_input_tokens(u128::from(snapshot.billable_input_tokens))
+                .map_err(anyhow::Error::msg)?
+                .value();
+            println!(
+                "{}",
+                json!({"provider_micro":provider.0,"platform_micro":platform,"total_micro":provider.0 + u64::try_from(platform)?,
+                "meter":snapshot,"mode":"controlled","input_tokens":input_tokens,"observed_input_units":observed_input_units,"rates":{"input":1000000,"cache_input":1000000,"output":11000000},
+                "expected_purchase":{"service_type":"on_demand","provider_cap":provider.0,"total_cap":((provider.0+u64::try_from(platform)?)*1000).to_string(),
+                    "wait_budget_ms":null,"max_attempts":1,"options":[{"id":1,"model_ref":MODEL,"providers":[7]}]}})
+            );
+            Ok(())
+        }
         ("init", 3) => initialize(Path::new(&args[2]), None, None).await,
         ("init-deploy", 4) => {
             initialize(Path::new(&args[2]), None, Some(Path::new(&args[3]))).await
@@ -860,4 +968,45 @@ mod policy_digest {
             assert_eq!(base, &format!("http://{}", provision::DEPLOY_FIXTURE_ADDR));
         }
     }
+}
+
+fn direct_p1_enabled(is_live: bool) -> Result<bool> {
+    if env::var("PRIVATE_MARKET_AGENT_P2").is_ok() {
+        ensure!(
+            env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled")
+                && !is_live
+                && env::var("PRIVATE_MARKET_NEAR_DIRECT_P1").as_deref() == Ok("controlled"),
+            "P2 requires isolated controlled native mode"
+        );
+    }
+    match env::var("PRIVATE_MARKET_NEAR_DIRECT_P1").as_deref() {
+        Err(env::VarError::NotPresent) => Ok(false),
+        Ok("controlled") => {
+            ensure!(
+                !is_live
+                    && env::var("PRIVATE_MARKET_MPP_METHOD").is_err()
+                    && env::var("PRIVATE_MARKET_MPP_TEST_API").is_err(),
+                "controlled P1 cannot enable live or other funding paths"
+            );
+            Ok(true)
+        }
+        _ => anyhow::bail!("PRIVATE_MARKET_NEAR_DIRECT_P1 must be absent or controlled"),
+    }
+}
+
+// Synthetic tokenizer shared with the P2 controlled seller. It counts UTF-8
+// string values in messages/tools plus per-message framing; never a real model.
+fn controlled_p2_tokens(body: &Value) -> u64 {
+    fn bytes(v: &Value) -> usize {
+        match v {
+            Value::String(s) => s.len(),
+            Value::Array(a) => a.iter().map(bytes).sum(),
+            Value::Object(o) => o.values().map(bytes).sum(),
+            _ => 0,
+        }
+    }
+    let n = bytes(&body["messages"])
+        + bytes(&body["tools"])
+        + body["messages"].as_array().map_or(0, |a| a.len() * 8);
+    n.div_ceil(4).max(1) as u64
 }

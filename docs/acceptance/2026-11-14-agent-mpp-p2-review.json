@@ -1,0 +1,47 @@
+{
+  "phase": "P2",
+  "scope": "controlled only",
+  "reviewerModel": "gpt-6-astra",
+  "reviewerAgent": "/root/p2_astra_review",
+  "verdict": "PASS",
+  "openBlockingFindings": [],
+  "generatedAt": "2026-11-14T15:39:09.534880+00:00",
+  "binarySha256": "da6c2dbe73b7b1650da65fb6793933ff1f3367053cdb931103a2863abf9ae9b3",
+  "independentlyExecuted": {
+    "unitTests": 62,
+    "p2IntegrationCases": 15,
+    "repeatedFullRecovery": true,
+    "cancelBeforePaymentRaces": 3,
+    "paymentBeforeCancel": true
+  },
+  "reviewedRootEvidence": {
+    "p1RegressionCases": 22,
+    "browserChecks": 8,
+    "sourceAndBuildBindings": true
+  },
+  "resolvedFindings": [
+    "billing input512 aligned with expected cost",
+    "materializer self-fingerprint and exact transformation anchor",
+    "pause remains enabled while fx waits and runtime always closes",
+    "replayed old native body remains bound to original intent after tool progress",
+    "recovery notes require the exact ordered pair immediately after a tool",
+    "synthetic throughput observation independent of PG bootstrap time",
+    "owner draft cleared across login/logout",
+    "polls started during logout fenced on successful transition",
+    "failed pause cannot park the still-active pane"
+  ],
+  "limitations": [
+    "model/seller/wallet/NEAR evidence are local fixtures",
+    "G1 and P3 remain CLOSED",
+    "one unreproduced P1 first-quote task_authorization_expired remains a test-stability observation; root cause unresolved",
+    "62 unit,22 P1,15 P2 and8 browser stages passed separately; earlier failed combined Bash invocation did not exit0",
+    "seller fixture is discarded/recreated in-process, not a separate OS process",
+    "virtual tool durable effects do not establish external tool exactly-once semantics"
+  ],
+  "evidence": {
+    "2026-11-14-agent-mpp-p2-matrix.json": "a25823715cdb32d2f8a850cbe6e484e81af35f75c4993a2937ff99d9f946c9dc",
+    "2026-11-14-agent-mpp-p2-p1-regression.json": "f74a386c8213a3e4224507765801f0554a27427443e8d9c19424b40e1db23625",
+    "2026-11-14-agent-mpp-p2-browser.json": "c87db8d7ae80363f3e69ea76591005f10dc0d2d689dea380bd8d6f1d02c67503",
+    "2026-11-14-agent-mpp-p2-review-extras.json": "8d64d7da9ddd09d9b6b416d97d2c38ae4cad005b3fa3bd7e1c145d7d44faaf19"
+  }
+}

@@ -10,6 +10,7 @@ publish = false
 [workspace]
 
 [dependencies]
+bitrouter-ai = { git = "https://github.com/bitrouter/bitrouter.git", rev = "f206ca9a6f472b079167c9992c1c1ce1688725af" }
 bitrouter-cloud = { git = "https://github.com/bitrouter/bitrouter-cloud.git", rev = "244177cafa26e8c8b001e61297cf4e7f89ac8de9" }
 bitrouter-market = { git = "https://github.com/bitrouter/bitrouter-cloud.git", rev = "244177cafa26e8c8b001e61297cf4e7f89ac8de9" }
 anyhow = "1"
@@ -18,7 +19,7 @@ chrono = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sea-orm = { version = "1.1", default-features = false, features = ["runtime-tokio-rustls", "sqlx-postgres"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "process", "io-util"] }
 uuid = { version = "1.23.4", features = ["v4"] }
 url = "2"
 aci-protocol = { git = "https://github.com/Dstack-TEE/private-ai-gateway.git", rev = "0edde219a8ecb970c76c4cb3d1ca557d4fd567b3" }
@@ -33,6 +34,7 @@ x25519-dalek = { version = "=2.0.1", features = ["static_secrets", "zeroize"] }
 aes-gcm = "=0.10.3"
 hkdf = "=0.12.4"
 sha2 = "=0.10.9"
+mpp = { version = "=0.20.0", default-features = false }
 
 [profile.dev]
 debug = 0
