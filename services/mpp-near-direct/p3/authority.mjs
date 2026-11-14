@@ -1,6 +1,6 @@
 import { Authority as TaskAuthority } from '../p2/authority.mjs';
 import { hash, requireThat, METHOD, nanoUsdForNear } from '../contract.mjs';
-import { verifyAgentPaidTransfer } from './native-verification.mjs';
+import { verifyAgentPaidTransfer } from './outlayer-native-verification.mjs';
 import { verifyPolicy } from './outlayer.mjs';
 
 export class Authority extends TaskAuthority {

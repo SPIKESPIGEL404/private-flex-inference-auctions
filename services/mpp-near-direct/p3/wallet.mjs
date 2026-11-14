@@ -1,7 +1,7 @@
 import { hash, signedPayload, requireThat, challengeIdentity, nativePlan } from '../contract.mjs';
 import { verifyBinding } from '../near.mjs';
 import { uuid, publicKey, signatureBase64, WalletError } from './outlayer.mjs';
-import { verifyAgentPaymentFee, verifyAgentPaidTransfer } from './native-verification.mjs';
+import { verifyAgentPaymentFee, verifyAgentPaidTransfer } from './outlayer-native-verification.mjs';
 
 const safeError = e => /^[a-z][a-z0-9_]{0,95}$/.test(e?.message) ? e.message : 'wallet_operation_unknown';
 export class Wallet {

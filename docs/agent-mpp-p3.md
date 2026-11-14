@@ -73,7 +73,7 @@ node services/mpp-near-direct/p3/launch.mjs /absolute/private-run/setup.json
 
 Install the merchant credential as `<credentialDirectory>/<merchantBinding.credentialRef>.json`, mode0600, containing its wallet ID and API key; never commit it or paste it into run settings. Set the provider key through the referenced process environment. Setup writes a private `activated.json`; restart that exact file to recover the frozen run. Root/state, PG, Redis, credential directory and profile journal must persist together. Never restore just a wallet file into a new financial ledger to clear Unknown.
 
-`p3/preflight.mjs` checks wallet identity/policy/native balances only. Its `canPurchase:false` deliberately does not certify grants, provider qualification, task completion or deployment. Readiness is established at each original authorization/dispatch/admission fence. Expired runs remain readable/refundable; they cannot make fresh purchases. Startup restores the active original native host for recovery. A missing native ACK without request identity remains review/held; hosted same-key retry guarantees are not assumed.
+`p3/outlayer-preflight.mjs` checks wallet identity/policy/native balances only. Its `canPurchase:false` deliberately does not certify grants, provider qualification, task completion or deployment. Readiness is established at each original authorization/dispatch/admission fence. Expired runs remain readable/refundable; they cannot make fresh purchases. Startup restores the active original native host for recovery. A missing native ACK without request identity remains review/held; hosted same-key retry guarantees are not assumed.
 
 ## Evidence and remaining gates
 

@@ -1,0 +1,29 @@
+# Render and review the full app-compose before deployment; see docs/chutes-gateway.md.
+services:
+  market:
+    image: ${REVIEWED_MARKET_IMAGE:?pin the newly built image by digest}
+    user: "1000:1000"
+    restart: unless-stopped
+    stop_grace_period: 90s
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      - CHUTES_API_KEY=${CHUTES_API_KEY:?sealed provider credential required}
+      - MARKET_BUYER_KEYS_B64=${MARKET_BUYER_KEYS_B64:?sealed bearer tokens required}
+    command: ["--seed", "/opt/market/chutes-seed.json", "--seed-sha256", "${REVIEWED_SEED_SHA256:?review the seed}"]
+    ports: ["8080:8080", "8443:8443"]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=256m,mode=1777
+      - /run/market-tls:rw,nosuid,nodev,noexec,size=2m,uid=1000,gid=1000,mode=0700
+    volumes:
+      - chutes-data:/data
+      - tls-ca:/tls-ca
+      - /var/run/dstack.sock:/var/run/dstack.sock:ro
+      # Materialize the digest-checked public seed here before the first boot.
+      - /dstack/persistent/chutes-release/${REVIEWED_SEED_SHA256}/seed.json:/opt/market/chutes-seed.json:ro
+volumes:
+  chutes-data:
+    name: ${NEW_CHUTES_VOLUME:?choose a fresh volume; never refill a prior ledger}
+  tls-ca:
+    name: ${REVIEWED_CA_VOLUME:?retain the reviewed deployment CA}

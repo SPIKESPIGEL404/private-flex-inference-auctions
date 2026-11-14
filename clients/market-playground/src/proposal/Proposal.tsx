@@ -1,4 +1,5 @@
-import {useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
+import {SiteHeader} from '../SiteHeader';
 import './proposal.css';
 
 const source = 'https://github.com/SPIKESPIGEL404/private-flex-inference-auctions';
@@ -65,22 +66,34 @@ function DecisionExplorer() {
   </div>;
 }
 
-export default function Proposal() {
-  return <div className="proposal">
+export default function Proposal({active, address}: {active: boolean; address: string}) {
+  const content = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!active || !location.hash) return;
+    let id: string;
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+    const target = document.getElementById(id);
+    if (target && content.current?.contains(target)) target.scrollIntoView({block: 'start'});
+  }, [active, address]);
+
+  return <div className="app-shell proposal">
     <a className="p-skip" href="#thesis">Skip to proposal</a>
-    <header className="p-header"><a href="/" className="p-brand" aria-label="Private Market home"><span aria-hidden="true">↗</span> private market<span className="p-brand-by">/ bitrouter</span></a>
-      <nav aria-label="Main navigation"><a href="/">playground</a><a href="/proposal" aria-current="page">proposal</a><a href={source} target="_blank" rel="noreferrer">source ↗</a></nav>
+    <header className="app-header"><SiteHeader view="proposal"><span className="preview-link">NEAR hackathon</span></SiteHeader>
+      <div className="sessionbar proposal-sections"><span className="session-name">[proposal]</span>
+        <nav aria-label="Proposal sections"><a href="#thesis">overview</a><a href="#contract">contract</a><a href="#decision">purchase</a><a href="#evidence">evidence</a><a href="#near">NEAR</a><a href="#roadmap">roadmap</a></nav>
+      </div>
     </header>
-    <main id="thesis">
-      <section className="p-hero" aria-labelledby="proposal-title">
+    <main className="proposal-content" ref={content} tabIndex={-1} aria-label="Proposal">
+      <div className="proposal-document">
+      <section className="p-hero" id="thesis" aria-labelledby="proposal-title">
         <div className="p-eyebrow"><span className="p-indicator" />NEAR HACKATHON / MODEL FIDELITY<span className="p-draft">Product thesis · scoped prototype</span></div>
         <h1 id="proposal-title">Let agents buy inference<br /><span>they can verify.</span></h1>
         <div className="p-hero-bottom"><p>Agents optimize <em>cost and timing within an explicit model contract.</em> The owner fixes the model requirements and the evidence needed for acceptance.</p>
-          <a href="#decision" className="p-primary">Explore a purchase <span aria-hidden="true">↓</span></a></div>
+          <a href="#decision" className="solid-button p-primary">Explore a purchase <span aria-hidden="true">↓</span></a></div>
         <div className="p-hero-line"><span>THE THESIS</span><p>Autonomous procurement should preserve model fidelity from authorization through delivery.</p></div>
       </section>
 
-      <section className="p-section p-system" aria-labelledby="contract-title">
+      <section className="p-section p-system" id="contract" aria-labelledby="contract-title">
         <div className="p-section-heading"><span className="p-index">01 / THE MODEL PROMISE</span><h2 id="contract-title">The model contract<br />comes first.</h2><p>An autonomous buyer needs more than an attractive price. It needs a way to establish that the purchased inference meets its authorized model and execution requirements.</p></div>
         <div className="p-contract-grid">
           <article><span>IDENTITY</span><h3>Which model?</h3><p>Specify the permitted model, revision, quantization and any adapters.</p></article>
@@ -136,7 +149,7 @@ export default function Proposal() {
         <p className="p-caption">A private Market also protects purchase limits, balances and order conditions. Confidentiality supports the transaction; model fidelity supplies the acceptance requirements.</p>
       </section>
 
-      <section className="p-section p-test" aria-labelledby="roadmap-title">
+      <section className="p-section p-test" id="roadmap" aria-labelledby="roadmap-title">
         <span className="p-index">05 / THE COLLABORATION PATH</span>
         <div className="p-test-heading"><h2 id="roadmap-title">Prove the purchase.<br /><span>Bring the model contract to NEAR.</span></h2><p>Use today’s API and GPU TEE comparison to establish requirements and expose evidence gaps. The next collaboration is native support inside NEAR AI.</p></div>
         <ol className="p-roadmap">
@@ -149,8 +162,9 @@ export default function Proposal() {
         <p className="p-pilot">Future allocation experiments should compare arrival order, cache-only order, bid-only order and cache-aware bidding. Under light load, avoid unnecessary batching delay. Model fidelity and authorized cache sharing remain constraints throughout.</p>
       </section>
 
-      <section className="p-closing"><span className="p-index">BUILD WITH US</span><h2>Let agents optimize the purchase.<br />Make the model promise enforceable.</h2><div><a className="p-primary" href="/">Open the playground <span aria-hidden="true">↗</span></a><a href={`${source}/blob/main/docs/specs/2026-11-14-agent-mpp-inference-integration.md`} target="_blank" rel="noreferrer">Read the integration contract ↗</a></div><p>An independent BitRouter hackathon proposal. Gateway integration and NEAR-native market support are proposed.</p></section>
-    </main>
+      <section className="p-closing"><span className="p-index">BUILD WITH US</span><h2>Let agents optimize the purchase.<br />Make the model promise enforceable.</h2><div><a className="solid-button p-primary" href="/">Open the playground <span aria-hidden="true">↗</span></a><a href={`${source}/blob/main/docs/specs/2026-11-14-agent-mpp-inference-integration.md`} target="_blank" rel="noreferrer">Read the integration contract ↗</a></div><p>An independent BitRouter hackathon proposal. Gateway integration and NEAR-native market support are proposed.</p></section>
     <footer className="p-footer"><span>private market / bitrouter</span><span>NEAR HACKATHON · NOV 2026</span><a href="#thesis">Back to thesis ↑</a></footer>
+      </div>
+    </main>
   </div>;
 }

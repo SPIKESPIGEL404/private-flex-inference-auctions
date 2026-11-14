@@ -4,5 +4,5 @@
   "type": "module",
   "engines": { "node": ">=22.19.0" },
   "scripts": { "test": "node --test test/*.test.mjs" },
-  "dependencies": { "@phala/aci-verifier": "0.11.0" }
+  "dependencies": { "@phala/aci-verifier": "0.11.0", "@phala/dstack-verifier-wasm": "0.1.0" }
 }

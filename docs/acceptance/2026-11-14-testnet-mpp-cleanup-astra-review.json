@@ -1,0 +1,35 @@
+{
+  "verdict": "SCOPED_TESTNET_FULL_REFUND_CHAIN_EVIDENCE_ACCEPTED",
+  "source": "local-testnet-evidence/mpp-testnet-cleanup-evidence.json",
+  "sourceSha256": "eca1491fd4ba7f36e26c3d059fdc1dfbfecc845924badf2c2e9ebb253f2ad0ec",
+  "checkedAtUtc": "2026-11-14T22:44:11.744Z",
+  "rpc": "https://rpc.testnet.near.org",
+  "persistentCacheUsed": false,
+  "rows": [
+    {
+      "kind": "payment",
+      "txHash": "GqYc3tjYc6ysi6KXtuoeWG9My8mXf95eBLePoHyJnjZ6",
+      "payer": "mpp-b-agent-1-261114-649db1.testnet",
+      "recipient": "aef04eae67cdbbeb100ce64c70423d892dd88835ab0b172257f740a13ea05dbd",
+      "amount": "1000000000000000000000",
+      "gasActualYocto": "834989537500000000000",
+      "final": true,
+      "completeReceiptGraph": true
+    },
+    {
+      "kind": "refund",
+      "txHash": "34HoEADkWrtSYAVLkurUC2HYEXEcuUoCM8UdHSsDkNNa",
+      "payer": "aef04eae67cdbbeb100ce64c70423d892dd88835ab0b172257f740a13ea05dbd",
+      "recipient": "mpp-b-agent-1-261114-649db1.testnet",
+      "amount": "1000000000000000000000",
+      "gasActualYocto": "44636512500000000000",
+      "final": true,
+      "completeReceiptGraph": true
+    }
+  ],
+  "limitations": [
+    "Independent read-only chain transfer/finality/gas/conservation checks only.",
+    "Primary reports actual fault Payment Expired; no assertion that after_verified fault injection was reached.",
+    "No browser signing, Market ledger, real inference or mainnet/P3 acceptance."
+  ]
+}
