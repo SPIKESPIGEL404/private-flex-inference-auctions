@@ -103,6 +103,7 @@ export async function marketExecutor(config, { arm, deadlineMs }) {
         upstreamVerified: false,
         composeHash: connection.identity.composeHash,
         keysetDigest: connection.identity.workloadKeysetDigest,
+        verifiedKeyset: connection.identity.keyset,
         acceptedCatalogPolicyDigests: policy.acceptedPolicyDigests,
       },
       async dispatch({ body, idempotencyKey, signal }) {
@@ -131,6 +132,36 @@ export async function marketExecutor(config, { arm, deadlineMs }) {
           },
           body: wire,
         });
+      },
+      async supply() {
+        const response = await connection.fetch(
+          connection.baseURL + "/supply",
+          { redirect: "error", signal: AbortSignal.timeout(10000) },
+        );
+        check(response.ok, "supply_observation_unavailable");
+        const raw = await response.text();
+        check(raw.length <= 8192, "supply_observation_too_large");
+        const value = JSON.parse(raw),
+          now = Date.now();
+        check(
+          value.version === 1 &&
+            value.provider === "chutes" &&
+            value.model === arm.model &&
+            value.modelRevisionRef === arm.tariff.modelRevisionRef,
+          "supply_identity_mismatch",
+        );
+        check(
+          ["ready", "warming", "offline", "unavailable", "unknown"].includes(
+            value.state,
+          ) &&
+            Number.isSafeInteger(value.observedAtMs) &&
+            Number.isSafeInteger(value.expiresAtMs) &&
+            value.observedAtMs <= now + 1000 &&
+            value.expiresAtMs > now &&
+            value.expiresAtMs - value.observedAtMs <= 60000,
+          "supply_observation_stale",
+        );
+        return value;
       },
       async head(id) {
         check(/^[a-zA-Z0-9_-]{1,128}$/.test(id), "invalid_market_request_id");

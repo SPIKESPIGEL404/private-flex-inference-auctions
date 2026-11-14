@@ -16,6 +16,7 @@ pub fn configured(path: &Path) -> Result<bool> {
         Ok(value) if value == MODEL => {
             let catalog: Value = live::read(path)?;
             validate_catalog(&catalog)?;
+            supply_url()?;
             Ok(true)
         }
         _ => anyhow::bail!("PRIVATE_MARKET_PUBLIC_MODEL must be qwen3.8-27b when set"),
@@ -62,10 +63,98 @@ pub fn mount(router: Router, enabled: bool) -> Router {
     if !enabled {
         return router;
     }
-    router.route("/v1/provider-evidence/{session_id}", get(provider_evidence))
+    router.route("/v1/supply",get(public_supply))
+    .route("/v1/provider-evidence/{session_id}", get(provider_evidence))
     .route("/v1/models", get(|| async {
         axum::Json(json!({"object":"list","data":[{"id":MODEL,"object":"model","owned_by":"bitrouter"}]}))
     })).layer(middleware::from_fn_with_state((), guard))
+}
+
+fn supply_url() -> Result<String> {
+    let value = env::var("PRIVATE_MARKET_SUPPLY_STATUS_URL")
+        .context("supply observation endpoint required")?;
+    let url = url::Url::parse(&value)?;
+    ensure!(
+        url.scheme() == "http"
+            && url.host_str() == Some("127.0.0.1")
+            && url.port().is_some_and(|p| p > 0)
+            && url.path() == "/v1/supply"
+            && url.username().is_empty()
+            && url.password().is_none()
+            && url.query().is_none()
+            && url.fragment().is_none(),
+        "supply endpoint must be the local verified bridge"
+    );
+    Ok(value)
+}
+async fn observed_supply() -> Result<Value> {
+    let mut response = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(3))
+        .build()?
+        .get(supply_url()?)
+        .send()
+        .await?;
+    ensure!(
+        response.status().is_success() && response.content_length().is_none_or(|n| n <= 8192),
+        "supply observation unavailable"
+    );
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        ensure!(
+            bytes.len() + chunk.len() <= 8192,
+            "supply observation too large"
+        );
+        bytes.extend_from_slice(&chunk);
+    }
+    let value: Value = serde_json::from_slice(&bytes)?;
+    let now = chrono::Utc::now().timestamp_millis() as u64;
+    let at = value["observedAtMs"]
+        .as_u64()
+        .context("observation time missing")?;
+    let until = value["expiresAtMs"]
+        .as_u64()
+        .context("observation expiry missing")?;
+    ensure!(
+        value["version"] == 1
+            && value["provider"] == "chutes"
+            && value["model"] == MODEL
+            && at <= now + 1000
+            && until > now
+            && until.saturating_sub(at) <= 60000
+            && matches!(
+                value["state"].as_str(),
+                Some("ready" | "warming" | "offline" | "unavailable" | "unknown")
+            ),
+        "invalid or stale supply observation"
+    );
+    let mut output = json!({});
+    for key in [
+        "version",
+        "provider",
+        "model",
+        "state",
+        "observedAtMs",
+        "expiresAtMs",
+        "modelRevisionRef",
+        "instanceId",
+        "evidenceSessionId",
+        "coldStartEstimateSeconds",
+        "autoShutdownSeconds",
+        "scope",
+    ] {
+        if let Some(v) = value.get(key) {
+            output[key] = v.clone();
+        }
+    }
+    output["ready"] = json!(value["state"] == "ready");
+    Ok(output)
+}
+async fn public_supply() -> Response {
+    match observed_supply().await {
+        Ok(value)=>([("cache-control","no-store")],axum::Json(value)).into_response(),
+        Err(_)=>(StatusCode::SERVICE_UNAVAILABLE,[("cache-control","no-store")],axum::Json(json!({"version":1,"provider":"chutes","model":MODEL,"state":"unknown","ready":false}))).into_response(),
+    }
 }
 
 async fn provider_evidence(RequestPath(session_id): RequestPath<String>) -> Response {
@@ -121,6 +210,16 @@ async fn guard(State(()): State<()>, mut request: Request, next: Next) -> Respon
         };
         if value["model"] != MODEL {
             return (StatusCode::BAD_REQUEST, axum::Json(json!({"error":{"type":"invalid_request_error","code":"model_not_found","message":"The available model is qwen3.8-27b"}}))).into_response();
+        }
+        if env::var_os("PRIVATE_MARKET_SUPPLY_STATUS_URL").is_some() {
+            if !observed_supply().await.is_ok_and(|v| v["ready"] == true) {
+                return (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    [("retry-after", "15"), ("cache-control", "no-store")],
+                    axum::Json(json!({"error":{"code":"supply_not_ready"}})),
+                )
+                    .into_response();
+            }
         }
         *request.body_mut() = Body::from(body);
     }

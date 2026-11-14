@@ -40,6 +40,10 @@ def stream():
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_): pass
+    def do_GET(self):
+        now=time.time_ns()//1000000
+        raw=canonical({'version':1,'provider':'chutes','model':'qwen3.8-27b','state':'ready','observedAtMs':now,'expiresAtMs':now+45000,'modelRevisionRef':'controlled-qwen-revision'})
+        self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.path == "/tokenize":
@@ -97,6 +101,7 @@ with Market(binary, initialize=False) as m:
         save(m.root / "measurement.json", measurement)
         run(binary, "qualify-live", str(m.state), str(m.root / "measurement.json"), env=m.env)
         m.env["PRIVATE_MARKET_PUBLIC_MODEL"] = PUBLIC
+        m.env["PRIVATE_MARKET_SUPPLY_STATUS_URL"] = base+"/v1/supply"
         m.start()
         models = json.loads(call_http(m.url + "/market/v1/models")[1])
         assert [item["id"] for item in models["data"]] == [PUBLIC]

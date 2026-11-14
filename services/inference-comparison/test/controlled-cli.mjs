@@ -1,6 +1,11 @@
 // Owned local acceptance only. Never imported by the production CLI/executor.
 import { readFile, writeFile } from "node:fs/promises";
 import { startNearBridge } from "../near-bridge.mjs";
+import { sealPurchaseRequest } from "../../../clients/market-buyer/purchase-e2ee.mjs";
+import {
+  verifySignedReceipt,
+  parseSignedReceiptJson,
+} from "../../../clients/market-buyer/receipt-verify.mjs";
 import { ComparisonRunner, publicReport } from "../runner.mjs";
 import { validateMarketCatalog } from "../market-executor.mjs";
 import {
@@ -58,6 +63,51 @@ if (action === "plan") {
   });
   console.log(JSON.stringify({ url: bridge.url, controlledSdk: true }));
   process.once("SIGINT", () => void bridge.close().then(() => process.exit(0)));
+} else if (action === "probe-warming") {
+  const config = await read(path),
+    p = await read(config.planFile),
+    c = config.arms.B;
+  const report = await (
+    await fetch(c.baseURL + "/aci/attestation?nonce=" + "2".repeat(64))
+  ).json();
+  const key = await readSigningKey(c.signingKeyFile),
+    body = {
+      ...p.request,
+      model: p.arms.B.model,
+      stream: true,
+      stream_options: { include_usage: true },
+      bitrouter_purchase: {
+        service_type: "on_demand",
+        provider_cap_micro_usd: 10000,
+        total_cap_micro_usd: 10000,
+      },
+      bitrouter_delivery: { auto_fallback: "off" },
+    };
+  const sealed = sealPurchaseRequest(body, report.attestation.workload_keyset),
+    idempotencyKey = "warming-gate-only";
+  const signed = signPurchase({
+    seed: key.seed,
+    publicKey: key.publicKey,
+    body: sealed.body,
+    idempotencyKey,
+    keyset: report.workload_keyset_digest,
+    nonce: freshNonce(),
+    ts: Math.floor(Date.now() / 1000),
+  });
+  const r = await fetch(c.baseURL + "/chat/completions", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer " + c.token,
+      "content-type": "application/json",
+      "idempotency-key": idempotencyKey,
+      ...sealed.headers,
+      ...signed.headers,
+    },
+    body: sealed.body,
+  });
+  console.log(
+    JSON.stringify({ status: r.status, code: (await r.json()).error?.code }),
+  );
 } else if (action === "run") {
   const config = await read(path),
     plan = await read(config.planFile);
@@ -72,19 +122,38 @@ if (action === "plan") {
         deadlineMs,
       );
       const key = await readSigningKey(c.signingKeyFile);
+      let identity = null;
+      if (c.attested) {
+        const r = await fetch(
+          c.baseURL + "/aci/attestation?nonce=" + "1".repeat(64),
+        );
+        const report = await r.json();
+        identity = {
+          keyset: report.attestation.workload_keyset,
+          digest: report.workload_keyset_digest,
+        };
+      }
       return {
         identity: {
           marketVerified: false,
           scope: "owned-loopback-controlled-only",
         },
+        async supply() {
+          const r = await fetch(c.baseURL + "/supply");
+          if (!r.ok) throw Error("supply_unavailable");
+          return r.json();
+        },
         async dispatch({ body, idempotencyKey, signal }) {
-          const wire = jcsBytes(body),
+          const sealed = identity
+            ? sealPurchaseRequest(body, identity.keyset)
+            : null;
+          const wire = sealed ? sealed.body : jcsBytes(body),
             signature = signPurchase({
               seed: key.seed,
               publicKey: key.publicKey,
               body: wire,
               idempotencyKey,
-              keyset: policyDigest,
+              keyset: identity?.digest ?? policyDigest,
               nonce: freshNonce(),
               ts: Math.floor(Date.now() / 1000),
             });
@@ -96,10 +165,29 @@ if (action === "plan") {
               authorization: "Bearer " + c.token,
               "content-type": "application/json",
               "idempotency-key": idempotencyKey,
+              ...sealed?.headers,
               ...signature.headers,
             },
             body: wire,
           });
+        },
+        async receipt(id, key) {
+          if (!identity) throw Error("receipt_not_mounted");
+          const response = await fetch(
+            c.baseURL + "/receipts/" + id + "/signed",
+            { headers: { authorization: "Bearer " + c.token } },
+          );
+          if (!response.ok) throw Error("receipt_pending");
+          const document = parseSignedReceiptJson(await response.text());
+          verifySignedReceipt({
+            document,
+            requestId: id,
+            workloadKeysetDigest: identity.digest,
+            verifiedKeyset: identity.keyset,
+          });
+          if (document.idempotency_key !== key)
+            throw Error("operation_mismatch");
+          return document;
         },
         async head(id) {
           const r = await fetch(c.baseURL + "/requests/" + id, {
@@ -113,7 +201,11 @@ if (action === "plan") {
     },
   });
   try {
-    const report = publicReport(await runner.run(plan, plan.planHash));
+    const report = publicReport(
+      config.reconcile
+        ? await runner.reconcile(plan)
+        : await runner.run(plan, plan.planHash),
+    );
     await writeFile(config.reportFile, JSON.stringify(report), { mode: 0o600 });
     console.log(
       JSON.stringify({

@@ -38,6 +38,8 @@ These are proposed product requirements. Current hardware, transport and control
 
 The [fixed-supply comparison harness](docs/inference-comparison.md) freezes A/B plans and preserves original request evidence. This implementation slice is operator-run; dynamic pricing and agent-paid live inference remain separate acceptance work.
 
+B now includes [signed settlement and expiring supply readiness](docs/acceptance/2026-11-14-baseline-b-settlement.md). Native wallet payments and provider GPU-time invoices retain their separate evidence boundaries.
+
 NEAR currently provides its **existing inference API** for this collaboration. Separately, we have deployed a model in a GPU TEE as a controlled comparison. The two paths help expose procurement and verification requirements; NEAR-native market allocation belongs to the next collaboration stage.
 
 | Path | What it demonstrates | Evidence boundary |

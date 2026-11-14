@@ -22,6 +22,7 @@ class Upstream(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        self.server.calls=getattr(self.server,"calls",0)+1
         body = b'{"ready":true}'
         self.send_response(200)
         self.send_header('Content-Length', str(len(body)))
@@ -52,6 +53,18 @@ class Checks(unittest.TestCase):
             return r.status
         finally:
             c.close()
+
+    def test_supply_rejects_unreviewed_origins_without_forwarding(self):
+        from unittest.mock import patch
+        with patch.dict(os.environ,{'AGENT_PREVIEW_SUPPLY_URL':f'http://127.0.0.1:{self.upstream.server_port}/private'}):
+            connection=http.client.HTTPConnection('127.0.0.1',self.edge.server_port,timeout=2)
+            try:
+                connection.request('GET','/buyer-api/supply',headers={'Cookie':'owner=private','Authorization':'Bearer private'})
+                response=connection.getresponse()
+                self.assertEqual(response.status,503)
+                self.assertIn(b'"state": "unknown"',response.read())
+                self.assertEqual(getattr(self.upstream,'calls',0),0)
+            finally:connection.close()
 
     def test_unfinished_headers_release_all_concurrency_slots(self):
         sockets = [socket.create_connection(('127.0.0.1', self.edge.server_port)) for _ in range(16)]

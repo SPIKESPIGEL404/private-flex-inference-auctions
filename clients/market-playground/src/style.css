@@ -157,3 +157,4 @@ dialog textarea { resize: vertical; min-height: 108px; }
 .supply-availability-name { color: #ddd; margin-right: 18px; }
 .supply-availability p { max-width: 820px; margin: 7px 0 2px; color: #999; }
 @media (max-width: 700px) { .supply-availability { padding: 8px 12px; }.supply-availability-name { display: block; margin: 0; } }
+.supply-readiness { margin-right: 18px; color: #ccc; }

@@ -1,4 +1,5 @@
 import { check, digest, validateComparison, usageCostMicro } from "./core.mjs";
+import { projectSettlement } from "./settlement.mjs";
 import { Store } from "../../clients/buyer-gateway/src/store.mjs";
 import { marketExecutor } from "./market-executor.mjs";
 // This journal records experiment observations; Market remains the only money authority.
@@ -34,9 +35,7 @@ export class ComparisonRunner {
       id = digest([plan.ownerAccount, plan.planHash, armId]),
       old = this.store.get("comparison-arm", id, plan.ownerAccount);
     if (old)
-      return old.state === "complete"
-        ? old
-        : { ...old, state: "unknown", replayBlocked: true };
+      return old.state === "complete" ? old : { ...old, replayBlocked: true };
     const body = {
       ...plan.request,
       model: arm.model,
@@ -77,6 +76,21 @@ export class ComparisonRunner {
           state: "not_dispatched_deadline",
           paidInvokeAttempted: false,
         };
+      if (armId === "B") {
+        let readiness;
+        try {
+          readiness = await executor.supply();
+        } catch {
+          return { armId, state: "supply_unknown", paidInvokeAttempted: false };
+        }
+        if (readiness.state !== "ready" || readiness.expiresAtMs <= this.now())
+          return {
+            armId,
+            state: "supply_" + readiness.state,
+            readiness,
+            paidInvokeAttempted: false,
+          };
+      }
       // Atomic claim survives both process restart and a concurrent second runner.
       const record = {
         id,
@@ -201,6 +215,19 @@ export class ComparisonRunner {
               record.idempotencyKey,
             );
           } catch {}
+        let settlement = null,
+          settlementState = "pending";
+        if (signedReceipt)
+          try {
+            settlement = projectSettlement(signedReceipt, {
+              requestId: record.marketRequestId,
+              idempotencyKey: record.idempotencyKey,
+              budgetMicro: plan.budgetPerArmMicro,
+            });
+            settlementState = "committed";
+          } catch {
+            settlementState = "invalid";
+          }
         const result = {
           ...record,
           state: "complete",
@@ -214,9 +241,12 @@ export class ComparisonRunner {
               ? "not_reported"
               : "provider_reported",
           tariffEstimateMicro: usageCostMicro(arm.tariff.rates, usage),
-          serviceCostMicro: null,
+          serviceCostMicro: settlement?.providerChargeMicro ?? null,
+          settlement,
+          settlementState,
           marketHead,
           signedReceipt,
+          settlementIdentity: signedReceipt ? executor.identity : null,
           responseSha256: digest(Buffer.concat(chunks)),
           response: Buffer.concat(chunks).toString("base64"),
         };
@@ -236,6 +266,66 @@ export class ComparisonRunner {
     } finally {
       await executor.close().catch(() => {});
     }
+  }
+  async reconcile(plan) {
+    const { planHash, ...body } = plan;
+    check(digest(body) === planHash, "comparison_plan_changed");
+    const results = {};
+    for (const armId of plan.executionOrder) {
+      const id = digest([plan.ownerAccount, planHash, armId]),
+        record = this.store.get("comparison-arm", id, plan.ownerAccount);
+      if (!record) {
+        results[armId] = {
+          armId,
+          state: "not_dispatched",
+          paidInvokeAttempted: false,
+        };
+        continue;
+      }
+      if (!record.marketRequestId || record.settlement) {
+        results[armId] = record;
+        continue;
+      }
+      let executor;
+      try {
+        executor = await this.executor(this.config.arms[armId], {
+          arm: plan.arms[armId],
+          deadlineMs: plan.deadlineMs,
+        });
+        const signedReceipt = await executor.receipt(
+          record.marketRequestId,
+          record.idempotencyKey,
+        );
+        const settlement = projectSettlement(signedReceipt, {
+          requestId: record.marketRequestId,
+          idempotencyKey: record.idempotencyKey,
+          budgetMicro: plan.budgetPerArmMicro,
+        });
+        const next = {
+          ...record,
+          signedReceipt,
+          settlementIdentity: executor.identity,
+          settlement,
+          settlementState: "committed",
+          serviceCostMicro: settlement.providerChargeMicro,
+          settlementCheckedAtMs: this.now(),
+        };
+        this.store.put("comparison-arm", id, plan.ownerAccount, next);
+        results[armId] = next;
+      } catch {
+        results[armId] = { ...record, settlementState: "pending" };
+      } finally {
+        if (executor) await executor.close().catch(() => {});
+      }
+    }
+    return {
+      version: 1,
+      planHash,
+      requestHash: plan.requestHash,
+      mode: plan.mode,
+      realAgentPayments: false,
+      arms: results,
+    };
   }
   close() {
     this.store.close();
@@ -274,9 +364,16 @@ export function publicReport(report) {
             "buyer-observed-includes-market-and-provider-verification",
           tariffEstimateMicro: r.tariffEstimateMicro ?? null,
           serviceCostMicro: r.serviceCostMicro ?? null,
+          settlement: r.settlement ?? null,
+          settlementState: r.settlementState ?? "pending",
+          accountingScope: "market-USD-credit-ledger",
+          nativeChainPaymentVerified: false,
+          readiness: r.readiness ?? null,
           providerBillMicro: null,
           settlementEvidenceAvailable: Boolean(r.marketHead),
           signedFinancialReceiptVerified: Boolean(r.signedReceipt),
+          settlementHardwareVerified:
+            r.settlementIdentity?.marketVerified === true,
           replayBlocked:
             r.replayBlocked ??
             ["pending", "dispatching", "unknown"].includes(r.state),

@@ -183,17 +183,60 @@ hits are observed only if reported. Buyer first-token/completion times include
 Market and verification delays. Because NEAR buffers until signature verification,
 buyer TTFT cannot be relabeled raw provider TTFT. Tariff estimates, authoritative
 buyer charges, provider invoices and native-chain transfers are separate fields;
-missing evidence remains null. Market heads and verified signed receipts are retained privately for later
-settlement integration; availability alone is not proof of a final charge.
+missing evidence remains null. Only a verified final receipt projects actual
+Market charges; a head response alone is not sufficient.
+
+## B settlement and readiness
+
+B checks the short-lived authenticated supply observation before claiming a
+purchase. Market checks it again before reserving money. Offline, warming,
+unavailable and expired observations stop admission without an upstream invoke.
+Public polling reads a cached observation and does not warm a GPU. Gateway
+preflight verifies the pinned private deployment and current CPU/GPU evidence;
+readiness is a provider observation, while Market checks available offers and
+funding independently. Indefinite background warmup has been removed. Explicit
+operator warmup may start billable GPU time.
+
+The production client encrypts purchase terms and verifies signed final receipts
+against the attested keyset and original operation. `serviceCostMicro` is the
+receipt's provider service charge; the settlement object separately records
+platform fees, promo, actual credit-ledger cash debit, original reservation and
+released reservation. Amount arithmetic and authorization bounds must hold.
+An inference can complete while settlement is pending. Retrieve late settlement
+without submitting a new inference, including after the plan's price expiry:
+
+```sh
+node services/inference-comparison/cli.mjs reconcile /absolute/private/runner.json /absolute/private/comparison.json /absolute/private/settled-result.json
+```
+
+`run-b` accepts the same arguments as `run` and executes only B, for isolated
+baseline acceptance without a NEAR AI inference key. Signed receipts use the live
+catalog's market ID, rather than the historical controlled-market constant.
+
+This is real upstream inference with operator-funded Market USD credit-ledger
+settlement. A released hold is not an on-chain refund. Native agent-wallet MPP
+payment is a separate integration; reports expose its unverified state explicitly.
+Chutes owner GPU runtime costs also remain separate from buyer token charges.
+`deploy/chutes/billing_snapshot.py` exports authenticated invocation-usage records
+for a closed UTC window. Those records are not a private GPU-time invoice; zero
+reported invocation usage does not establish zero GPU cost. Per-request provider
+bills remain null until appropriate evidence exists.
+
+The deployment overlay keeps original histories and preview ownership, starts
+B in `/data/baseline-b-v2`, and uses offline buyer verifying keys. Existing sealed
+credentials are migrated only through the explicit reviewed source-directory
+option. The old `/data/chutes-run` remains intact. The new namespace has the
+existing finite three-offer qualification contract; restarts do not refill it.
+It is a bounded baseline experiment, not an unlimited public paid service.
 
 ## Availability notice
 
 The public Mono frontend now shows the self-hosted Chutes operating window:
 automatic shutdown after about one hour and approximately ten minutes for a cold
 start. The notice is visible before wallet connection and expands to explain
-startup time before a timed comparison. It is informational, not a live readiness
-signal. Warm/readiness handling still requires explicit provider acceptance;
-the notice does not silently extend task deadlines or retry Unknown requests.
+startup time before a timed comparison, plus the current expiring provider
+readiness observation. Unavailable or stale data displays unknown. The notice
+does not silently extend task deadlines or retry Unknown requests.
 
 ## Remaining integration
 

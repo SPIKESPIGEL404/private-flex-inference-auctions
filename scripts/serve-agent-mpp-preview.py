@@ -141,12 +141,32 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             self.header_deadline.cancel()
 
+    def supply(self):
+        if self.command!='GET': self.send_error(405); return
+        configured=os.environ.get('AGENT_PREVIEW_SUPPLY_URL','')
+        target=urlsplit(configured)
+        value={'version':1,'provider':'chutes','model':'qwen3.8-27b','state':'unknown','ready':False}
+        code=503
+        if target.scheme=='http' and target.hostname=='market' and target.port==8080 and target.path=='/market/v1/supply' and not target.query and not target.fragment and not target.username and not target.password:
+            connection=http.client.HTTPConnection('market',8080,timeout=5)
+            try:
+                connection.request('GET','/market/v1/supply',headers={'Accept':'application/json'})
+                response=connection.getresponse();raw=response.read(8193)
+                if response.status==200 and len(raw)<=8192:
+                    observed=json.loads(raw)
+                    if observed.get('provider')=='chutes' and observed.get('model')=='qwen3.8-27b':
+                        value={k:observed[k] for k in ['version','provider','model','state','ready','observedAtMs','expiresAtMs','coldStartEstimateSeconds','autoShutdownSeconds','scope'] if k in observed};code=200
+            except (OSError,ValueError,http.client.HTTPException): pass
+            finally: connection.close()
+        raw=json.dumps(value).encode();self.send_response(code);self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+
     def forward(self):
         self.connection.settimeout(15)
         if not self.path.startswith('/') or self.path.startswith('//'):
             self.send_error(400)
             return
         path = urlsplit(self.path).path
+        if path=='/buyer-api/supply': return self.supply()
         if not (path in ['/', '/proposal', '/proposal/', '/healthz', '/v1/chat/completions']
                 or path.startswith(('/assets/', '/buyer-api/'))):
             self.send_error(404)
