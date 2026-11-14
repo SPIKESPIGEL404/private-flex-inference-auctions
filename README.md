@@ -252,8 +252,12 @@ payments. G1 must verify the selected native Transfer route with agent-paid prin
 wallet funding, inference and refund joint acceptance remain outstanding. The opt-in
 [OutLayer P3 runtime](docs/agent-mpp-p3.md) implements owner policy setup, agent-funded
 MPP purchases, gas accounting, usage settlement and refunds. Local task/recovery
-acceptance and a real testnet payment/NEP-413/refund component are recorded separately;
-it is not deployed or qualified as a real-provider money loop.
+acceptance and a real testnet payment/NEP-413/refund component are recorded separately.
+The additional [two-agent Cloud CLI acceptance](docs/acceptance/2026-11-14-outlayer-cloud-mpp.md)
+joins independent OutLayer wallets with real NEAR AI Cloud responses, agent-paid
+testnet principal/gas and native usage refunds. It has a separate financial journal;
+the original Market/autobidder/tool runtime and browser owner still require joint
+live acceptance. Neither runtime is deployed by this PR.
 
 The canonical Mono workspace is `clients/market-playground`. It discovers backend capabilities and uses the existing P2 task runtime or wallet-preparation adapter in the same UI. `clients/agent-playground` is a compatibility launch alias. A unified interface does not establish a connected real-money loop; real G1/P3 qualification remains outstanding.
 

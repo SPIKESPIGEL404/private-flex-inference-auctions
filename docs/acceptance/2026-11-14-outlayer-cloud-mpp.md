@@ -59,8 +59,10 @@ runtime; the later audit does not redo encrypted-wire verification.
 Scope: local CLI integration only. Browser wallets, a real connected user
 controller, original Market/autobidder integration, Chutes, mainnet funding,
 production deployment, hosted OutLayer attestation and independent subagent
-review remain outside this acceptance. This branch has not been pushed,
-merged or deployed.
+review remain outside this acceptance. This report records the initial local
+acceptance at `803ceea`; subsequent PR #20 integration and validation are recorded
+in [the combined validation](2026-11-14-pr20-cloud-integration.json). No deployment
+or full P3 acceptance is implied.
 
 Public results, frozen policy/setup transaction IDs, final replay counters and
 source hashes: [JSON evidence](2026-11-14-outlayer-cloud-mpp.json).

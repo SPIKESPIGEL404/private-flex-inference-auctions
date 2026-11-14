@@ -2,9 +2,9 @@
 
 状态：**独立 OutLayer 实现已有本地验收；真实完整任务/P3 NOT_ACCEPTED。**
 
-实现、运行方式和分层证据见 [P3 实现记录](../agent-mpp-p3.md)。钱包层真实 testnet 的普通 Transfer、agent gas、exact NEP-413 和冻结后退款已通过组件验收；本地双任务/请求级资格/owner setup 已通过，均不等于真实 provider 或浏览器 owner 闭环。
+实现、运行方式和分层证据见 [P3 实现记录](../agent-mpp-p3.md)。钱包层真实 testnet 的普通 Transfer、agent gas、exact NEP-413 和冻结后退款已通过组件验收；本地双任务/请求级资格/owner setup 已通过。另已完成 [两个独立 OutLayer 钱包购买真实 Cloud 推理并退差](../acceptance/2026-11-14-outlayer-cloud-mpp.md)的 CLI 验收，使用独立 Cloud 资金日志；不等于原 Market/autobidder/工具续轮或浏览器 owner 的联合验收。
 
-2026-11-14 钱包层从 Agent API 改为 OutLayer Custody。已完成独立 testnet 钱包五项原语测试，以及普通 Transfer、exact NEP-413 和冻结后退款的真实 testnet 组件验收；浏览器 owner、真实推理联合验收和 mainnet 尚未通过。具体 API、policy、编码和 Unknown 合同以 [OutLayer 迁移规格](2026-11-14-outlayer-custody-migration.md)为准。
+2026-11-14 钱包层从 Agent API 改为 OutLayer Custody。已完成独立 testnet 钱包五项原语测试、真实钱包组件及真实 Cloud 固定任务付款退差；浏览器 owner、原 Market 联合验收和 mainnet 尚未通过。按当前用户要求暂不接浏览器钱包。具体 API、policy、编码和 Unknown 合同以 [OutLayer 迁移规格](2026-11-14-outlayer-custody-migration.md)为准。
 
 ## 1. 当前付款与控制权合同
 
@@ -64,6 +64,6 @@ Gas reserve 是估计/停购阈值，不是链上费用硬上限。冻结后拒�
 
 ## 5. 当前阻塞条件
 
-不再需要有效 Agent API partner key。OutLayer adapter、owner-controller 配置接口、原账本 gas/退款/恢复与有界执行器已实现并通过本地验收。仍需真实浏览器 owner、真实 provider 与链上资金联合验收、mainnet source wallet/solver、有界运行授权，以及 hosted native 幂等故障验证。Unknown 继续禁止自动重发；不能用本地去重测试证明 hosted retry 安全。
+不再需要有效 Agent API partner key。OutLayer adapter、owner-controller 配置接口、原账本 gas/退款/恢复与有界执行器已实现并通过本地验收；独立 Cloud CLI 固定任务真实付款退差已通过。仍需真实浏览器 owner、原 Market/autobidder/工具任务与真实 provider/链上资金联合验收、mainnet source wallet/solver，以及 hosted native 幂等故障验证。Unknown 继续禁止自动重发；不能用本地去重测试证明 hosted retry 安全。
 
 [整合主规格](2026-11-14-agent-mpp-inference-integration.md) · [P0 合同](2026-11-14-agent-mpp-p0-contract.md) · [OutLayer 调研与迁移合同](2026-11-14-outlayer-custody-migration.md)

@@ -2,6 +2,10 @@
 
 This opt-in runtime replaces Agent API custody with an independent OutLayer wallet per agent. The connected NEAR owner controls the policy; each agent pays native NEAR principal **and gas**. Merchant refunds return native NEAR to the original agent, with merchant-paid gas. The existing Market writer, credit/escrow ledger, reservations, usage authority, response journal and virtual tool workspace remain authoritative.
 
+The [two-agent real Cloud MPP acceptance](acceptance/2026-11-14-outlayer-cloud-mpp.md) now joins OutLayer wallets with actual NEAR AI Cloud inference, native testnet payment/gas, and usage-based refunds. This is a separate fixed-task CLI harness with its own Cloud financial journal; it does not certify the Market runtime described below. Browser owner onboarding remains deferred. See the [Cloud runbook](near-cloud-outlayer-mpp.md).
+
+[Combined PR #20 validation](acceptance/2026-11-14-pr20-cloud-integration.json) records the current-main integration, rebuilt Rust host, local regressions, final Cloud replay and fresh chain audit. Earlier manifests below remain snapshots of their named revisions.
+
 ## Entry points
 
 - `services/mpp-near-direct/p3/launch.mjs`: setup, then the frozen run on the same origin.
@@ -84,7 +88,7 @@ Install the merchant credential as `<credentialDirectory>/<merchantBinding.crede
 - [Earlier real wallet policy matrix](acceptance/2026-11-14-outlayer-wallet-policy-evidence.json): allowed payment, excessive amount, non-whitelist destination and frozen wallet behavior.
 - [P1](acceptance/2026-11-14-outlayer-p3-p1-regression.json) / [P2](acceptance/2026-11-14-outlayer-p3-p2-regression.json) regression evidence retains its controlled scope.
 
-Still unaccepted: a real browser owner wallet end-to-end; real provider inference joined with real chain payments/refunds; mainnet 1Click funding; hosted OutLayer native idempotency fault injection; production deployment. No independent reviewer was launched: this side conversation prohibits subagents. These gates must not be described as P3 real-money acceptance or gpt-6-astra approval.
+Still unaccepted: a real browser owner wallet end-to-end; the original Market/autobidder/tool runtime joined with real provider inference and real chain payments/refunds; mainnet 1Click funding; hosted OutLayer native idempotency fault injection; production deployment. The separate two-agent Cloud CLI loop is accepted on testnet. No independent reviewer was launched: this side conversation prohibits subagents. These gates must not be described as full P3 acceptance or gpt-6-astra approval.
 
 Initial local validation before PR review fixes: 84 Node tests, 15 original Market tests, 5 existing Mono UI tests, 22 P1 scenarios, 15 P2 scenarios and 8 P3 integration scenarios passed. Both P3 and canonical Mono browser builds passed. The first P1 Redis-pause run timed out during balance-repair startup under concurrent acceptance load; its complete rerun passed 22/22. This timeout is retained in the validation manifest rather than counted as a clean first run.
 

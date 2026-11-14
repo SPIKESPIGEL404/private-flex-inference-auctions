@@ -8,12 +8,6 @@
   "outlayerSourcePr": "https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/pull/20",
   "outlayerSourceCommit": "e4a47017578b7da807845b6fdf6e2dc35b24ac09",
   "localBranch": "codex/outlayer-cloud-mpp-acceptance",
-  "delivery": {
-    "pushed": false,
-    "merged": false,
-    "deployed": false,
-    "independentSubagentReview": false
-  },
   "maximumUpstreamMicroUsd": "10000",
   "retainedProviderMaximumMicroUsd": "1002",
   "actualServiceMicroUsd": "90",
@@ -214,5 +208,13 @@
     "services/inference-comparison/package-lock.json": "7b12812f6524c386d75bb55e6cc72435b129a7c1616017d97d27db207de6acaf",
     "docs/near-cloud-outlayer-mpp.md": "f696399e3e1dd9595c2e9b578742852b52ff491cf89cf25ce11939831a25b573",
     "docs/acceptance/2026-11-14-outlayer-cloud-mpp.md": "c97fa533b57d9eecde5011b5cbffd67d722cb00a5d3958626a78d1527beb3a8b"
-  }
+  },
+  "initialAcceptanceCommit": "803ceeac99b5e029822bc034342157aa19bb224d",
+  "initialAcceptanceDelivery": {
+    "pushed": false,
+    "merged": false,
+    "deployed": false,
+    "independentSubagentReview": false
+  },
+  "integrationPr": 20
 }
