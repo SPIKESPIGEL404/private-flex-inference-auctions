@@ -2507,6 +2507,7 @@ dependencies = [
  "aci-protocol",
  "anyhow",
  "axum",
+ "bitrouter-ai",
  "bitrouter-cloud",
  "bitrouter-market",
  "chrono",

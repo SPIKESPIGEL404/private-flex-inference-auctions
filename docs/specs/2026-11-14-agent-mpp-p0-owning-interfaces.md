@@ -4,6 +4,12 @@ Status: proposed narrow interfaces; not new public APIs already present in the
 pinned dependencies. Payment contract and controlled implementation:
 [P0 v1](2026-11-14-agent-mpp-p0-contract.md).
 
+2026-11-14 amendment: agent pays inference principal; project pays payment and
+service-refund gas. Order expiry stops new operations/admission, while original
+in-flight or unknown payments continue reconciliation. The proposed interfaces
+below reflect this user-approved change. Historical v1 code/acceptance remains
+the old snapshot; no sponsor implementation is implied by this document.
+
 ## Fixed owning sources inspected
 
 | Owner | Current source | Finding and P1 change |
@@ -32,10 +38,12 @@ prepare_payable_call(
   owner_binding_version, task_authorization_id, logical_call_id,
   native_body_hash, bid_revision, offer_id, expected_offer_revision,
   service_cap_nano_usd, provider_cap_micro_usd, platform_meter_ref,
-  principal_yocto_near, maximum_fee_yocto_near, fx_quote_ref,
-  payment_deadline, latest_admission, task_deadline
+  principal_yocto_near, fx_quote_ref,
+  sponsor_policy_version, sponsor_operation_id,
+  payment_start_deadline, credential_expires_at, latest_admission, task_deadline
 ) -> original_result | {order_ref, supply_lease, task_reservation,
-                       frozen_terms_hash, challenge_record}
+                       sponsorship_reservation, frozen_terms_hash,
+                       challenge_record}
 
 record_native_payment_presentation(order_ref, credential_bytes, hash)
   -> durable_journal_ref
@@ -58,7 +66,10 @@ confirm_original_refund(operation_id, final_native_movement)
 `prepare_payable_call` must run under one logical writer ordering the original
 agent wallet fence, task budget reservation and real supply lease. It rechecks
 current owner/task/native permissions, immutable body, aggregate limits, actual
-native balance/gas and deadlines. Persist before exposing the 402. If existing
+agent spendable native principal, project sponsorship availability and separate
+new-payment/admission deadlines. Reserve project gas operational allowance
+separately from the buyer's principal; it cannot expand the buyer's debit.
+Persist before exposing the 402. If existing
 owning stores cannot compose this command, extend them; a best-effort sequence
 of HTTP calls is not an implementation. Lease release and money obligations
 must remain independently recoverable.
@@ -93,15 +104,42 @@ Owner wallet binding and task authorization versions are part of every command.
 The soft 25% future reserve cannot release hard reservations. Querying balance,
 then sending without a serialized reserve is invalid.
 
-The wallet route must accept an immutable operation containing network,
-merchant, original amount, hard maximum total native debit, expiry, native
-policy/grant revision and original idempotency key. It must enforce the fee
-authorization before signing, and expose original-operation recovery. The
-unmodified Agent API SDK 0.9.1 transfer interface lacks that hard fee bound;
-the project executor must reject activation rather than issue an unbounded
-request and detect overspend later. See F1 in the P0 contract.
+The wallet route accepts an immutable operation containing network, original
+agent principal payer, merchant, exact amount/hard principal cap, new-operation
+deadline, native policy/grant revision and original idempotency key. It associates
+a project sponsorship operation and exposes original signed-action/transaction
+recovery. No newly created operation may pass an expired procurement window.
+Recovery of the original signed/dispatched/unknown operation can continue after
+that window; it does not authorize a second principal transfer.
+
+The sponsor separately owns fee-payer identity, project funding/operational
+allowance, relay parameters, its original transaction mapping and actual gas
+cost. No additional fee debit/advance by the agent is allowed. Sponsor failure
+cannot switch the route back to an agent-paid gas transfer. A configured fee
+estimate is not a protocol hard cap. Keep project expenses outside the buyer
+cash balance, task authorization and principal conservation equation.
+
+If the route delegates execution, verify original agent authorization, nonce,
+inner transfer/merchant receipt and project fee payer; outer relayer signer or
+hash alone cannot establish the principal payer. Version the method/route and
+evidence schema. The old `nativeNearTransfer`/plain-Transfer verifier is not a
+sponsored implementation; NEP-413 cannot stand in for a delegated signature.
+See superseded F1 and current G1 in the P0 contract.
+
+Order/MPP expiry and chain validity are distinct. Continue to verify the chain's
+nonce/validity rules, but do not require its expiry to equal quote/task wall time.
+Known unsigned/unsent operations may close under the original fence; signed,
+possibly sent and unknown operations retain principal and sponsorship liability.
+Once admission is no longer valid, confirmed money cannot revive the old order:
+preserve actual movement evidence and queue a full principal refund. Already
+admitted executions retain their original recovery/adjudication semantics.
 
 ## Refund and reconciliation writer
+
+Project pays inference payment and service-refund gas, including gas for failed
+or late payments; do not reduce the agent's refund or debit another gas amount.
+Record original sponsorship/send references and actual project fees separately
+from `P/C/H/W/R`. Agent grant revocation does not cancel merchant refund duty.
 
 Under the original order lock, move eligible `H` to `W` and reserve an immutable
 refund operation, maximum amount, original merchant sender and versioned agent
@@ -124,5 +162,9 @@ spend ingress, task/wallet contention, real pre-payment supply lease and
 admission race, rollback/COMMIT ACK recovery, projection lag, native body/tool
 fingerprint enforcement, expiry reconciliation, merchant refund outbox and
 original transaction recovery. The P0 harness passes none of these as a
-production integration claim. Native wallet fee enforcement is an additional
-entry gate; P1 can progress with controlled receipts while that gate is closed.
+production integration claim. Under the amended contract, G1 requires the
+selected sponsored route to prove agent principal/project gas separation and
+original-operation/late-payment recovery. P1 must include controlled sponsor
+outages, unknown sends, expiry and late full-refund cases; fixtures do not pass
+the live-route gate. Historical F1 no longer describes the selected product
+contract, and changing this spec does not retroactively accept new code.

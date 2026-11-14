@@ -10,6 +10,7 @@ publish = false
 [workspace]
 
 [dependencies]
+bitrouter-ai = { git = "https://github.com/bitrouter/bitrouter.git", rev = "f206ca9a6f472b079167c9992c1c1ce1688725af" }
 bitrouter-cloud = { git = "https://github.com/bitrouter/bitrouter-cloud.git", rev = "244177cafa26e8c8b001e61297cf4e7f89ac8de9" }
 bitrouter-market = { git = "https://github.com/bitrouter/bitrouter-cloud.git", rev = "244177cafa26e8c8b001e61297cf4e7f89ac8de9" }
 anyhow = "1"

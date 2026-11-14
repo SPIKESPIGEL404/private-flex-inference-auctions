@@ -80,6 +80,29 @@ See the [implementation and configuration](docs/market-nearintents-charge.md),
 [acceptance limits](docs/acceptance/2026-11-13-nearintents-charge.md).
 Real settlement, refunds and deployment of the new adapter remain unaccepted.
 
+## Agent native MPP — controlled Phase 1
+
+The P1 integration serves `/v1/chat/completions` through an authenticated MPP
+Proxy. One controlled agent purchases one native Market execution, with native
+NEAR principal attributed to the agent and payment/refund gas to the project.
+The original Market PostgreSQL ledger, Redis projection, admission, execution
+and usage settlement remain authoritative. JSON and SSE use the same original
+execution on replay.
+
+```bash
+bash scripts/accept-agent-mpp-p1.sh
+```
+
+Requires Node >=24, Rust, PostgreSQL and Redis command-line tools. Uses a separate
+`crates/private-market-p1` manifest and pinned owning-source patch; it does not
+modify Cargo's shared checkout. The NEAR chain, delegated signer/sponsor and
+single-slot seller are explicit local fixtures. It sends no real transactions
+or provider requests. Real sponsorship qualification G1 stays closed. Browser
+funding, tool continuation and multiple agents belong to P2/P3.
+
+See the [P1 implementation](docs/agent-mpp-p1.md) and
+[acceptance record](docs/acceptance/2026-11-14-agent-mpp-p1.md).
+
 ## Historical scheduler experiment
 
 The original scheduler, fixtures and phase-one through phase-four evidence remain available as an independent experiment. Its Chutes evidence applies to that scheduler configuration. Start with the [historical overview](docs/scheduler-experiment.md), [scheduler spec](docs/specs/2026-11-02-external-prefill-gating-scheduler.md), and [phase-four report](docs/acceptance/2026-11-02-phase4.md).

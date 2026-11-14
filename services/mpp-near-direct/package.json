@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
-  "scripts": { "test": "node --test test/*.test.mjs" },
-  "dependencies": { "mppx": "0.17.0", "bs58": "6.0.0", "@near-intents-agent-api/sdk": "0.9.1" },
+  "scripts": { "test": "node --test test/*.test.mjs", "test:p1": "node --test test/*.test.mjs p1/test/*.test.mjs" },
+  "dependencies": { "mppx": "0.17.0", "bs58": "6.0.0", "@near-intents-agent-api/sdk": "0.9.1", "pg": "8.23.1" },
   "devDependencies": { "ajv": "8.20.0" }
 }

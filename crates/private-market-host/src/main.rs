@@ -100,7 +100,8 @@ async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Res
         input.validate()?;
     }
     let procurement_config = procurement::configuration(registration.is_some())?;
-    let initial_cash = if procurement_config.is_some() {
+    let direct_p1 = direct_p1_enabled(registration.is_some())?;
+    let initial_cash = if procurement_config.is_some() || direct_p1 {
         0
     } else {
         CASH
@@ -267,6 +268,7 @@ async fn serve(dir: &Path) -> Result<()> {
         "catalog must belong to this state directory"
     );
     let is_live = state.registration_sha256.is_some();
+    direct_p1_enabled(is_live)?;
     let procurement_config = procurement::configuration(is_live)?;
     if is_live {
         ensure!(
@@ -447,6 +449,30 @@ async fn main() -> Result<()> {
         "usage: private-market-host <init|serve|init-live|qualify-live|validate-live> <state-or-profile> [input]"
     );
     match (args[1].as_str(), args.len()) {
+        ("quote-native-p1", 3) => {
+            use std::io::Read;
+            use bitrouter_cloud::platform_billing::{meter, money::MicroUsd};
+            use bitrouter_market::{cost::base_charge_cap, order::{RequestSize, TokenRates}};
+            ensure!(direct_p1_enabled(false)?, "controlled P1 mode required");
+            let mut bytes = String::new();
+            std::io::stdin().take(131073).read_to_string(&mut bytes)?;
+            ensure!(bytes.len() <= 131072, "native body too large");
+            let body: Value = serde_json::from_str(&bytes)?;
+            ensure!(body["model"] == MODEL && body["max_completion_tokens"] == 64
+                && body.get("tools").is_none() && body.get("tool_choice").is_none(), "P1 controlled text capability required");
+            let (_, native) = bitrouter_cloud::market::inference::DeliveryOptions::parse(meter::ApiProtocol::ChatCompletions, &body)?;
+            let _: bitrouter_ai::protocol::chat_completions::ChatRequest = serde_json::from_value(native.clone())?;
+            let snapshot = meter::freeze(meter::ApiProtocol::ChatCompletions, &native)?;
+            bitrouter_cloud::market::inference::output_contract(meter::ApiProtocol::ChatCompletions, &body)?;
+            let provider = base_charge_cap(&catalog::spec("chat_completions"), RequestSize { input_tokens:2,max_output_tokens:64 },
+                TokenRates {input:1_000_000,cache_input:1_000_000,output:11_000_000})?;
+            let platform = MicroUsd::from_input_tokens(u128::from(snapshot.billable_input_tokens)).map_err(anyhow::Error::msg)?.value();
+            println!("{}", json!({"provider_micro":provider.0,"platform_micro":platform,"total_micro":provider.0 + u64::try_from(platform)?,
+                "meter":snapshot,"mode":"controlled","input_tokens":2,"rates":{"input":1000000,"cache_input":1000000,"output":11000000},
+                "expected_purchase":{"service_type":"on_demand","provider_cap":provider.0,"total_cap":((provider.0+u64::try_from(platform)?)*1000).to_string(),
+                    "wait_budget_ms":null,"max_attempts":1,"options":[{"id":1,"model_ref":MODEL,"providers":[7]}]}}));
+            Ok(())
+        }
         ("init", 3) => initialize(Path::new(&args[2]), None).await,
         ("init-live", 4) => {
             initialize(Path::new(&args[2]), Some(live::read(Path::new(&args[3]))?)).await
@@ -468,5 +494,17 @@ async fn main() -> Result<()> {
         }
         ("serve", 3) => serve(Path::new(&args[2])).await,
         _ => anyhow::bail!("expected init or serve"),
+    }
+}
+
+fn direct_p1_enabled(is_live: bool) -> Result<bool> {
+    match env::var("PRIVATE_MARKET_NEAR_DIRECT_P1").as_deref() {
+        Err(env::VarError::NotPresent) => Ok(false),
+        Ok("controlled") => {
+            ensure!(!is_live && env::var("PRIVATE_MARKET_MPP_METHOD").is_err()
+                && env::var("PRIVATE_MARKET_MPP_TEST_API").is_err(), "controlled P1 cannot enable live or other funding paths");
+            Ok(true)
+        }
+        _ => anyhow::bail!("PRIVATE_MARKET_NEAR_DIRECT_P1 must be absent or controlled"),
     }
 }
