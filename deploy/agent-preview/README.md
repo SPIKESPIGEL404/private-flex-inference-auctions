@@ -1,10 +1,13 @@
 # Controlled agent preview on an existing CVM
 
 This sidecar publishes P2's browser, local scripted seller/wallet, native Market,
-PostgreSQL and Redis. It makes no real chain or provider calls and accepts no
+PostgreSQL 18 (required by the current billing audit migration) and Redis. It makes no real chain or provider calls and accepts no
 live credentials. The existing Chutes/NEAR gateway image, ports, mounted data,
 pre-launch prefix and sealed secret names are preserved by the release overlay.
 
+The checked-in PGDG public signing key has fingerprint
+`B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8`, as published in the
+[official Debian installation guide](https://www.postgresql.org/download/linux/debian/).
 Prepare the pinned source and build from the repository root:
 
 ```sh

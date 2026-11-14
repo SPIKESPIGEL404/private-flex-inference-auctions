@@ -28,7 +28,10 @@ COPY clients/agent-playground ./
 RUN npm run build
 
 FROM ${NODE_IMAGE} AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends python3 postgresql-15 redis-server ca-certificates \
+COPY deploy/agent-preview/pgdg.asc /usr/share/keyrings/pgdg.asc
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && printf 'deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main\n' > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends python3 postgresql-18 redis-server \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 preview && useradd --uid 10001 --gid 10001 --create-home preview \
     && mkdir /data && chown preview:preview /data
@@ -38,7 +41,7 @@ COPY --from=assets /app/clients/agent-playground/dist ./clients/agent-playground
 COPY services/mpp-near-direct ./services/mpp-near-direct
 COPY --from=assets /app/services/mpp-near-direct/node_modules ./services/mpp-near-direct/node_modules
 COPY scripts/*.py ./scripts/
-ENV PATH=/usr/lib/postgresql/15/bin:$PATH P1_NODE=/usr/local/bin/node PYTHONDONTWRITEBYTECODE=1 NODE_OPTIONS=--max-old-space-size=384
+ENV PATH=/usr/lib/postgresql/18/bin:$PATH P1_NODE=/usr/local/bin/node PYTHONDONTWRITEBYTECODE=1 NODE_OPTIONS=--max-old-space-size=384
 USER preview:preview
 EXPOSE 3000
 HEALTHCHECK --start-period=120s --interval=15s --timeout=5s CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(async r=>{let j=await r.json();if(!r.ok||!j.ready||j.realPayment!==false)process.exit(1)}).catch(()=>process.exit(1))"
