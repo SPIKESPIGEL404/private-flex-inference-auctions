@@ -84,3 +84,46 @@ Future identity, budget and order authority stay in the existing Phala Market.
 Browser storage holds the buyer's local experience, not authoritative funds.
 Seller persistence must preserve explicit validity/capacity/authorization;
 remaining registered does not imply unlimited free replenishment.
+
+## Provider statistics presentation
+
+A bottom pane previews revenue/GPU-hour, estimated margin/GPU-hour and SLO
+goodput/GPU, with earnings/cache/latency/trust views. It shares the terminal's
+monochrome styling and edge-to-edge separators; header and pane-label controls
+collapse it without unmounting buyer terminals. Charts use solid current-mode
+and dashed baseline lines; four experiment modes illustrate the eventual paired
+baseline/matching/priority/combined comparison.
+
+The current one-second feed is explicitly simulated. Its sample GPU cost,
+baseline and uplift are not real experiment results, and there is no relationship
+between its values and the number/activity of buyer terminals. Missing evidence
+stays unavailable. Actual source aggregation, seller settlement/cost attribution,
+histogram quantiles and experiment provenance must be implemented before a live
+data source is presented as measured.
+
+## Agreed next step: MPP inference procurement
+
+The Market will expose the paid inference endpoint. Each buyer's hosted client
+will handle `402` challenges, validate the merchant and quote against that
+buyer's budget, pay with its own Agent API grant, and retry the original request
+with a payment credential. Grants stay on the buyer backend; the merchant and
+model receive no grant token. The initial model call uses the same path as later
+tool-result and continuation calls.
+
+The intended payment method uses ordinary Confidential Intents transfers to the
+reviewed Market payee and passes an Agent API payment receipt. Both client and
+Market must implement that method. The existing
+[`nearintents.charge`](https://mpp.dev/payment-methods/nearintents) method instead
+uses a 1Click deposit address and source-chain transaction hash; its credential
+is not interchangeable with an Agent API private receipt.
+
+One charge prepays a bounded inference order. The Market must authenticate the
+order, bind payment to its request and unique reference, verify the receipt and
+trusted checkpoint, reject replay, and admit only that order's funded execution.
+Final metered usage determines the charge and any refund to the frozen buyer
+wallet. Unknown execution outcomes retain their outstanding obligations; they
+do not authorize another payment, another dispatch or an automatic refund.
+
+This is the approved next implementation direction, not functionality shipped
+by the onboarding PR. MPP dependencies, payment verification, order-scoped funds,
+real inference dispatch and refunds remain outside this batch.

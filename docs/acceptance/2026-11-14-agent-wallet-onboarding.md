@@ -75,3 +75,21 @@ Grant secrets are absent from response DTOs and plaintext database/WAL pages.
   Existing account-credit fixtures are not a replacement for that boundary.
 - No deployment, public URL, DNS change, new TEE claim or historical acceptance
   promotion is included. Use one gateway process with persistent encrypted state.
+
+## Integration for the PR to main
+
+The main-targeted branch incorporates PR #4 through
+`69be96401418775edf4bd46d084db1b1f987c78d`, including its provider statistics pane.
+Statistics remain explicitly simulated and independent of wallet balances.
+The wallet-mode Run gate and authenticated runtime namespaces are preserved.
+
+Clean installs, all 15 gateway tests and the TypeScript/Vite build passed again
+after integration. A controlled production-build browser check restored two
+wallets, preserved pane identities through statistics collapse/expand, checked
+390×844 and 320×844 layouts, and confirmed disabled funding and procurement.
+The narrow header's help-button positioning now applies only to keyboard help,
+so it does not overlap the wallet-disconnect control. No unhandled browser error
+was observed. These checks still use fixture balances and no mainnet payments.
+
+The design document records the next MPP procurement contract. This PR does not
+implement that contract or introduce an MPP dependency.
