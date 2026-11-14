@@ -35,6 +35,21 @@ fn ms() -> UnixMillis {
     UnixMillis(chrono::Utc::now().timestamp_millis() as u64)
 }
 
+fn preview_validity_ms(value: Option<&str>, controlled_p2: bool) -> Result<u64> {
+    let Some(value) = value else {
+        return Ok(1_800_000);
+    };
+    ensure!(controlled_p2, "preview validity requires controlled P2");
+    let ttl: u64 = value
+        .parse()
+        .context("invalid controlled preview validity")?;
+    ensure!(
+        (1_800_000..=604_800_000).contains(&ttl),
+        "preview validity must be 30 minutes to 7 days"
+    );
+    Ok(ttl)
+}
+
 /// Lab path: wall-clock schedule (unchanged).
 pub async fn create(
     db: sea_orm::DatabaseConnection,
@@ -42,15 +57,38 @@ pub async fn create(
     seller_url: &str,
 ) -> Result<Value> {
     let at = ms();
+    let ttl = preview_validity_ms(
+        std::env::var("PRIVATE_MARKET_P2_PREVIEW_TTL_MS")
+            .ok()
+            .as_deref(),
+        std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled"),
+    )?;
     create_with_schedule(
         db,
         tokenizer_url,
         seller_url,
         at,
-        UnixMillis(at.0 + 1_800_000),
+        UnixMillis(at.0 + ttl),
         true,
     )
     .await
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    #[test]
+    fn extended_validity_is_bounded_and_requires_the_controlled_fixture() {
+        assert_eq!(preview_validity_ms(None, false).unwrap(), 1_800_000);
+        assert_eq!(
+            preview_validity_ms(Some("604800000"), true).unwrap(),
+            604_800_000
+        );
+        for value in ["0", "1799999", "604800001", "-1", "18446744073709551616"] {
+            assert!(preview_validity_ms(Some(value), true).is_err());
+        }
+        assert!(preview_validity_ms(Some("604800000"), false).is_err());
+    }
 }
 
 /// Deploy path: frozen past `at`, far-future `until`. Deterministic given an

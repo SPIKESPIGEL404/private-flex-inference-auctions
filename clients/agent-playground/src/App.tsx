@@ -28,7 +28,7 @@ function Pane({agent,refresh,park}:{agent:Agent;refresh:()=>void;park:()=>void})
  const remove=async()=>{if(agent.state==='complete'||await pause())park();};
  return <section className="pane" aria-label={agent.agent_id+'任务'}>
   <div className="pane-title"><strong>{agent.agent_id}</strong><span>{detail?.state??agent.state}</span><button onClick={()=>void remove()} aria-label={'停放'+agent.agent_id}>−</button></div>
-  <div className="identity">{agent.payer} · NEAR 本金 · 项目赞助 gas</div>
+  <div className="identity">{agent.payer} · 虚拟 NEAR 本金与 gas</div>
   <div className="meter"><span>已扣 {usd(agent.spent_nano)}</span><span>占用 {usd(agent.reserved_nano)}</span><span>预算 {usd(agent.budget_nano)}</span></div>
   <div className="terminal">{core?<Terminal core={core} autoResize onReady={wt=>{terminal.current=wt;setTerminalReady(true);}} onData={()=>{}} scrollbackLines={1000}/>:<p>加载终端…</p>}</div>
   <div className="actions"><button disabled={busy||agent.state==='complete'} onClick={()=>void start()}>{agent.paused?'恢复任务':'开始 / 恢复'}</button><button disabled={agent.paused||agent.state==='complete'} onClick={()=>void pause()}>暂停</button>
@@ -47,10 +47,10 @@ export default function App(){
  useEffect(refresh,[refresh]);
  useEffect(()=>{if(!authenticated)return;const t=setInterval(refresh,1000);return()=>clearInterval(t);},[authenticated,refresh]);
  const logout=async()=>{authEpoch.current++;try{await api('logout',{});authEpoch.current++;setOwnerEpoch(n=>n+1);setAgents(null);setParked([]);setNewTask(false);setPrompt('');setChosenAgent('agent-1');setError('');}catch(e){setError((e as Error).message);}};
- return <main><header><h1>Private Market <span>agents</span></h1><a href="/proposal" style={{color:'#bee2aa',marginLeft:'auto',marginRight:20}}>proposal ↗</a>{agents?<button onClick={()=>void logout()}>退出 / 切换 owner</button>:null}</header>
+ return <main><header><h1>Private Market <span>agents · 受控演示</span></h1><a href="/proposal" style={{color:'#bee2aa',marginLeft:'auto',marginRight:20}}>proposal ↗</a>{agents?<button onClick={()=>void logout()}>退出 / 切换 owner</button>:null}</header>
   <div className="notice">受控 P2 · 真实 fx、工具工作区与 Market 账本；模型响应和 NEAR 回执为本地 fixtures，未发生真实付款。</div>
   {error?<p className="error" role="alert">{error}</p>:null}
-  {!agents?<form className="login" onSubmit={e=>{e.preventDefault();authEpoch.current++;setError('');void api('login',{code}).then(()=>{authEpoch.current++;setCode('');setParked([]);setNewTask(false);setPrompt('');setChosenAgent('agent-1');setOwnerEpoch(n=>n+1);refresh();}).catch(e=>setError(e.message));}}><h2>打开受控工作区</h2><label>访问码<input type="password" autoComplete="off" value={code} onChange={e=>setCode(e.target.value)} required/></label><button type="submit">进入</button><p>真实钱包连接、注资与赞助路线需另行 G1/P3 验收。</p></form>
+  {!agents?<form className="login" onSubmit={e=>{e.preventDefault();authEpoch.current++;setError('');void api('login',{code}).then(()=>{authEpoch.current++;setCode('');setParked([]);setNewTask(false);setPrompt('');setChosenAgent('agent-1');setOwnerEpoch(n=>n+1);refresh();}).catch(e=>setError(e.message));}}><h2>打开受控工作区</h2><label>访问码<input type="password" autoComplete="off" value={code} onChange={e=>setCode(e.target.value)} required/></label><button type="submit">进入</button><p>此环境使用脚本模型和虚拟资金，不会发生真实付款。</p></form>
    :<><nav><button onClick={()=>setNewTask(v=>!v)}>新任务</button>{agents.filter(a=>parked.includes(a.id)).map(a=><button key={a.id} onClick={()=>setParked(v=>v.filter(id=>id!==a.id))}>恢复 {a.agent_id} pane</button>)}</nav>
     {newTask?<form className="new-task" onSubmit={e=>{e.preventDefault();void api('agents/'+chosenAgent+'/tasks',{prompt,budgetNano:'10000000',preference:'balanced'}).then(()=>{setPrompt('');setNewTask(false);refresh();}).catch(e=>setError(e.message));}}><label>agent <select value={chosenAgent} onChange={e=>setChosenAgent(e.target.value)}><option>agent-1</option><option>agent-2</option></select></label><label>任务 <input value={prompt} maxLength={1000} required onChange={e=>setPrompt(e.target.value)}/></label><button>创建 · $0.01 上限</button></form>:null}
     <div className="grid" key={ownerEpoch}>{agents.filter(a=>!parked.includes(a.id)).map(a=><Pane key={a.id} agent={a} refresh={refresh} park={()=>setParked(v=>[...v,a.id])}/>)}</div></>}
