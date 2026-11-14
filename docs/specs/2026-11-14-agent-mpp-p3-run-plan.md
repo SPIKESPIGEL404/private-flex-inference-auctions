@@ -3,7 +3,10 @@
 Status: **NOT_ACCEPTED**. On 2026-11-14 the user selected ordinary agent wallets,
 agent-paid principal and payment gas, native NEAR refunds, and the complete P3
 payment loop as the acceptance requirement for baseline B. Agent API credentials
-are not a prerequisite. Merge and deployment wait for that acceptance.
+are not a prerequisite. The user subsequently selected testnet for MPP tests
+and authorized releasing PR #17's current verified components. That release
+retains the controlled public workspace; enabling native-funded B still requires
+the full integration and acceptance below.
 
 ## Payment and custody
 
@@ -108,12 +111,19 @@ recovery without duplicate purchases, model execution or refunds. Browser
 closure cannot discard a refund obligation.
 
 Independent gpt-6-astra review checks the actual task artifacts and financial
-chain. Only then merge to main and deploy through Phala CLI, preserving existing
+chain before enabling native-funded B. Release through Phala CLI preserves existing
 CVM ownership, sealed environment, volumes and custom-domain services.
 
 ## Current evidence boundary
 
-The ordinary native sender and FINAL principal/gas verifier are component work.
+The ordinary native sender and FINAL principal/gas verifier now also have real
+testnet protocol acceptance: two agent payments and partial refunds, plus one
+expired unfulfilled order refunded in full. Independent Astra checks verified
+the six relevant transactions without the primary runner's persistent cache.
+Metering in this protocol test is deterministic, and its signer is a local test
+executor. It does not establish browser-wallet or real-inference acceptance.
+
+The sender and verifier remain component work for the B runtime.
 They are not yet the browser → MPP → original Market → provider → native refund
 integration. Signed USD credit receipts and readiness checks remain useful lower
 layers. Neither component tests nor test-credit settlement satisfy real P3.

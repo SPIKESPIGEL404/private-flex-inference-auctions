@@ -17,13 +17,16 @@ expired observations are ineligible. Both client and Market gate dispatch;
 Market checks before any ledger reservation. Public UI reads a cached, expiring
 snapshot. Neither UI polling nor a readiness read starts a GPU. An explicit
 operator warmup remains a potentially billable action. Infinite background
-warmup has been removed.
+warmup has been removed. Periodic observations retain evidence in memory; actual
+inference retains separate durable audit evidence. This bounds monitoring disk
+use while preserving paid-call evidence.
 
 ## Local acceptance
 
 - 26 comparison Node tests pass, including actual receipt arithmetic, late
   reconciliation and warming supply with no purchase claim.
-- 30 Chutes Python tests pass, including readiness freshness and provider usage
+- 31 Chutes Python tests pass, including readiness freshness, monitoring evidence
+  retention and provider usage
   decimal arithmetic. Provider usage is explicitly not a private GPU-time invoice.
 - 13 P2 Rust unit tests pass.
 - The two-Market integration passes with real PG/Redis, signed encrypted
@@ -32,7 +35,7 @@ warmup has been removed.
   no submit effect, no upstream call and no balance change. Hardware and upstream
   inference in this test remain controlled fixtures.
 - Two baseline deployment-overlay tests, three original preview-overlay tests,
-  and four edge tests pass. Ledgers, owner configuration, sealed environment
+  and five edge tests pass. Ledgers, owner configuration, sealed environment
   settings and ingress services are preserved.
 - Frontend build passes. Live Chutes metadata, source pin and CPU/GPU preflight
   have been checked read-only; this preflight invokes no model.
@@ -60,6 +63,9 @@ Release provenance must identify these components separately.
 The deployment overlay preserves existing domain ingress routing, certificate
 bindings and diagnostics. Existing domain TLS faults are not evidence that the
 retained Phala endpoint or the independently verified Market path is unavailable.
+The preview additionally joins the existing default Docker network to read the
+public Market supply endpoint. Credentials and persistent data volumes remain
+unshared; this is a deliberate network change, not unchanged network isolation.
 
 ## Financial evidence limits
 

@@ -167,6 +167,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         if path=='/buyer-api/supply': return self.supply()
+        if path=='/buyer-api/attestation':
+            if self.command!='GET': self.send_error(405); return
+            # This controlled workspace has no configured gateway verifier. The
+            # real B operator client verifies its separate attested endpoint.
+            value={'status':'not_checked','compose_hash':None,'catalog_policy_digest':None,'workload_keyset_digest':None,'tls_pinned':None,'quote_type':None,'checked_at':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())}
+            raw=json.dumps(value).encode();self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw);return
         if not (path in ['/', '/proposal', '/proposal/', '/healthz', '/v1/chat/completions']
                 or path.startswith(('/assets/', '/buyer-api/'))):
             self.send_error(404)

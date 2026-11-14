@@ -263,7 +263,16 @@ class ChutesGateway:
     async def bounded_json(self, url, *, method="GET", body=None, authenticated=False):
         return json.loads(await self.bounded_bytes(url, method=method, body=body, authenticated=authenticated))
 
-    async def verify(self):
+    def evidence_session(self, event, *, persist_evidence=True):
+        session_id = sha(canonical(event))
+        if persist_evidence:
+            path = self.evidence_dir / (session_id + ".json")
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as output:
+                output.write(canonical(event)); output.flush(); os.fsync(output.fileno())
+        return session_id
+
+    async def verify(self, *, persist_evidence=True):
         metadata = await self.bounded_json(f"{API}/chutes/{CHUTE_ID}", authenticated=True)
         require(metadata.get("chute_id") == CHUTE_ID and metadata.get("tee") is True
             and metadata.get("public") is False and metadata.get("disabled") is False
@@ -323,11 +332,7 @@ class ChutesGateway:
                 "model_identity_source": "authenticated Chutes control-plane source/version/revision/image pins",
                 "model_weights_hardware_proven": False, "cpu_gpu_session_topology_proven": False,
                 "evidence": raw, "e2ee_public_key": instance["e2e_pubkey"], "nras_appraisal": appraisal}
-            session_id = sha(canonical(event))
-            path = self.evidence_dir / (session_id + ".json")
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(fd, "wb") as output:
-                output.write(canonical(event)); output.flush(); os.fsync(output.fileno())
+            session_id = self.evidence_session(event, persist_evidence=persist_evidence)
             verified.append((instance, session_id))
         require(verified, "no verified Chutes instance")
         require(0 < discovery.get("nonce_expires_in", 0) <= 75

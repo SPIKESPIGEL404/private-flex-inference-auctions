@@ -39,7 +39,10 @@ class SupplyMonitor:
                     if not active:
                         value = self.base('warming' if instances else 'offline', now)
                     else:
-                        instance, session = await self.gateway.verify()
+                        # Polling proves fresh availability but must not append
+                        # audit files forever. Actual chat verifies again and
+                        # retains its own durable evidence before invocation.
+                        instance, session = await self.gateway.verify(persist_evidence=False)
                         if instance['instance_id'] not in {i.get('instance_id') for i in active}:
                             raise ValueError('verified instance differs from active supply')
                         value = self.base('ready', self.clock())

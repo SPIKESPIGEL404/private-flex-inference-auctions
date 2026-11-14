@@ -21,6 +21,17 @@ spec.loader.exec_module(g)
 
 
 class GatewayTests(unittest.TestCase):
+    def test_readiness_evidence_stays_in_memory_but_inference_audit_is_retained(self):
+        with tempfile.TemporaryDirectory() as directory:
+            gateway = g.ChutesGateway({}, None, 'controlled', 'controlled', directory)
+            for nonce in range(100):
+                event = {'nonce': nonce, 'source': 'verified-readiness'}
+                self.assertEqual(gateway.evidence_session(event, persist_evidence=False), g.sha(g.canonical(event)))
+            self.assertEqual(list(Path(directory).iterdir()), [])
+            event = {'nonce': 'actual-inference-evidence'}
+            session = gateway.evidence_session(event)
+            self.assertEqual((Path(directory) / (session + '.json')).read_bytes(), g.canonical(event))
+
     def test_real_mlkem_and_aead_roundtrip_rejects_modified_ciphertext(self):
         pk, sk = g.kem.keygen()
         body = {"model": g.NATIVE_MODEL, "stream": True}

@@ -1,6 +1,6 @@
 # Ordinary-wallet P3 components
 
-Status: **NOT_ACCEPTED — no live proxy or browser payment integration yet.**
+Status: **testnet protocol accepted; native-funded B/browser integration NOT_ACCEPTED.**
 
 `native-verification.mjs` independently verifies an ordinary agent's original
 MPP Transfer and derives actual payment gas from the same complete FINAL
@@ -18,6 +18,18 @@ directory. The component tests cover a lost ACK, a fresh Node process reopening
 SQLite, concurrent preparation, stale RPC nonce, key/budget changes, failed
 evidence, pending-account fences and read-only funding checks. They do not
 constitute real-provider or real-payment acceptance.
+
+The explicit `testnet-mpp.mjs <private-directory> <stable-case-id>` harness runs
+the official HTTP MPP SDK with real testnet native payments and merchant refunds.
+`testnet-reconcile.mjs <private-directory>` independently refunds expired,
+unfulfilled cases using their original payment and refund journals. Neither
+script connects the original Market cash authority or a real inference model.
+Only testnet credentials are accepted. Historical FINAL RPC snapshots may be
+cached for repeated verification; current account balances and unresolved
+transactions are never cached. Send calls have a timeout and no hidden retry.
+
+The recorded real testnet run and independent no-cache reviews are under
+`docs/acceptance/2026-11-14-testnet-mpp*`.
 
 The original Market earmarked-money admission/settlement hooks, shared browser
 payment/withdrawal fence, real tool qualification, task transport and merchant

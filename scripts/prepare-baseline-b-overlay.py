@@ -68,5 +68,6 @@ def prepare(before, market, ui, seed, revision):
     assert all(v in service['volumes'] for v in original['services']['market']['volumes'] if ':/' in v and '/opt/market/runtime_chutes.py' not in v)
     assert owner['AGENT_PREVIEW_OWNER_HASH']==app['environment']['AGENT_PREVIEW_OWNER_HASH']
     return after,{'version':1,'persistentVolumesUnchanged':True,'sealedEnvironmentUnchanged':True,'ingressServicesUnchanged':True,'previewOwnerUnchanged':True,
+        'previewNetworkChange':'adds existing default network for read-only market supply observation; private credentials and data volumes remain unshared',
         'originalRuntimeRetainedAt':'/data/chutes-run','newRuntime':'/data/baseline-b-v2','marketId':plan['market_id'],
         'expectedComposeHash':hashlib.sha256(json.dumps(after,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()}

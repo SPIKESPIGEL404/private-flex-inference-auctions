@@ -4,10 +4,11 @@ from readiness import SupplyMonitor
 
 class Gateway:
     config={'model_revision':'pinned'}
-    def __init__(self):self.instances=[];self.verifies=0;self.fail=False;self.reads=0
+    def __init__(self):self.instances=[];self.verifies=0;self.fail=False;self.reads=0;self.persistence=[]
     async def bounded_json(self,*_,**__):self.reads+=1;return {'instances':self.instances,'disabled':False}
-    async def verify(self):
+    async def verify(self, *, persist_evidence=True):
         self.verifies+=1
+        self.persistence.append(persist_evidence)
         if self.fail:raise RuntimeError('private upstream details')
         return {'instance_id':'one'},'a'*64
 
@@ -25,5 +26,8 @@ class ReadinessTests(unittest.IsolatedAsyncioTestCase):
         now=[100000];gateway=Gateway();gateway.instances=[{'instance_id':'one','active':True,'verified':True}]
         monitor=SupplyMonitor(gateway,lambda:now[0]);ready=await monitor.refresh()
         self.assertTrue(ready['ready']);self.assertEqual(gateway.verifies,1)
+        self.assertEqual(gateway.persistence,[False])
+        for _ in range(20): await monitor.refresh()
+        self.assertEqual(gateway.persistence,[False]*21)
         now[0]+=45001;self.assertEqual(monitor.snapshot()['state'],'unknown')
         gateway.fail=True;failed=await monitor.refresh();self.assertEqual(failed['state'],'unavailable');self.assertNotIn('private',str(failed))
