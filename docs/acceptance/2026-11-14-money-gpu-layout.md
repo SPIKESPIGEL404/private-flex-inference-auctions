@@ -27,6 +27,9 @@ Validation at the source hashes in the adjacent evidence record:
 - Real Chutes-backed telemetry was observed on the integrated localhost page.
   The engine was idle: actual gauges/rates were zero; empty latency/cache-ratio
   windows stayed `—`. Only the existing same-origin telemetry path was used.
+  During final revalidation the upstream changed to HTTP 503; Prometheus marked
+  the target down and the UI correctly changed to unavailable with null current
+  metrics. Earlier live observations do not establish continuing availability.
 - Separate loopback wallet fixtures showed exactly 0.299998 USDT available and
   $0.30 configured task limits, with Spent/Held and seller amounts still `—`.
   Changing selected buyers retained the aggregate. Refresh issued a GET to the
@@ -35,6 +38,10 @@ Validation at the source hashes in the adjacent evidence record:
   overflow. The agent workspace retained a 180px minimum height; short screens
   may scroll vertically. Money cards scroll horizontally on narrow screens.
   Panel collapse/restore retained the original buyer terminal DOM node.
+- Current main (`bcda808`, merged proposal page) was merged into the branch.
+  Root, `/gpu` and `/proposal` routes rendered after resolving their shared
+  entrypoint/static-route changes. Both dedicated routes loaded without terminal
+  WASM. Gateway tests, Money tests and the build passed again after this merge.
 
 This is a local UI release on port 4188. No hosted frontend, wallet funding,
 inference procurement, Chute image/deployment or inference gateway was changed.

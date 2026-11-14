@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-11-14T18:57:30.982455+00:00",
+  "testedSourceCommit": "9c134640515921338843acd1abf67870296da164",
+  "mergedMainCommit": "bcda8081eb208255a0d0b32c772cafec6ec3c14f",
+  "scope": "local integrated Money/GPU dashboard; no hosted rollout",
+  "tests": {
+    "gateway": {
+      "passed": 23,
+      "failed": 0
+    },
+    "money": {
+      "passed": 5,
+      "failed": 0
+    },
+    "productionBuild": "passed after merge"
+  },
+  "browser": {
+    "engineOrigin": "http://127.0.0.1:4188",
+    "walletFixtureOrigin": "http://127.0.0.1:4281",
+    "viewports": [
+      [
+        1440,
+        900
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        320,
+        740
+      ]
+    ],
+    "horizontalPageOverflow": false,
+    "terminalMinimumHeightPx": 180,
+    "terminalNodePreservedOnPanelCollapse": true,
+    "terminalNodePreservedOnGpuExpand": true,
+    "standaloneGpuTerminalWasmRequests": 0,
+    "proposalTerminalWasmRequests": 0,
+    "dedicatedRouteConsoleErrors": 0
+  },
+  "moneyFixture": {
+    "authority": "controlled AgentFixture; no real funds",
+    "available": "0.299998 USDT",
+    "taskLimits": "$0.30",
+    "spent": null,
+    "held": null,
+    "sellerRevenue": null,
+    "gpuCost": null,
+    "refunds": null,
+    "netEarnings": null,
+    "balanceRefreshMethod": "GET",
+    "staleSnapshotShownAsUnavailable": true
+  },
+  "earlierRealEngineObservation": {
+    "observedAt": 1794682358151,
+    "sampledAt": 1794682351037,
+    "state": "live",
+    "epoch": "1794678104.32",
+    "metrics": {
+      "running": 0,
+      "waiting": 0,
+      "kvUsage": 0,
+      "outputTokensPerSecond": 0,
+      "cacheHitRate": null,
+      "ttftP95Ms": null
+    },
+    "note": "Historical observation in this run; not continuous availability evidence"
+  },
+  "latestRealEngineObservation": {
+    "state": "unavailable",
+    "reason": "scrape_failed",
+    "observedAt": 1794682650978,
+    "sampledAt": null,
+    "ageMs": null,
+    "epoch": null,
+    "metrics": {
+      "running": null,
+      "waiting": null,
+      "kvUsage": null,
+      "outputTokensPerSecond": null,
+      "inputTokensPerSecond": null,
+      "cacheHitRate": null,
+      "ttftP95Ms": null,
+      "queueP95Ms": null,
+      "newPrefillTokensPerRequest": null,
+      "preemptionsTotal": null,
+      "completedPerSecond": null
+    }
+  },
+  "prometheusTargets": [
+    {
+      "health": "down",
+      "lastError": "server returned HTTP status 503 Service Unavailable",
+      "lastScrape": "2026-11-14T18:57:26.035872927Z"
+    }
+  ],
+  "externalMutations": {
+    "realInferenceCalls": 0,
+    "realTransfers": 0,
+    "chuteDeployments": 0
+  },
+  "sourceSha256": {
+    "clients/market-playground/src/App.tsx": "f8c20d267698630a1782902e460c580d0eff6026714156d23ffa561caf65b3d3",
+    "clients/market-playground/src/MoneyOverview.tsx": "72755c26fa807df0afb68ac9c1f1ad0674d46432ac7bf74ca4f60a88ebc7c611",
+    "clients/market-playground/src/money.ts": "c7b7d9091569796f30e298fbc728ae9340c73c4ff6b877c2a20a813ef796880a",
+    "clients/market-playground/src/LiveProviderStatistics.tsx": "2a1138126ede60c79414ae31b3c8d2230b4facd676034ddf8d451f890312bd93",
+    "clients/market-playground/src/provider-telemetry.ts": "3a608b4b5b42191c23556f68590fcced95b3dd83c2b322217c413f8bce85d13e",
+    "clients/market-playground/src/main.tsx": "35b131440475683a77124570616fe1ebe882ce845572ec2afd666df4ca3b14f5",
+    "clients/market-playground/src/style.css": "4d722462a2bb281fd817267bd02297516d5643cbaf83dabe1ea3d67d5bcf2481",
+    "clients/market-playground/src/wallet-api.ts": "4152f987e202052cbb59df1bbb4e651d7d867df65416b028194b77de8547e75e",
+    "clients/buyer-gateway/src/onboarding.mjs": "303d46d30de6bd064d497efc20d81500ea0a37c6406880954fe8699bc588fa49",
+    "clients/buyer-gateway/src/server.mjs": "4463fef722c7b6a3d6f45e6e0b1da8a2d795de92e49166be95397b35860af474",
+    "clients/buyer-gateway/src/provider-telemetry.mjs": "c28844eaee9e036f4383c0cba1d09019fbbe9ae41ddbeb1983396544f2e5c325",
+    "clients/market-playground/test/money.test.mjs": "9156f8beba187ef5d930721e1f26cccac243e4d1dc8e163e068cf9e091a9996b",
+    "clients/buyer-gateway/test/onboarding.test.mjs": "a10d49d1949fc71ee3387a6f71fb29de3d62361df16269f4f59f398910e5b8c2"
+  }
+}
