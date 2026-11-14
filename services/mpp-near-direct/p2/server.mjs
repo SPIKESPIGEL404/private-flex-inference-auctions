@@ -71,7 +71,8 @@ export async function start(config){
     res.setHeader('set-cookie','p2_owner='+encodeURIComponent(code)+'; HttpOnly; SameSite=Strict; Path=/');return json(res,200,{mode:'controlled'});
    }
    if(req.method==='GET'&&!req.url.startsWith('/buyer-api/')){
-    const path=resolve(DIST,'.'+(req.url.split('?')[0]==='/'?'/index.html':decodeURIComponent(req.url.split('?')[0])));
+    const pathname=decodeURIComponent(req.url.split('?')[0]);
+    const path=resolve(DIST,'.'+(['/', '/proposal', '/proposal/'].includes(pathname)?'/index.html':pathname));
     requireThat(path.startsWith(resolve(DIST)+'/')&&existsSync(path),'not_found');
     const type={'.html':'text/html','.js':'text/javascript','.css':'text/css','.wasm':'application/wasm','.woff2':'font/woff2'}[extname(path)]??'application/octet-stream';
     res.writeHead(200,{'content-type':type,'cache-control':'no-store'});res.end(readFileSync(path));return;
