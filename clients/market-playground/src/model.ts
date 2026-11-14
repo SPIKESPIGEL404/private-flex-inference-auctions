@@ -47,9 +47,10 @@ function validBuyer(value: unknown): value is Buyer {
     Number.isSafeInteger(b.previewMicros) && b.previewMicros >= 0 && b.previewMicros <= b.budgetMicros &&
     Number.isSafeInteger(b.turns) && b.turns >= 0 && ['complete', 'waiting', 'limit'].includes(b.scenario);
 }
-export function loadBrowserSession(): BrowserSession {
+export const browserSessionKey = (scope?: string) => scope === undefined ? sessionConfigKey : `${sessionConfigKey}:${scope}`;
+export function loadBrowserSession(scope?: string): BrowserSession {
   try {
-    const value = JSON.parse(sessionStorage.getItem(sessionConfigKey) ?? 'null');
+    const value = JSON.parse(sessionStorage.getItem(browserSessionKey(scope)) ?? 'null');
     if (value && Array.isArray(value.buyers) && Array.isArray(value.parked)) {
       const all = [...value.buyers, ...value.parked];
       if (value.buyers.length >= 1 && all.length <= maxBuyers && all.every(validBuyer) &&
@@ -57,7 +58,7 @@ export function loadBrowserSession(): BrowserSession {
     }
   } catch { /* Keep the session usable when storage is unavailable. */ }
   // Preserve existing prototype configurations; leave the legacy data intact.
-  const legacy = loadBuyers();
+  const legacy = scope === undefined ? loadBuyers() : [];
   return { buyers: legacy.length ? legacy : [{ id: crypto.randomUUID(), number: 1,
     task: 'Explain confidential inference in three short sentences.', budgetMicros: 10000,
     scenario: 'complete', previewMicros: 0, turns: 0 }], parked: [] };

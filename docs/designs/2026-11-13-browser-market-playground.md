@@ -56,6 +56,30 @@ offers. Browser-verifiable channels and normal browser certificate trust also
 require work. The UI does not relax any of these constraints or reuse historical
 hardware/signature checks as a current connection verdict.
 
+## First wallet integration batch — 2026-11-14 UTC
+
+The user selected a hosted wallet flow on top of PR #4 and excluded MPP from
+this implementation batch. `clients/buyer-gateway` now owns NEAR login, owner
+validation, encrypted per-agent grants and idempotent equal-principal setup.
+The existing fx/wterm/just-bash runtime is retained. Owner accounts/keys scope
+browser configuration, history and conversations, and authenticated state is
+restored from the gateway rather than inferred from local buyer labels.
+
+The default browser mode uses the gateway; the scripted transport is available
+only at `?preview=1` during development. Funding is off by default. Run stays
+disabled and the model-call API returns `procurement_not_ready` until the Market
+implements receipt validation, order-scoped funding, fulfillment and refunds.
+Wallet readiness must not be displayed as successful inference procurement.
+
+The current integration targets NEAR USDT or USDC principal, with no native NEAR
+conversion. Creation and grant consent are distinct signatures and are processed
+sequentially. Source transfers can be presented as a wallet transaction batch;
+no atomic split or one-popup guarantee is claimed. A broadcast attempt is stored
+before returning transfer instructions, and ambiguous broadcasts do not auto-retry.
+
+See the [gateway contract and run instructions](../../clients/buyer-gateway/README.md)
+and [scoped acceptance](../acceptance/2026-11-14-agent-wallet-onboarding.md).
+
 Future identity, budget and order authority stay in the existing Phala Market.
 Browser storage holds the buyer's local experience, not authoritative funds.
 Seller persistence must preserve explicit validity/capacity/authorization;

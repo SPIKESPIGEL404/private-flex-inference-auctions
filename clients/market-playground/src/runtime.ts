@@ -4,6 +4,9 @@ import { Bash, defineCommand } from 'just-bash/browser';
 import { sessionStore } from './store';
 import fxWasm from '../node_modules/libfx/fx-term.wasm?url';
 import type { Buyer, BuyerStatus, Phase } from './model';
+import { ApiError } from './wallet-api';
+
+export interface RuntimeOptions { preview: boolean; ownerScope: string; walletStatus: () => unknown }
 
 type Listener = (data: string | Uint8Array) => void;
 export class BuyerRuntime {
@@ -16,17 +19,22 @@ export class BuyerRuntime {
   private generation = 0;
   private buyer: Buyer;
   readonly bash: Bash;
-  constructor(buyer: Buyer, private state: (value: BuyerStatus) => void, private account: (micros: number, turns: number) => void) {
+  constructor(buyer: Buyer, private state: (value: BuyerStatus) => void, private account: (micros: number, turns: number) => void,
+    private options: RuntimeOptions) {
     this.buyer = buyer;
     this.bash = new Bash({
       cwd: '/workspace',
       files: {
-        '/workspace/AGENTS.md': 'This is a scripted, offline UI preview. Use market status to inspect the preview buyer. Never imply a live bid or a verified execution. No network or provider credentials are available.',
+        '/workspace/AGENTS.md': options.preview
+          ? 'This is a scripted, offline UI preview. Use market status to inspect the preview buyer. Never imply a live bid or a verified execution. No network or provider credentials are available.'
+          : 'You are an independent inference buyer. All model calls go through the hosted buyer gateway. Use market status for wallet setup state. Never claim a purchase succeeded without a gateway result. Local files cannot change owner spending rules or create funds.',
         '/workspace/task.txt': buyer.task,
         '/workspace/README.md': 'Private Market browser workspace. Files belong to this buyer only.\n',
       },
       customCommands: [defineCommand('market', async args => ({
-        stdout: args[0] === 'status' ? JSON.stringify({ mode: 'scripted-preview', buyer: this.buyer.number, budget_micro_usd: this.buyer.budgetMicros, simulated_usage_micro_usd: this.buyer.previewMicros, live_orders: 0 }, null, 2) + '\n' : 'Preview commands: market status\n',
+        stdout: args[0] === 'status' ? JSON.stringify(options.preview
+          ? { mode: 'scripted-preview', buyer: this.buyer.number, budget_micro_usd: this.buyer.budgetMicros, simulated_usage_micro_usd: this.buyer.previewMicros, live_orders: 0 }
+          : { mode: 'wallet-setup', buyer: this.buyer.number, wallet: this.options.walletStatus(), procurement_ready: false }, null, 2) + '\n' : 'Commands: market status\n',
         stderr: '', exitCode: 0,
       }))],
     });
@@ -41,7 +49,7 @@ export class BuyerRuntime {
       onData(fn) { owner.data.add(fn); return () => owner.data.delete(fn); },
       onResize(fn) { owner.resizeListeners.add(fn); return () => owner.resizeListeners.delete(fn); },
     };
-    const store = sessionStore(this.buyer.id);
+    const store = sessionStore(this.storageId);
     let saved: Array<{ id: string; updatedAtMs: number }> = [];
     try { saved = await store.list(); } catch { /* fx will report persistence errors on commit. */ }
     if (this.disposed) return;
@@ -49,9 +57,9 @@ export class BuyerRuntime {
     const runtime = await createFxTerminal({
       wasm: fxWasm,
       terminal: adapter,
-      env: { AI_GATEWAY_API_KEY: 'offline-preview-not-a-credential', FX_MODEL: 'openai/gpt-6-luna', FX_PERMISSION_MODE: 'auto', FX_MAX_AGENT_STEPS: '4', FX_AUTO_UPGRADE: '0', FX_SOUND: 'off' },
+      env: { AI_GATEWAY_API_KEY: this.options.preview ? 'offline-preview-not-a-credential' : 'managed-transport-not-a-credential', FX_MODEL: 'openai/gpt-6-luna', FX_PERMISSION_MODE: 'auto', FX_MAX_AGENT_STEPS: '4', FX_AUTO_UPGRADE: '0', FX_SOUND: 'off' },
       args: last ? ['--resume', last.id] : [],
-      fetch: this.previewFetch,
+      fetch: this.options.preview ? this.previewFetch : this.liveFetch,
       sessionStore: store,
       promptHistoryStore: {
         load: (_root: string, limit: number) => this.readHistory().slice(-limit),
@@ -59,9 +67,9 @@ export class BuyerRuntime {
           if (new TextEncoder().encode(value).length > 64000) return 'record_too_large';
           const history = this.readHistory();
           if (history.at(-1) === value) return 'duplicate';
-          localStorage.setItem(`private-market.history.${this.buyer.id}`, JSON.stringify([...history, value].slice(-50)));
+          localStorage.setItem(`private-market.history.${this.storageId}`, JSON.stringify([...history, value].slice(-50)));
         },
-        clear: () => localStorage.removeItem(`private-market.history.${this.buyer.id}`),
+        clear: () => localStorage.removeItem(`private-market.history.${this.storageId}`),
       },
       workspace: {
         info: { version: 1, root: '/workspace', cwd: '/workspace', home: '/workspace', gitAvailable: false, ephemeral: true },
@@ -76,10 +84,18 @@ export class BuyerRuntime {
           this.state({ phase: 'error', detail: 'fx session closed. Reload the page to resume it.' });
         }
       },
-    });
-    if (this.disposed) { runtime.abort(); return; }
+    }).catch(error => { if (this.disposed) return undefined; throw error; });
+    if (!runtime) return;
+    if (this.disposed) {
+      // Changing owners can park a terminal before its WASM harness becomes
+      // interactive. Observe both promises before aborting so cancellation does
+      // not become an unhandled rejection or an error in the new owner's pane.
+      const stopped = Promise.allSettled([runtime.interactive, runtime.exited]);
+      runtime.abort(); await stopped; return;
+    }
     this.runtime = runtime;
-    await runtime.interactive;
+    try { await runtime.interactive; }
+    catch (error) { if (this.disposed) return; throw error; }
     if (!this.disposed) { this.state({ phase: 'ready' }); return true; }
   }
   input(data: string) { if (!this.disposed) for (const fn of this.data) fn(data); }
@@ -98,10 +114,35 @@ export class BuyerRuntime {
     this.state({ phase: 'paused' });
   }
   dispose() { this.disposed = true; this.generation++; this.runtime?.abort(); this.data.clear(); this.resizeListeners.clear(); }
+  private get storageId() { return this.options.preview ? this.buyer.id : `${this.options.ownerScope}:${this.buyer.id}`; }
   private readHistory(): string[] {
-    const raw = JSON.parse(localStorage.getItem(`private-market.history.${this.buyer.id}`) ?? '[]');
+    const raw = JSON.parse(localStorage.getItem(`private-market.history.${this.storageId}`) ?? '[]');
     return Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string').slice(-50) : [];
   }
+  private liveFetch = async (_url: string, init: RequestInit): Promise<Response> => {
+    if (this.disposed) throw new DOMException('Closed', 'AbortError');
+    this.active = true;
+    this.state({ phase: 'running' });
+    try {
+      if (this.options.ownerScope === 'disconnected') throw new ApiError('login_required');
+      if (init.method?.toUpperCase() !== 'POST' || typeof init.body !== 'string') throw new ApiError('unsupported_model_request');
+      const response = await fetch('/buyer-api/inference', { method: 'POST', credentials: 'same-origin', redirect: 'error',
+        signal: init.signal, headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+          ownerScope: this.options.ownerScope, buyerId: this.buyer.id, requestId: crypto.randomUUID(), gatewayRequest: JSON.parse(init.body),
+        }) });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new ApiError(typeof error.error === 'string' ? error.error : 'procurement_unavailable');
+      }
+      // A future live implementation must attach its order/settlement evidence.
+      // Do not count the scripted preview's fixed 120 microUSD as real spending.
+      return response;
+    } catch (error) {
+      this.active = false;
+      this.state({ phase: 'error', detail: error instanceof Error ? error.message : 'Inference procurement unavailable.' });
+      throw error;
+    }
+  };
   private previewFetch = async (_url: string, init: RequestInit): Promise<Response> => {
     // Deliberately no global fetch here: neither user input nor a fake credential leaves the browser.
     if (this.disposed) throw new DOMException('Closed', 'AbortError');

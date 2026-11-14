@@ -67,6 +67,25 @@ dialog textarea { resize: vertical; min-height: 108px; }
 .info-dialog p { color: #888; font-size: 12px; line-height: 1.8; margin: 20px 0 0; }
 .key-list { display: grid; grid-template-columns: 1fr auto; gap: 16px 12px; font-size: 11px; }.key-list dt { color: #888; }.key-list dd { margin: 0; text-align: right; color: #ccc; }
 @keyframes blink { 50% { opacity: 0; } }
+.gateway-status { display: flex; justify-content: space-between; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--border); color: #888; font-size: 10px; }
+.gateway-status button { padding: 0; text-align: left; font-size: inherit; }
+.gateway-status > span { white-space: nowrap; color: #666; }
+.wallet-backdrop { position: fixed; inset: 0; background: #0009; z-index: 30; }
+.wallet-dialog { position: fixed; inset: 0; z-index: 40; width: min(560px, calc(100vw - 32px)); }
+.wallet-dialog p { font-size: 11px; line-height: 1.8; color: #999; }
+.wallet-dialog a { text-decoration: underline; text-underline-offset: 3px; }
+.wallet-notice { border: 1px solid #333; padding: 12px; margin-bottom: 22px; }
+.wallet-owner { display: flex; justify-content: space-between; gap: 14px; font-size: 12px; }
+.wallet-owner > span:last-child, .break-word { overflow-wrap: anywhere; min-width: 0; }
+.wallet-dialog .key-list { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); line-height: 1.7; }
+.wallet-progress { padding-left: 20px; margin: 24px 0; }
+.wallet-progress li { padding: 10px 0; border-bottom: 1px solid #262626; font-size: 11px; }
+.wallet-progress li > div { display: flex; gap: 12px; justify-content: space-between; margin-bottom: 8px; }
+.wallet-progress strong { font-weight: 500; }.wallet-progress small { display: block; color: #888; overflow-wrap: anywhere; line-height: 1.8; }
+.wallet-preview { color: #aaa; font-size: 11px; }.wallet-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }
+.wallet-actions { flex-wrap: wrap; }
+.wallet-dialog .wallet-session-note { color: #777; margin-top: 24px; }
+@media (max-width: 600px) { .header-controls { flex-wrap: wrap; }.gateway-status { padding: 8px 12px; }.gateway-status > span { display: none; }.wallet-connect { flex-shrink: 0; max-width: 135px; overflow: hidden; text-overflow: ellipsis; }.wallet-dialog { padding: 20px; } }
 @media (max-width: 900px) { .topbar { padding: 0 16px; gap: 20px; height: 56px; } nav { gap: 16px; } nav a { display: none; }.header-controls { gap: 5px; }.preview-link { padding: 5px; }.outline-button { padding: 5px 8px; }.outline-button kbd { display: none; }.buyer-terminal > .wterm { padding: 10px 16px; --term-font-size: 12px; --term-row-height: 20px; } }
 @media (max-width: 600px) { .topbar { height: auto; min-height: 58px; padding: 12px 14px; gap: 14px; flex-wrap: wrap; }.wordmark { font-size: 13px; }.brand-mark { font-size: 22px; } nav { margin-left: auto; }.nav-current { font-size: 11px; }.header-controls { width: 100%; margin-left: 0; gap: 8px; }.preview-link { margin-right: auto; padding-left: 0; font-size: 10px; }.pane-count { font-size: 11px; padding: 0; }.pane-count input { width: 38px; height: 29px; }.outline-button { font-size: 11px; min-height: 29px; padding: 5px 8px; }.help-button { padding: 4px; margin: 0; }.sessionbar { padding: 0 10px; gap: 10px; font-size: 10px; }.session-name { display: none; }.window-list { gap: 10px; }.window-list button { font-size: 10px; }.session-actions { gap: 9px; }.selected-state { display: none; }.zoom-button { font-size: 10px; }.buyer-terminal > .wterm { padding: 8px 12px; --term-font-size: 12px; --term-row-height: 20px; }.terminal-loading { padding: 9px 12px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }

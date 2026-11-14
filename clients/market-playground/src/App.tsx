@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Terminal } from '@wterm/react';
 import { GhosttyCore } from '@wterm/ghostty';
 import ghosttyWasm from '@wterm/ghostty/ghostty-vt.wasm?url';
 import type { WTerm } from '@wterm/dom';
 import { BuyerRuntime } from './runtime';
-import { loadBrowserSession, maxBuyers, money, parseBudget, resizeSession, sessionConfigKey, tilePanes } from './model';
+import { browserSessionKey, loadBrowserSession, maxBuyers, money, parseBudget, resizeSession, tilePanes } from './model';
 import type { Buyer, BuyerStatus } from './model';
+import type { RuntimeOptions } from './runtime';
+import { WalletController } from './wallet-api';
+import { WalletSetup } from './WalletSetup';
 
-type Dialog = 'settings' | 'help' | 'preview' | null;
+type Dialog = 'settings' | 'help' | 'preview' | 'wallet' | null;
 type Registry = (id: string, runtime?: BuyerRuntime) => void;
 
-function BuyerPane({ buyer, selected, status, onSelect, onStatus, onUsage, onRuntime, onInput }: {
+function BuyerPane({ buyer, selected, status, options, onSelect, onStatus, onUsage, onRuntime, onInput }: {
   buyer: Buyer; selected: boolean; status: BuyerStatus;
+  options: RuntimeOptions;
   onSelect: (id: string) => void; onStatus: (id: string, value: BuyerStatus) => void;
   onUsage: (id: string, micros: number, turns: number) => void;
   onRuntime: Registry; onInput: (id: string, value: string) => boolean;
@@ -19,6 +23,7 @@ function BuyerPane({ buyer, selected, status, onSelect, onStatus, onUsage, onRun
   const [core, setCore] = useState<GhosttyCore>();
   const runtime = useRef<BuyerRuntime | null>(null);
   const currentBuyer = useRef(buyer);
+  const currentOptions = useRef(options);
   useEffect(() => { currentBuyer.current = buyer; runtime.current?.update(buyer); }, [buyer]);
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +37,7 @@ function BuyerPane({ buyer, selected, status, onSelect, onStatus, onUsage, onRun
   const ready = useCallback((wt: WTerm) => {
     if (runtime.current) return;
     const controller = new BuyerRuntime(currentBuyer.current, value => onStatus(buyer.id, value),
-      (micros, turns) => onUsage(buyer.id, micros, turns));
+      (micros, turns) => onUsage(buyer.id, micros, turns), currentOptions.current);
     runtime.current = controller;
     void controller.mount(bytes => wt.write(bytes), () => ({ cols: wt.cols, rows: wt.rows }))
       .then(mounted => { if (mounted) onRuntime(buyer.id, controller); })
@@ -49,7 +54,7 @@ function BuyerPane({ buyer, selected, status, onSelect, onStatus, onUsage, onRun
   </section>;
 }
 
-function Settings({ buyer, onClose, onSave }: { buyer: Buyer; onClose: () => void;
+function Settings({ buyer, preview, onClose, onSave }: { buyer: Buyer; preview: boolean; onClose: () => void;
   onSave: (task: string, budget: number, scenario: Buyer['scenario'], all: boolean) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [task, setTask] = useState(buyer.task);
@@ -70,15 +75,15 @@ function Settings({ buyer, onClose, onSave }: { buyer: Buyer; onClose: () => voi
         <button type="button" className="close-button" aria-label="Close settings" onClick={onClose}>×</button></div>
       <label htmlFor="task">task</label>
       <textarea id="task" rows={4} maxLength={2000} value={task} onChange={e => setTask(e.target.value)} required />
-      <label htmlFor="budget">budget <span>USD · preview</span></label>
+      <label htmlFor="budget">budget <span>{preview ? 'USD · preview' : 'USD · local task limit'}</span></label>
       <div className="money-input"><span>$</span><input id="budget" value={budget} onChange={e => setBudget(e.target.value)} inputMode="decimal" required /></div>
-      <div className="setting-summary"><span>simulated usage</span><span>{money(buyer.previewMicros)}</span></div>
+      {preview && <div className="setting-summary"><span>simulated usage</span><span>{money(buyer.previewMicros)}</span></div>}
       <label className="checkbox-label"><input type="checkbox" checked={all} onChange={e => setAll(e.target.checked)} />apply to all buyers</label>
-      <details className="advanced"><summary>preview response</summary>
+      {preview && <details className="advanced"><summary>preview response</summary>
         <select aria-label="Preview response" value={scenario} onChange={e => setScenario(e.target.value as Buyer['scenario'])}>
           <option value="complete">complete</option><option value="waiting">waiting for supply</option><option value="limit">budget stop</option>
         </select>
-      </details>
+      </details>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="dialog-footer"><button type="button" className="outline-button" onClick={onClose}>cancel</button><button className="solid-button" type="submit">apply ↵</button></div>
     </form>
@@ -108,7 +113,15 @@ function Info({ kind, onClose }: { kind: 'help' | 'preview'; onClose: () => void
 }
 
 export default function App() {
-  const [session, setSession] = useState(loadBrowserSession);
+  const preview = import.meta.env.DEV && new URLSearchParams(location.search).get('preview') === '1';
+  const [walletController] = useState(() => new WalletController());
+  const wallet = useSyncExternalStore(walletController.subscribe, walletController.snapshot);
+  const ownerScope = wallet.owner ? `${wallet.owner.account_id}:${wallet.owner.public_key}` : 'disconnected';
+  const allocation = wallet.allocations.at(-1);
+  useEffect(() => { if (!preview) void walletController.load(); }, [preview, walletController]);
+  const scope = preview ? 'preview' : ownerScope;
+  const [sessionScope, setSessionScope] = useState(scope);
+  const [session, setSession] = useState(() => loadBrowserSession(preview ? undefined : scope));
   const buyers = session.buyers;
   const [statuses, setStatuses] = useState<Record<string, BuyerStatus>>({});
   const [selected, setSelected] = useState(() => buyers[0].id);
@@ -119,6 +132,34 @@ export default function App() {
   const workspace = useRef<HTMLElement>(null);
   const [size, setSize] = useState({ width: 1280, height: 720 });
   const runtimes = useRef(new Map<string, BuyerRuntime>());
+  useEffect(() => {
+    if (sessionScope === scope) return;
+    for (const runtime of runtimes.current.values()) runtime.pause();
+    let next = loadBrowserSession(preview ? undefined : scope);
+    // Move a first-time user's unsigned draft into their new owner namespace.
+    // Do not copy an authenticated owner's configuration into another scope.
+    if (!preview && sessionScope === 'disconnected' && scope !== 'disconnected' && !allocation) {
+      try {
+        if (!sessionStorage.getItem(browserSessionKey(scope))) {
+          next = session;
+          sessionStorage.removeItem(browserSessionKey('disconnected'));
+        }
+      } catch { /* Keep isolated defaults if browser storage is unavailable. */ }
+    }
+    setSession(next);
+    setSessionScope(scope);
+  }, [scope, sessionScope, preview, allocation, session]);
+  useEffect(() => {
+    if (!allocation || sessionScope !== scope) return;
+    setSession(old => {
+      if (old.buyers.length === allocation.buyers.length && old.buyers.every((buyer, i) => buyer.id === allocation.buyers[i].id)) return old;
+      const local = [...old.buyers, ...old.parked];
+      return { buyers: allocation.buyers.map(buyer => local.find(b => b.id === buyer.id) ?? {
+        id: buyer.id, number: buyer.number, task: 'Explain confidential inference in three short sentences.',
+        budgetMicros: Number(allocation.perAgentRaw), scenario: 'complete' as const, previewMicros: 0, turns: 0,
+      }), parked: [] };
+    });
+  }, [allocation, sessionScope, scope]);
   const prefix = useRef(0);
   const status = useCallback((id: string, value: BuyerStatus) => setStatuses(old => ({ ...old, [id]: value })), []);
   const usage = useCallback((id: string, previewMicros: number, turns: number) => setSession(old => ({ ...old,
@@ -132,10 +173,11 @@ export default function App() {
   }, []);
   const zoom = useCallback((id: string) => { setSelected(id); setZoomed(old => old === id ? null : id); }, []);
   const resize = useCallback((count: number) => {
+    if (!preview && allocation) return;
     if (!Number.isInteger(count) || count < 1 || count > maxBuyers) return;
     for (const buyer of buyers.slice(count)) runtimes.current.get(buyer.id)?.pause();
     setSession(old => resizeSession(old, count)); setZoomed(null);
-  }, [buyers]);
+  }, [buyers, preview, allocation]);
   const nextPane = useCallback((id: string, direction: number) => {
     const index = buyers.findIndex(b => b.id === id);
     focusBuyer(buyers[(index + direction + buyers.length) % buyers.length].id);
@@ -155,8 +197,9 @@ export default function App() {
     prefix.current = 0; return prefixAction(id, data);
   }, [prefixAction]);
   useEffect(() => {
-    try { sessionStorage.setItem(sessionConfigKey, JSON.stringify(session)); } catch { setStorageError(true); }
-  }, [session]);
+    if (sessionScope !== scope) return;
+    try { sessionStorage.setItem(browserSessionKey(preview ? undefined : scope), JSON.stringify(session)); } catch { setStorageError(true); }
+  }, [session, sessionScope, scope, preview]);
   useEffect(() => { setCountDraft(String(buyers.length)); }, [buyers.length]);
   useEffect(() => {
     if (!buyers.some(b => b.id === selected)) setSelected(buyers[0].id);
@@ -178,7 +221,7 @@ export default function App() {
         e.preventDefault(); e.stopPropagation(); setDialog('settings'); return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault(); e.stopPropagation(); runtimes.current.get(selected)?.start(); return;
+        e.preventDefault(); e.stopPropagation(); if (preview) runtimes.current.get(selected)?.start(); else setDialog('wallet'); return;
       }
       if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') || e.key === '\x02') {
         e.preventDefault(); e.stopPropagation(); prefix.current = Date.now(); return;
@@ -189,7 +232,7 @@ export default function App() {
       }
     };
     window.addEventListener('keydown', keydown, true); return () => window.removeEventListener('keydown', keydown, true);
-  }, [selected, dialog, prefixAction]);
+  }, [selected, dialog, prefixAction, preview]);
   const current = buyers.find(b => b.id === selected) ?? buyers[0];
   const currentStatus = statuses[current.id]?.phase ?? 'booting';
   const running = buyers.some(b => statuses[b.id]?.phase === 'running');
@@ -202,15 +245,20 @@ export default function App() {
         <nav aria-label="Main navigation"><span className="nav-current">try</span>
           <a href="https://github.com/SPIKESPIGEL404/private-flex-inference-auctions" target="_blank" rel="noreferrer">source ↗</a></nav>
         <div className="header-controls">
-          <button className="preview-link" onClick={() => setDialog('preview')}>preview</button>
+          {preview ? <button className="preview-link" onClick={() => setDialog('preview')}>preview</button>
+            : <button className="preview-link wallet-connect" onClick={() => setDialog('wallet')}>{wallet.owner?.account_id ?? 'connect NEAR'}</button>}
           <label className="pane-count">buyers <input aria-label="Buyer count" type="number" min={1} max={maxBuyers} value={countDraft}
+            disabled={!preview && !!allocation}
             onChange={e => { setCountDraft(e.target.value); if (/^[1-8]$/.test(e.target.value)) resize(Number(e.target.value)); }}
             onBlur={() => setCountDraft(String(buyers.length))} /></label>
           <button className="outline-button" onClick={() => setDialog('settings')}>configure <kbd>⌘K</kbd></button>
-          <button className="outline-button" disabled={!ready} onClick={() => {
+          <button className="outline-button" disabled={!ready || !preview} title={preview ? undefined : 'Real inference procurement is not connected yet.'} onClick={() => {
             if (running) for (const b of buyers) runtimes.current.get(b.id)?.pause();
             else for (const b of buyers) runtimes.current.get(b.id)?.start();
           }}>{running ? 'pause all' : 'run all'}</button>
+          {!preview && wallet.owner && <button className="help-button" aria-label="Disconnect wallet" onClick={() => {
+            for (const runtime of runtimes.current.values()) runtime.pause(); void walletController.disconnect();
+          }}>disconnect</button>}
           <button className="help-button" aria-label="Keyboard shortcuts" onClick={() => setDialog('help')}>?</button>
         </div>
       </div>
@@ -226,20 +274,28 @@ export default function App() {
         </div>
       </div>
     </header>
+    {!preview && <div className="gateway-status" role="status">
+      <button onClick={() => setDialog('wallet')}>{wallet.loading ? 'connecting to wallet service…' : wallet.error
+        ? wallet.error : !wallet.config?.configured ? 'wallet service awaiting host configuration'
+        : allocation ? 'agent wallets · open setup to continue' : 'connect your NEAR wallet to prepare agents'}</button>
+      <span>inference procurement pending</span>
+    </div>}
     <main className="terminal-workspace" ref={workspace} aria-label="Buyer terminals">{buyers.map((buyer, index) => {
       const rect = layout[index];
       return <div key={buyer.id} id={`pane-${buyer.id}`} className={`pane-slot ${zoomed === buyer.id ? 'is-zoomed' : ''} ${zoomed && zoomed !== buyer.id ? 'is-hidden' : ''}`}
         style={{ left: `${rect.left}%`, top: `${rect.top}%`, width: `${rect.width}%`, height: `${rect.height}%`,
           borderRightWidth: rect.rightEdge ? 0 : 1, borderBottomWidth: rect.bottomEdge ? 0 : 1 }}>
-        <BuyerPane buyer={buyer} selected={selected === buyer.id} status={statuses[buyer.id] ?? { phase: 'booting' }}
+        <BuyerPane key={`${preview ? 'preview' : ownerScope}:${buyer.id}`} buyer={buyer} selected={selected === buyer.id} status={statuses[buyer.id] ?? { phase: 'booting' }}
+          options={{ preview, ownerScope, walletStatus: () => walletController.snapshot().allocations.flatMap(plan => plan.buyers).find(b => b.id === buyer.id) ?? null }}
           onSelect={setSelected} onStatus={status} onUsage={usage} onRuntime={register} onInput={terminalInput} />
       </div>;
     })}</main>
-    {dialog === 'settings' && <Settings key={current.id} buyer={current} onClose={() => setDialog(null)} onSave={(task, budgetMicros, scenario, all) => {
+    {dialog === 'settings' && <Settings key={current.id} buyer={current} preview={preview} onClose={() => setDialog(null)} onSave={(task, budgetMicros, scenario, all) => {
       for (const b of buyers) if (all || b.id === current.id) runtimes.current.get(b.id)?.pause();
       const update = (b: Buyer) => all || b.id === current.id ? { ...b, task, budgetMicros, scenario, previewMicros: Math.min(b.previewMicros, budgetMicros) } : b;
       setSession(old => ({ buyers: old.buyers.map(update), parked: old.parked.map(update) })); setDialog(null);
     }} />}
+    {dialog === 'wallet' && <WalletSetup controller={walletController} buyers={buyers} onClose={() => setDialog(null)} />}
     {(dialog === 'help' || dialog === 'preview') && <Info kind={dialog} onClose={() => setDialog(null)} />}
   </div>;
 }

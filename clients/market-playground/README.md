@@ -1,9 +1,9 @@
 # Private Market playground
 
-A local UI/UX prototype of the browser buyer experience: **one buyer = one fx
-session = one terminal pane**. Each buyer receives a task and demo budget.
-The intended integration makes every fx model call a Market purchase; that
-transport is explicitly deferred in this version.
+Browser buyer experience: **one buyer = one fx session = one terminal pane**.
+The default mode now connects to the [hosted wallet gateway](../buyer-gateway/README.md)
+for NEAR owner login, independent Agent API wallets/grants and saved equal
+funding plans. Real inference procurement is still gated off; MPP is excluded.
 
 ## Run
 
@@ -13,12 +13,39 @@ npm ci --ignore-scripts
 npm run dev
 ```
 
-Open the printed local URL (normally `http://127.0.0.1:4173/`). `npm run build`
-type-checks and produces a static `dist/`; no application backend is required.
+Open the printed local URL (normally `http://127.0.0.1:4173/`) and start the
+gateway as described in its README. Vite proxies `/buyer-api` to port 4180.
+`npm run build` type-checks and produces a static `dist/`, which the gateway can
+serve on the same origin as the API. Hosts configure keys; browser users do not.
 The browser must support WebAssembly JSPI. Unsupported browsers display an error
 without silently substituting a fake terminal.
 
-## What works
+For the original offline fixture preview during development, explicitly open
+`http://127.0.0.1:4173/?preview=1`. This switch is disabled in production builds.
+Preview and authenticated wallets use separate conversation/configuration
+namespaces. Live-mode errors never switch a terminal into preview mode.
+
+## Wallet setup status
+
+- Combined wallet connection/login message; server checks NEP-413 signature,
+  one-use challenge and the Ed25519 full-access key on mainnet.
+- A signed policy and separate seven-day grant per independent agent wallet.
+- Persisted equal-principal allocation, retained remainder, actual balance reads,
+  and recovery of the original initialization after refresh or a lost response.
+- Partner key and grants stay on the server. The browser handles public owner
+  payloads/signatures; their recovery copies are encrypted on the server. The
+  owner private key stays in the wallet. Sessions use HttpOnly cookies.
+- Funding is disabled by default. If separately enabled by the host, the owner
+  must confirm a bounded NEAR-token transfer batch; this does not enable buying.
+- Run is disabled until order-scoped Market payments are implemented. Manual
+  terminal model calls are rejected by the authenticated gateway. Displayed
+  wallet readiness is not evidence of an inference purchase.
+
+No mainnet funding or real-wallet end-to-end acceptance is claimed. The current
+funding path uses a NEAR six-decimal stablecoin; native NEAR conversion is future
+work. See the gateway's recovery limits and [acceptance record](../../docs/acceptance/2026-11-14-agent-wallet-onboarding.md).
+
+## Original development preview
 
 - One to eight buyer panes, controlled by the buyer count in the header. A fresh
   browser session starts with one buyer.
@@ -61,10 +88,11 @@ same browser owner; separate sessions/workspaces are not a security boundary
 against that owner. Do not place real credentials in the preview.
 
 The network request hook and workspace adapter are kept in `src/runtime.ts`.
-Connecting the real Market requires a separate implementation and acceptance of
+The wallet-mode hook reaches the hosted gateway and does not forward the local
+fx placeholder credential. Connecting the real Market still requires acceptance of
 buyer credentials, browser-verifiable channels, current supply, tool transcripts,
-metering, hard budget enforcement and idempotent recovery. No production backend,
-DNS configuration or existing acceptance ledger was modified for this prototype.
+metering, hard budget enforcement and idempotent recovery. No deployment, DNS,
+real payment or historical acceptance ledger was modified by this batch.
 
 The browser bundle uses a small `fflate` adapter for just-bash's residual
 `node:zlib` imports, including output limits. Fonts and WASM are bundled as local

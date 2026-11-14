@@ -1,0 +1,15 @@
+{
+  "name": "private-market-buyer-gateway",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "dev": "node --watch --env-file-if-exists=.env src/main.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@near-intents-agent-api/sdk": "0.9.1",
+    "bs58": "6.0.0"
+  }
+}
