@@ -1,5 +1,5 @@
-use bitrouter_market::cost::{estimated_base_charge, CachedInputEstimate};
-use bitrouter_market::latency::{estimated_e2e, E2eEstimate, LatencyError};
+use bitrouter_market::cost::{CachedInputEstimate, estimated_base_charge};
+use bitrouter_market::latency::{E2eEstimate, LatencyError, estimated_e2e};
 use bitrouter_market::order::*;
 use bitrouter_market::quote::{LatencyBoundary, LatencyPrediction};
 

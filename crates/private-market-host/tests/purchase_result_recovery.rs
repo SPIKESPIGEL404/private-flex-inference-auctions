@@ -76,8 +76,8 @@ fn adjudication_commit_crash_worker() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
-fn adjudication_commit_death_recovers_original_decision_or_expires_uncommitted_candidate(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn adjudication_commit_death_recovers_original_decision_or_expires_uncommitted_candidate()
+-> Result<(), Box<dyn std::error::Error>> {
     for committed in [false, true] {
         let dir = Dir::new();
         let child = std::process::Command::new(std::env::current_exe()?)
@@ -189,8 +189,8 @@ fn adjudication_commit_death_recovers_original_decision_or_expires_uncommitted_c
 }
 
 #[test]
-fn adjudication_sql_abort_rolls_back_clock_result_and_finances_together(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn adjudication_sql_abort_rolls_back_clock_result_and_finances_together()
+-> Result<(), Box<dyn std::error::Error>> {
     let dir = Dir::new();
     let (mut market, _authority, id) = completed_candidate(&dir)?;
     let before = market.host()?.snapshot();
@@ -208,9 +208,11 @@ fn adjudication_sql_abort_rolls_back_clock_result_and_finances_together(
     )?;
     let conn = rusqlite::Connection::open(dir.market())?;
     conn.execute_batch("CREATE TRIGGER reject_adjudication BEFORE INSERT ON events BEGIN SELECT RAISE(ABORT, 'adjudication aborted'); END;")?;
-    assert!(market
-        .publish_qualified_at(prepared, UnixMillis(auth.purchase.delivery_deadline.0 - 1))
-        .is_err());
+    assert!(
+        market
+            .publish_qualified_at(prepared, UnixMillis(auth.purchase.delivery_deadline.0 - 1))
+            .is_err()
+    );
     drop(market);
     conn.execute_batch("DROP TRIGGER reject_adjudication;")?;
     let market = DurableMarketHost::open(dir.market())?;
@@ -219,8 +221,8 @@ fn adjudication_sql_abort_rolls_back_clock_result_and_finances_together(
 }
 
 #[test]
-fn adjudication_rejects_clock_rollback_and_stale_qualification_without_effects(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn adjudication_rejects_clock_rollback_and_stale_qualification_without_effects()
+-> Result<(), Box<dyn std::error::Error>> {
     let dir = Dir::new();
     let (mut market, _authority, id) = completed_candidate(&dir)?;
     let auth = market
@@ -241,9 +243,11 @@ fn adjudication_rejects_clock_rollback_and_stale_qualification_without_effects(
         )
     };
     let prepared = prepare(&market)?;
-    assert!(market
-        .publish_qualified_at(prepared, UnixMillis(before.now().0 - 1))
-        .is_err());
+    assert!(
+        market
+            .publish_qualified_at(prepared, UnixMillis(before.now().0 - 1))
+            .is_err()
+    );
     assert_eq!(market.host()?.snapshot(), before);
     let prepared = prepare(&market)?;
     market.execute(
@@ -251,15 +255,17 @@ fn adjudication_rejects_clock_rollback_and_stale_qualification_without_effects(
         ExchangeCommand::AdvanceTime(UnixMillis(before.now().0 + 1)),
     )?;
     let changed = market.host()?.snapshot();
-    assert!(market
-        .publish_qualified_at(prepared, UnixMillis(before.now().0 + 2))
-        .is_err());
+    assert!(
+        market
+            .publish_qualified_at(prepared, UnixMillis(before.now().0 + 2))
+            .is_err()
+    );
     assert_eq!(market.host()?.snapshot(), changed);
     Ok(())
 }
 #[test]
-fn adjudication_and_other_trade_expiry_commit_or_roll_back_and_replay_together(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn adjudication_and_other_trade_expiry_commit_or_roll_back_and_replay_together()
+-> Result<(), Box<dyn std::error::Error>> {
     for abort in [false, true] {
         let dir = Dir::new();
         let (mut market, mut authority, expiring_id, initial) = setup_result(&dir);
@@ -615,14 +621,15 @@ fn sql_abort_cannot_commit_availability_without_the_verified_bytes_or_consume_it
     let conn = rusqlite::Connection::open(dir.market()).unwrap();
     conn.execute_batch("CREATE TRIGGER reject_result BEFORE INSERT ON events BEGIN SELECT RAISE(ABORT, 'result transaction aborted'); END;").unwrap();
     let before = m.host().unwrap().snapshot();
-    assert!(m
-        .publish_purchase_result(
+    assert!(
+        m.publish_purchase_result(
             "result/1".into(),
             auth.binding.clone(),
             rf::body(&auth, usage()),
             &validator
         )
-        .is_err());
+        .is_err()
+    );
     assert!(matches!(m.host(), Err(DurableError::Poisoned)));
     conn.execute_batch("DROP TRIGGER reject_result;").unwrap();
     drop(m);
@@ -637,15 +644,16 @@ fn inability_to_start_preserves_accepted_failure_without_inventing_a_start_or_de
     for outcome in [ExecutionOutcome::Failed, ExecutionOutcome::Cancelled] {
         let dir = Dir::new();
         let (mut m, mut a, id, e) = setup_result(&dir);
-        assert!(a
-            .finish(
+        assert!(
+            a.finish(
                 "exchange",
                 &id,
                 ExecutionOutcome::Completed,
                 Some(usage()),
                 e
             )
-            .is_err());
+            .is_err()
+        );
         a.finish("exchange", &id, outcome, None, e).unwrap();
         terminal(&mut m, &mut a, &id, e, "failed-before-start");
         let snapshot = m.host().unwrap().snapshot();
@@ -693,8 +701,8 @@ fn deadline_crash_worker() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn expiry_commit_death_recovers_all_or_none_and_keeps_unknown_execution(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn expiry_commit_death_recovers_all_or_none_and_keeps_unknown_execution()
+-> Result<(), Box<dyn std::error::Error>> {
     for after in [false, true] {
         let dir = Dir::new();
         let status = std::process::Command::new(std::env::current_exe()?)
@@ -733,8 +741,8 @@ fn expiry_commit_death_recovers_all_or_none_and_keeps_unknown_execution(
 }
 
 #[test]
-fn verification_finishing_at_deadline_cannot_backdate_qualified_delivery(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn verification_finishing_at_deadline_cannot_backdate_qualified_delivery()
+-> Result<(), Box<dyn std::error::Error>> {
     let dir = Dir::new();
     let (mut m, mut a, id, e) = setup_result(&dir);
     a.start_pending(e)?;
@@ -774,8 +782,8 @@ fn verification_finishing_at_deadline_cannot_backdate_qualified_delivery(
 }
 
 #[test]
-fn response_ended_before_a_newer_query_preserves_original_time_through_reopen(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn response_ended_before_a_newer_query_preserves_original_time_through_reopen()
+-> Result<(), Box<dyn std::error::Error>> {
     let dir = Dir::new();
     let (mut m, mut a, id, e) = setup_result(&dir);
     a.start_pending(UnixMillis(e.0 + 10))?;
@@ -826,8 +834,8 @@ fn large_result_body(
 }
 
 #[test]
-fn result_blobs_share_original_bytes_and_keep_events_and_checkpoints_compact(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn result_blobs_share_original_bytes_and_keep_events_and_checkpoints_compact()
+-> Result<(), Box<dyn std::error::Error>> {
     let dir = Dir::new();
     let (mut market, _authority, id) = completed_candidate(&dir)?;
     let auth = market.host()?.snapshot_ref().frozen_grants().unwrap()[&id]
@@ -866,9 +874,10 @@ fn result_blobs_share_original_bytes_and_keep_events_and_checkpoints_compact(
     );
     let event_size: i64 = conn.query_row("SELECT max(length(payload)) FROM events WHERE CAST(payload AS TEXT) LIKE '%result_blob_v1%'", [], |r| r.get(0))?;
     assert!(event_size < 8 * 1024);
-    assert!(conn
-        .execute("UPDATE result_blobs SET payload=payload", [])
-        .is_err());
+    assert!(
+        conn.execute("UPDATE result_blobs SET payload=payload", [])
+            .is_err()
+    );
     assert!(conn.execute("DELETE FROM result_blobs", []).is_err());
     let expected = market.host()?.snapshot();
     drop(market);
@@ -893,8 +902,8 @@ fn result_blobs_share_original_bytes_and_keep_events_and_checkpoints_compact(
 }
 
 #[test]
-fn result_blob_failures_roll_back_raw_bytes_event_and_result_together(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn result_blob_failures_roll_back_raw_bytes_event_and_result_together()
+-> Result<(), Box<dyn std::error::Error>> {
     for checkpoint_failure in [false, true] {
         let dir = Dir::new();
         let (mut market, _authority, id) = completed_candidate(&dir)?;
@@ -914,14 +923,16 @@ fn result_blob_failures_roll_back_raw_bytes_event_and_result_together(
         } else {
             "CREATE TRIGGER reject_blob_commit BEFORE INSERT ON result_blobs BEGIN SELECT RAISE(ABORT,'blob failed'); END;"
         })?;
-        assert!(market
-            .publish_purchase_result(
-                "blob/failed".into(),
-                auth.binding.clone(),
-                large_result_body(&auth),
-                &rf::FixtureValidator::new(&auth)
-            )
-            .is_err());
+        assert!(
+            market
+                .publish_purchase_result(
+                    "blob/failed".into(),
+                    auth.binding.clone(),
+                    large_result_body(&auth),
+                    &rf::FixtureValidator::new(&auth)
+                )
+                .is_err()
+        );
         assert!(matches!(market.host(), Err(DurableError::Poisoned)));
         assert_eq!(
             conn.query_row("SELECT count(*) FROM result_blobs", [], |r| r
@@ -941,8 +952,8 @@ fn result_blob_failures_roll_back_raw_bytes_event_and_result_together(
 }
 
 #[test]
-fn result_blob_corruption_is_rejected_even_when_checkpoint_covers_publication(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn result_blob_corruption_is_rejected_even_when_checkpoint_covers_publication()
+-> Result<(), Box<dyn std::error::Error>> {
     use sha2::{Digest, Sha256};
     for missing in [false, true] {
         let dir = Dir::new();
@@ -973,9 +984,9 @@ fn result_blob_corruption_is_rejected_even_when_checkpoint_covers_publication(
 }
 
 #[test]
-fn typed_checkpoint_decode_rejects_corrupt_result_references_without_event_corruption(
-) -> Result<(), Box<dyn std::error::Error>> {
-    use serde_json::{json, Value};
+fn typed_checkpoint_decode_rejects_corrupt_result_references_without_event_corruption()
+-> Result<(), Box<dyn std::error::Error>> {
+    use serde_json::{Value, json};
     use sha2::{Digest, Sha256};
     fn corrupt_first(value: &mut Value, change: &dyn Fn(&mut Value)) -> bool {
         match value {
@@ -1070,8 +1081,8 @@ fn typed_checkpoint_decode_rejects_corrupt_result_references_without_event_corru
 }
 
 #[test]
-fn old_inline_result_ledger_and_checkpoint_remain_readable_and_can_checkpoint_again(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn old_inline_result_ledger_and_checkpoint_remain_readable_and_can_checkpoint_again()
+-> Result<(), Box<dyn std::error::Error>> {
     use sha2::{Digest, Sha256};
     fn digest(bytes: &[u8]) -> String {
         format!("{:x}", Sha256::digest(bytes))

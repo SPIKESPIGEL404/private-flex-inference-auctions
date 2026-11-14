@@ -1,0 +1,12 @@
+{
+  "secret_hex": "4242424242424242424242424242424242424242424242424242424242424242",
+  "model": "m/external",
+  "nonce": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+  "ts": 1700000002,
+  "purchase": {
+    "service_type": "on_demand",
+    "provider_cap_micro_usd": 4500,
+    "total_cap_micro_usd": 4510
+  },
+  "ciphertext_hex": "58a0a0441fe12d95e3c205ff76b050ec58cd681a348df93a00b36cb0b058233200f575841ba627fbab5d4555faec3a3e6f02a7815c724f3330bfe89a17c68568a7b2ffb4340ff8174c5c4d7cbf247bdb31c0cf6bc1706c2811f801783261b6dc905c17a435e1318fea0321c60fe6a7d2b23c702fb49ee3587ca14014acd3ae29d4acef7e72b28c0a5501aaceac41f4e29a"
+}

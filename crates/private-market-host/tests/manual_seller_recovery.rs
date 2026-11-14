@@ -132,12 +132,13 @@ fn sql_abort_cannot_leave_a_seller_root_services_source_tombstone_or_successful_
     let before = m.host().unwrap().snapshot();
     let conn = rusqlite::Connection::open(dir.market()).unwrap();
     conn.execute_batch("CREATE TRIGGER reject_manual BEFORE INSERT ON events BEGIN SELECT RAISE(ABORT, 'manual registration aborted'); END;").unwrap();
-    assert!(m
-        .execute(
+    assert!(
+        m.execute(
             i.idempotency_key.clone(),
             ExchangeCommand::SubmitManualSellerOrder(Box::new(i.clone()))
         )
-        .is_err());
+        .is_err()
+    );
     assert!(matches!(m.host(), Err(DurableError::Poisoned)));
     conn.execute_batch("DROP TRIGGER reject_manual;").unwrap();
     drop(m);
@@ -166,12 +167,13 @@ fn atomic_snapshot_keeps_original_manual_submission_immutable_service_and_expiry
             first_response_within_ms: 150,
             complete_within_ms: 1500,
         };
-    assert!(m
-        .execute(
+    assert!(
+        m.execute(
             "service-update".into(),
             ExchangeCommand::PublishSellerService(Box::new(next))
         )
-        .is_err());
+        .is_err()
+    );
     m.execute(
         "expire".into(),
         ExchangeCommand::AdvanceTime(receipt.registration.window.accept_before),
@@ -196,11 +198,12 @@ fn atomic_snapshot_keeps_original_manual_submission_immutable_service_and_expiry
             .closure()
             .is_some()
     );
-    assert!(m
-        .host()
-        .unwrap()
-        .snapshot()
-        .sources()
-        .values()
-        .all(|s| s.withdrawn));
+    assert!(
+        m.host()
+            .unwrap()
+            .snapshot()
+            .sources()
+            .values()
+            .all(|s| s.withdrawn)
+    );
 }

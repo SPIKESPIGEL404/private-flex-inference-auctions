@@ -165,11 +165,13 @@ fn historical_full_snapshots_continue_with_incremental_controls_and_restore_occu
         .query_row("SELECT payload FROM state_snapshot", [], |r| r.get(0))
         .unwrap();
     assert_eq!(stored, original);
-    assert!(!serde_json::from_slice::<serde_json::Value>(&stored)
-        .unwrap()
-        .as_object()
-        .unwrap()
-        .contains_key("occupancy"));
+    assert!(
+        !serde_json::from_slice::<serde_json::Value>(&stored)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .contains_key("occupancy")
+    );
     drop(a);
     c.execute_batch("DROP INDEX authority_tasks_pending")
         .unwrap();
@@ -178,9 +180,10 @@ fn historical_full_snapshots_continue_with_incremental_controls_and_restore_occu
     a.finish_other(AdmissionScopeId(30), "historical-other".into())
         .unwrap();
     a.set_ready(AdmissionScopeId(30), false).unwrap();
-    assert!(a
-        .accept_other(AdmissionScopeId(30), "blocked".into())
-        .is_err());
+    assert!(
+        a.accept_other(AdmissionScopeId(30), "blocked".into())
+            .is_err()
+    );
     a.set_ready(AdmissionScopeId(30), true).unwrap();
     a.accept_other(AdmissionScopeId(30), "new-other".into())
         .unwrap();
@@ -455,9 +458,10 @@ fn failed_running_publication_poisoning_keeps_original_scheduler_start_for_recov
     let original = bytes(&a.handle(&submit, now).unwrap());
     let c = Connection::open(dir.authority()).unwrap();
     c.execute_batch("CREATE TRIGGER reject_authority_publication BEFORE INSERT ON events BEGIN SELECT RAISE(ABORT,'publication failure'); END;").unwrap();
-    assert!(a
-        .start_attempt(&submit.binding.exchange_id, &submit.binding.attempt_id, now)
-        .is_err());
+    assert!(
+        a.start_attempt(&submit.binding.exchange_id, &submit.binding.attempt_id, now)
+            .is_err()
+    );
     assert!(matches!(a.authority(), Err(DurableError::Poisoned)));
     assert!(matches!(
         a.handle(&submit, now),

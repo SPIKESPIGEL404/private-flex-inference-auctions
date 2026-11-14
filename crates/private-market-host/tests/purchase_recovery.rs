@@ -403,38 +403,42 @@ fn sql_failure_rolls_back_purchase_g_decision_grant_outbox_and_original_key() {
     let (mut m, _a, _r, p) = durable_setup(&dir, false);
     let db = rusqlite::Connection::open(dir.market()).unwrap();
     db.execute_batch("CREATE TRIGGER reject_purchase BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT,'purchase failure'); END;").unwrap();
-    assert!(m
-        .execute(
+    assert!(
+        m.execute(
             p.idempotency_key.clone(),
             ExchangeCommand::ProposePurchase(Box::new(p.clone()))
         )
-        .is_err());
+        .is_err()
+    );
     assert!(matches!(m.host(), Err(DurableError::Poisoned)));
     drop(m);
     db.execute_batch("DROP TRIGGER reject_purchase").unwrap();
     drop(db);
     let mut m = DurableMarketHost::open(dir.market()).unwrap();
-    assert!(m
-        .host()
-        .unwrap()
-        .snapshot()
-        .purchase_trades()
-        .unwrap()
-        .is_empty());
-    assert!(m
-        .host()
-        .unwrap()
-        .snapshot()
-        .purchase_decisions()
-        .unwrap()
-        .is_empty());
-    assert!(m
-        .host()
-        .unwrap()
-        .snapshot()
-        .frozen_grants()
-        .unwrap()
-        .is_empty());
+    assert!(
+        m.host()
+            .unwrap()
+            .snapshot()
+            .purchase_trades()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        m.host()
+            .unwrap()
+            .snapshot()
+            .purchase_decisions()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        m.host()
+            .unwrap()
+            .snapshot()
+            .frozen_grants()
+            .unwrap()
+            .is_empty()
+    );
     let id = g(&mut m, &p);
     assert_eq!(id.sequence, 1);
     assert_eq!(

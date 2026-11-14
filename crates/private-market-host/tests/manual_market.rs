@@ -24,7 +24,7 @@ use bitrouter_market::durable::*;
 use bitrouter_market::exchange::*;
 use bitrouter_market::manual_market::*;
 use bitrouter_market::order::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const ORDERS: &str = "/v4/manual-seller-orders";
 const ROOT: &str = "/v4/manual-seller-orders/seller-round";
@@ -72,20 +72,22 @@ fn adapter_preserves_exact_authorization_and_original_receipt_across_restart_and
         assert_eq!(option["source_is_current"], true);
         assert_eq!(option["sale_available"], true);
     }
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .frozen_grants()
-        .unwrap()
-        .is_empty());
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .execution_requests()
-        .unwrap()
-        .is_empty());
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .frozen_grants()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .execution_requests()
+            .unwrap()
+            .is_empty()
+    );
     drop(s);
     let c = mm::config(UnixMillis(1000));
     let mut s =
@@ -170,17 +172,18 @@ fn ioc_uses_server_time_idle_expiry_is_durable_and_retries_never_reopen_the_wind
         json!({"registered_at":2000,"decision_before":7000,"accept_before":8000})
     );
     s.poll(UnixMillis(6999)).unwrap();
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .seller_orders()
-        .unwrap()
-        .values()
-        .next()
-        .unwrap()
-        .closure()
-        .is_none());
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .seller_orders()
+            .unwrap()
+            .values()
+            .next()
+            .unwrap()
+            .closure()
+            .is_none()
+    );
     s.poll(UnixMillis(7000)).unwrap();
     let before = s.host().unwrap().snapshot();
     assert_eq!(s.poll(UnixMillis(6999)).unwrap_err().status, 503);
@@ -191,16 +194,17 @@ fn ioc_uses_server_time_idle_expiry_is_durable_and_retries_never_reopen_the_wind
     assert_eq!(late["order"]["closure"]["reason"], "decision_expired");
     drop(s);
     let host = DurableMarketHost::open(dir.market()).unwrap();
-    assert!(host
-        .host()
-        .unwrap()
-        .snapshot()
-        .sells()
-        .values()
-        .next()
-        .unwrap()
-        .allocation()
-        .is_closed());
+    assert!(
+        host.host()
+            .unwrap()
+            .snapshot()
+            .sells()
+            .values()
+            .next()
+            .unwrap()
+            .allocation()
+            .is_closed()
+    );
 }
 #[test]
 fn failed_second_service_cannot_leave_a_partial_root_or_a_successful_key() {
@@ -334,9 +338,11 @@ fn encoded_identity_and_same_key_conflicts_do_not_rewrite_tree_or_close_another_
         )
         .unwrap_err();
     assert_eq!(err.status, 409);
-    assert!(!s.host().unwrap().snapshot().sells()[&i.order.reference]
-        .allocation()
-        .is_closed());
+    assert!(
+        !s.host().unwrap().snapshot().sells()[&i.order.reference]
+            .allocation()
+            .is_closed()
+    );
     assert_eq!(
         s.request("GET", ROOT, b"", UnixMillis(1100))
             .unwrap_err()
@@ -427,13 +433,14 @@ fn historical_view_and_retry_never_adopt_or_overwrite_a_successor_generation() {
         r["receipt"],
         serde_json::to_value(original_receipt).unwrap()
     );
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .sources()
-        .values()
-        .all(|source| source.generation == 2));
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .sources()
+            .values()
+            .all(|source| source.generation == 2)
+    );
     let next = call(
         &mut s,
         "GET",
@@ -441,9 +448,11 @@ fn historical_view_and_retry_never_adopt_or_overwrite_a_successor_generation() {
         json!({}),
         1200,
     );
-    assert!(next["order"]["options"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .all(|option| option["source_is_current"] == true));
+    assert!(
+        next["order"]["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|option| option["source_is_current"] == true)
+    );
 }

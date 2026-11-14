@@ -77,10 +77,11 @@ fn claims_preserve_binding_and_recover_only_original_query_or_fence() {
     let dir = Dir::new();
     let (mut m, mut a) = setup(&dir);
     let origin = a.authority().unwrap().origin();
-    assert!(m
-        .claim_execution((ReportAuthorityId(999), 4))
-        .unwrap()
-        .is_none());
+    assert!(
+        m.claim_execution((ReportAuthorityId(999), 4))
+            .unwrap()
+            .is_none()
+    );
     let submit = m.claim_execution(origin).unwrap().unwrap();
     assert_eq!(submit.kind, ExecutionRequestKind::Submit);
     assert!(m.claim_execution(origin).unwrap().is_none());
@@ -328,10 +329,11 @@ fn process_crashes_keep_send_markers_and_report_receipts_without_replaying_submi
             1
         );
         if fault == "marker" {
-            assert!(m
-                .execution_report_receipt("original-report", origin)
-                .unwrap()
-                .is_none());
+            assert!(
+                m.execution_report_receipt("original-report", origin)
+                    .unwrap()
+                    .is_none()
+            );
             assert_eq!(s.accounts()[&1].held(), MicroUsd(100));
         } else {
             let receipt = m
@@ -438,8 +440,14 @@ fn old_inbox_without_indexes_rebuilds_original_receipts_and_pending_rows() {
     drop(db);
     let db = rusqlite::Connection::open(dir.market()).unwrap();
     for (sql, expected) in [
-        ("EXPLAIN QUERY PLAN SELECT id FROM inbox WHERE authority='77' AND epoch='1' AND command_key='key' ORDER BY id LIMIT 1", "inbox_submission"),
-        ("EXPLAIN QUERY PLAN SELECT id FROM inbox WHERE status=0 AND id<100 ORDER BY id LIMIT 1", "inbox_pending"),
+        (
+            "EXPLAIN QUERY PLAN SELECT id FROM inbox WHERE authority='77' AND epoch='1' AND command_key='key' ORDER BY id LIMIT 1",
+            "inbox_submission",
+        ),
+        (
+            "EXPLAIN QUERY PLAN SELECT id FROM inbox WHERE status=0 AND id<100 ORDER BY id LIMIT 1",
+            "inbox_pending",
+        ),
     ] {
         let plan: String = db.query_row(sql, [], |r| r.get(3)).unwrap();
         assert!(plan.contains(expected), "{plan}");

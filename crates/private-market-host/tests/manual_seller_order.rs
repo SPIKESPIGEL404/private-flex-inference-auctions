@@ -27,8 +27,8 @@ fn command(i: &SubmitManualSellerOrder) -> ExchangeCommand {
     ExchangeCommand::SubmitManualSellerOrder(Box::new(i.clone()))
 }
 #[test]
-fn one_manual_command_registers_whole_authorization_and_services_without_execution_or_synthetic_evidence(
-) {
+fn one_manual_command_registers_whole_authorization_and_services_without_execution_or_synthetic_evidence()
+ {
     let mut h = sf::bootstrap(false);
     let i = mf::input(false);
     let now = h.snapshot().now();
@@ -64,16 +64,18 @@ fn one_manual_command_registers_whole_authorization_and_services_without_executi
             .offering()
             .unwrap();
         assert_eq!(offering.readiness, Readiness::NotReady);
-        assert!(book
-            .get_throughput_observation(r.offering.offering_id)
-            .is_none());
-        assert!(s
-            .scope_report(if r.offering.market_id == "a" {
+        assert!(
+            book.get_throughput_observation(r.offering.offering_id)
+                .is_none()
+        );
+        assert!(
+            s.scope_report(if r.offering.market_id == "a" {
                 AdmissionScopeId(30)
             } else {
                 AdmissionScopeId(31)
             })
-            .is_none());
+            .is_none()
+        );
     }
     assert_eq!(
         MarketHost::replay(sf::bootstrap(false), &h.journal())
@@ -89,9 +91,10 @@ fn invalid_later_service_rolls_back_seller_source_generation_opportunity_and_key
     let before = h.snapshot();
     let mut invalid = i.clone();
     invalid.services[1].schedule.rates.output += 1;
-    assert!(h
-        .execute(invalid.idempotency_key.clone(), command(&invalid))
-        .is_err());
+    assert!(
+        h.execute(invalid.idempotency_key.clone(), command(&invalid))
+            .is_err()
+    );
     assert_eq!(h.snapshot(), before);
     let receipt = mf::submit(&mut h, &i);
     assert!(receipt.services.iter().all(|s| s.source_generation == 1));
@@ -148,12 +151,13 @@ fn transport_retries_keep_original_receipt_and_never_restore_an_old_service_revi
         .seller_service(&receipt.services[0].offering)
         .unwrap()
         .clone();
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             "new-service".into(),
             ExchangeCommand::PublishSellerService(Box::new(next))
         )
-        .is_err());
+        .is_err()
+    );
     let mut retry = i.clone();
     retry.idempotency_key = "alternate-transport".into();
     assert_eq!(mf::submit(&mut h, &retry), receipt);
@@ -164,9 +168,10 @@ fn transport_retries_keep_original_receipt_and_never_restore_an_old_service_revi
     let mut conflict = retry;
     conflict.idempotency_key = "changed".into();
     conflict.services[0].schedule.revision += 1;
-    assert!(h
-        .execute(conflict.idempotency_key.clone(), command(&conflict))
-        .is_err());
+    assert!(
+        h.execute(conflict.idempotency_key.clone(), command(&conflict))
+            .is_err()
+    );
 }
 #[test]
 fn expiry_and_renaming_cannot_reopen_the_original_manual_opportunity() {
@@ -181,16 +186,19 @@ fn expiry_and_renaming_cannot_reopen_the_original_manual_opportunity() {
     let mut retry = i.clone();
     retry.idempotency_key = "late".into();
     assert_eq!(mf::submit(&mut h, &retry), receipt);
-    assert!(h.snapshot().seller_orders().unwrap()[&i.order.reference]
-        .closure()
-        .is_some());
+    assert!(
+        h.snapshot().seller_orders().unwrap()[&i.order.reference]
+            .closure()
+            .is_some()
+    );
     let mut renamed = i;
     renamed.idempotency_key = "renamed".into();
     renamed.order.reference =
         OrderRef::new("exchange".into(), OrderSide::Sell, 7, "renamed".into()).unwrap();
-    assert!(h
-        .execute(renamed.idempotency_key.clone(), command(&renamed))
-        .is_err());
+    assert!(
+        h.execute(renamed.idempotency_key.clone(), command(&renamed))
+            .is_err()
+    );
     assert_eq!(h.snapshot().manual_seller_orders().unwrap().len(), 1);
 }
 #[test]
@@ -203,10 +211,11 @@ fn preparation_is_invisible_and_stale_cas_cannot_publish_a_partial_manual_order(
     };
     assert!(h.snapshot().manual_seller_orders().unwrap().is_empty());
     assert_eq!(p.next_snapshot().manual_seller_orders().unwrap().len(), 1);
-    assert!(p
-        .next_snapshot()
-        .seller_service(&fixture::source("a"))
-        .is_some());
+    assert!(
+        p.next_snapshot()
+            .seller_service(&fixture::source("a"))
+            .is_some()
+    );
     fixture::run(
         &mut h,
         "unrelated",
@@ -244,12 +253,13 @@ fn manual_orders_use_original_ioc_gtd_choice_and_scope_rules_when_proposals_arri
         retry.idempotency_key = "after-g".into();
         assert_eq!(mf::submit(&mut h, &retry), manual);
         assert_eq!(h.snapshot().purchase_trades().unwrap().len(), expected);
-        assert!(h
-            .snapshot()
-            .purchase_trades()
-            .unwrap()
-            .values()
-            .all(|t| t.accepted_at.is_none()));
+        assert!(
+            h.snapshot()
+                .purchase_trades()
+                .unwrap()
+                .values()
+                .all(|t| t.accepted_at.is_none())
+        );
         assert_eq!(
             MarketHost::replay(sf::bootstrap(shared), &h.journal())
                 .unwrap()
@@ -290,11 +300,12 @@ fn handoff_keeps_both_manual_histories_and_old_retry_does_not_claim_the_new_gene
     let mut retry = i;
     retry.idempotency_key = "old-again".into();
     assert_eq!(mf::submit(&mut h, &retry), first);
-    assert!(h
-        .snapshot()
-        .sources()
-        .values()
-        .all(|s| s.generation == 2 && s.option.as_ref().unwrap().order == next.order.reference));
+    assert!(
+        h.snapshot()
+            .sources()
+            .values()
+            .all(|s| s.generation == 2 && s.option.as_ref().unwrap().order == next.order.reference)
+    );
     assert_eq!(h.snapshot().manual_seller_orders().unwrap().len(), 2);
 }
 #[test]
@@ -307,12 +318,13 @@ fn standalone_registration_and_parent_key_cannot_be_used_to_attach_or_replace_ma
         idempotency_key: i.idempotency_key.clone(),
         order: i.order.clone(),
     };
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             r.idempotency_key.clone(),
             ExchangeCommand::RegisterSellerOrder(Box::new(r.clone()))
         )
-        .is_err());
+        .is_err()
+    );
     let mut h = sf::bootstrap(false);
     h.execute(
         r.idempotency_key.clone(),
@@ -322,9 +334,10 @@ fn standalone_registration_and_parent_key_cannot_be_used_to_attach_or_replace_ma
     let before = h.snapshot();
     let mut attach = i;
     attach.idempotency_key = "attach".into();
-    assert!(h
-        .execute(attach.idempotency_key.clone(), command(&attach))
-        .is_err());
+    assert!(
+        h.execute(attach.idempotency_key.clone(), command(&attach))
+            .is_err()
+    );
     assert_eq!(h.snapshot(), before);
 }
 #[test]
