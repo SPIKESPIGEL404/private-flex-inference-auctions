@@ -1,7 +1,7 @@
 use bitrouter_market::order::*;
 use bitrouter_market::quote::{LatencyBoundary, LatencyPrediction};
 use bitrouter_market::throughput::{
-    assess_throughput, ThroughputObservation, ThroughputVerification,
+    ThroughputObservation, ThroughputVerification, assess_throughput,
 };
 
 #[allow(dead_code)]

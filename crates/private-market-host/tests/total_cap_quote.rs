@@ -368,20 +368,22 @@ fn expensive_cache_branch_is_covered_and_all_legal_usage_fits_frozen_cap() {
             assert!(charge <= t.maximum_charge());
         }
     }
-    assert!(t
-        .actual_charge(TokenUsage {
+    assert!(
+        t.actual_charge(TokenUsage {
             uncached_input_tokens: 9,
             cached_input_tokens: 0,
             billable_output_tokens: 20
         })
-        .is_err());
-    assert!(t
-        .actual_charge(TokenUsage {
+        .is_err()
+    );
+    assert!(
+        t.actual_charge(TokenUsage {
             uncached_input_tokens: 10,
             cached_input_tokens: 0,
             billable_output_tokens: 21
         })
-        .is_err());
+        .is_err()
+    );
 }
 
 #[test]
@@ -441,9 +443,11 @@ fn missing_prediction_is_unknown_and_does_not_invent_zero_latency() {
     let mut completion_order = f.order.clone();
     completion_order.selection.objective =
         bitrouter_market::formal_order::FormalObjective::EarliestCompletion;
-    assert!(rank_total_cap_quotes(&completion_order, f.window, vec![q])
-        .unwrap()
-        .is_empty());
+    assert!(
+        rank_total_cap_quotes(&completion_order, f.window, vec![q])
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]

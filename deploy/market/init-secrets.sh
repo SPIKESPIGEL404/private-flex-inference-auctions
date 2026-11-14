@@ -30,6 +30,14 @@ chmod 0400 "${SECRETS_DIR}/"*
 cp "${SECRETS_DIR}/postgres_password" "${SECRETS_DIR}/postgres_password.pg"
 chown "${POSTGRES_UID}:${POSTGRES_UID}" "${SECRETS_DIR}/postgres_password.pg"
 chmod 0400 "${SECRETS_DIR}/postgres_password.pg"
+# Dedicated volume for Postgres: only the password file, never seller_key.
+PG_PASSWORD_DIR="${PRIVATE_MARKET_PG_PASSWORD_DIR:-}"
+if [ -n "${PG_PASSWORD_DIR}" ]; then
+  mkdir -p "${PG_PASSWORD_DIR}"
+  cp "${SECRETS_DIR}/postgres_password.pg" "${PG_PASSWORD_DIR}/postgres_password.pg"
+  chown "${POSTGRES_UID}:${POSTGRES_UID}" "${PG_PASSWORD_DIR}/postgres_password.pg"
+  chmod 0400 "${PG_PASSWORD_DIR}/postgres_password.pg"
+fi
 
 if [ -n "${TLS_DIR}" ]; then
   mkdir -p "${TLS_DIR}"

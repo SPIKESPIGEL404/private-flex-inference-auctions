@@ -191,3 +191,55 @@ together with the token can still spend. Legitimate retries keep working by
 signing a new nonce with the same idempotency key; Market returns the original
 request without a second purchase. Health output stays `attested: false`. This
 is not hardware acceptance.
+
+## Market purchase E2EE (`bitrouter_purchase`)
+
+With attestation enabled, the host also requires E2EE for the procurement
+object. This is a **Market purchase profile** that reuses the ACI E2EE v2
+X25519 construction and headers for the single extension field path
+`bitrouter_purchase` (compact JSON). The service does **not** advertise
+`supported_e2ee_versions: ["2"]` and does not implement response E2EE or
+content-field encryption. Encrypting any other field (including
+`messages.*.content`) is refused with an ACI-shaped `e2ee_*` error and zero
+submit effects. A plaintext `bitrouter_purchase` object is likewise refused
+when attestation is on; there is no flag that turns this off. Lab paths with
+attestation off still accept plaintext purchases.
+
+At startup the host generates an X25519 secret and publishes it in the attested
+keyset as `key_id=market-e2ee-v1`, `algo=x25519-aes-256-gcm-hkdf-sha256`. After
+`connectMarket` verifies, the buyer takes that key only from the verified
+keyset, encrypts, sets the five v2 headers, then signs the final wire body.
+Admission order: Task 2 signature → introspection → E2EE decrypt/restore →
+strip `X-Buyer-*` / `X-E2EE-*` → Market. Replay uses the
+`(client key, service key, nonce)` triple for 300 seconds.
+
+**Adds:** confidentiality of procurement caps against TLS terminators / on-path
+observers who see ciphertext only; AEAD binds field path, model, nonce, and ts
+to the quote-bound E2EE key.
+
+**Does not:** hide the prompt (it still reaches Market and the provider);
+encrypt responses; replace pinned TLS; or prove hardware by itself.
+
+## No-leak sentinel scan (P2 / P3)
+
+Local dstack sibling acceptance: `bash scripts/accept-market-no-leak.sh`. See
+[market-no-leak.md](market-no-leak.md) for surfaces, allowlists, and limits.
+
+## Signed Market financial receipts
+
+After a committed purchase, `GET /market/v1/receipts/{request_id}/signed`
+returns the Market's stored `MarketReceipt` JSON wrapped in a signed envelope
+(`purpose=market.receipt.v1`, plus `request_id`, `idempotency_key`,
+`workload_keyset_digest`, `key_id`, and hex ed25519 `signature` over JCS of the
+document without `signature`). The nested `receipt` bytes are unchanged Market
+records (provider/platform/cash charges, etc.). This proves **what** the
+attested Market recorded and signed, not **when** (there is no external
+timestamp). The receipt signing key is ephemeral per attestation identity and
+rotates when the keyset rotates; archive the verified keyset (CLI `receipt
+--out`) with the signed document to re-check old receipts later.
+
+`node cli.mjs receipt --policy … --credential-file … --request-id … [--out FILE]`
+runs Market verification first, then fetches and verifies the signature against
+`receipt_signing_keys` from that verified keyset. Integers outside JavaScript's
+safe range fail closed. Unauthenticated calls get `401`; unknown, other-buyer,
+malformed, pending, or non-final ids get the same generic `404` body.

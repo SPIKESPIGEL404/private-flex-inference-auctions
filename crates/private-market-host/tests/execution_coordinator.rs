@@ -147,9 +147,11 @@ fn accepted_work_after_tif_is_queried_and_never_timed_out_fenced_or_released() {
     );
     assert_eq!(h.snapshot().accounts()[&1].held(), MicroUsd(11));
     assert_eq!(h.snapshot().occupancy(AdmissionScopeId(30)), 1);
-    assert!(h.snapshot().purchase_trades().unwrap()[&id]
-        .terminal
-        .is_none());
+    assert!(
+        h.snapshot().purchase_trades().unwrap()[&id]
+            .terminal
+            .is_none()
+    );
 }
 #[test]
 fn operation_budget_can_stop_between_query_commit_and_send_and_resume_same_effect() {
@@ -215,14 +217,16 @@ fn policy_is_explicit_bootstrap_only_and_invalid_ticks_do_not_change_clock_or_st
     ));
     let (_, mut a) = pf::setup(false, false);
     let before = disabled.snapshot();
-    assert!(disabled
-        .tick_execution(
-            "disabled".into(),
-            UnixMillis(before.now().0 + 1),
-            &mut a,
-            10
-        )
-        .is_err());
+    assert!(
+        disabled
+            .tick_execution(
+                "disabled".into(),
+                UnixMillis(before.now().0 + 1),
+                &mut a,
+                10
+            )
+            .is_err()
+    );
     assert_eq!(disabled.snapshot(), before);
     for field in 0..4 {
         let mut p = cf::policy();
@@ -237,14 +241,15 @@ fn policy_is_explicit_bootstrap_only_and_invalid_ticks_do_not_change_clock_or_st
     let (mut h, mut a, _) = cf::setup(false);
     let before = h.snapshot();
     assert!(h.clone().with_execution_coordination(cf::policy()).is_err());
-    assert!(h
-        .tick_execution(
+    assert!(
+        h.tick_execution(
             "bad".into(),
             UnixMillis(before.now().0 + 1),
             &mut a,
             MAX_EXECUTION_WORK + 1
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(h.snapshot(), before);
 }
 #[test]
@@ -266,9 +271,11 @@ fn a_manual_query_before_initial_dispatch_does_not_discard_the_original_unsent_s
         }
     );
     h.drive_execution_due(&mut a, 10).unwrap();
-    assert!(h.snapshot().purchase_trades().unwrap()[&id]
-        .accepted_at
-        .is_some());
+    assert!(
+        h.snapshot().purchase_trades().unwrap()[&id]
+            .accepted_at
+            .is_some()
+    );
     assert_eq!(a.attempts().len(), 1);
 }
 
@@ -314,7 +321,9 @@ fn exhausted_timestamp_arithmetic_is_an_explicit_error_and_never_releases_accept
     assert!(h.drive_execution_due(&mut a, 10).is_err());
     assert_eq!(h.snapshot(), before);
     assert_eq!(h.snapshot().accounts()[&1].held(), MicroUsd(0));
-    assert!(h.snapshot().purchase_trades().unwrap()[&id]
-        .terminal
-        .is_none());
+    assert!(
+        h.snapshot().purchase_trades().unwrap()[&id]
+            .terminal
+            .is_none()
+    );
 }

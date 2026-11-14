@@ -29,7 +29,7 @@ use bitrouter_market::execution_contract::*;
 use bitrouter_market::manual_market::*;
 use bitrouter_market::order::*;
 use lf::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const ORDERS: &str = "/v4/formal-orders";
 const ROOT: &str = "/v4/formal-orders/local-buyer";
@@ -92,22 +92,24 @@ fn prepare_config(
         1000,
     );
     s.poll(UnixMillis(1000)).unwrap();
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .frozen_grants()
-        .unwrap()
-        .is_empty());
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .frozen_grants()
+            .unwrap()
+            .is_empty()
+    );
     declare(&mut s, 1000, 9000);
     s.poll(UnixMillis(1000)).unwrap();
-    assert!(s
-        .host()
-        .unwrap()
-        .snapshot()
-        .frozen_grants()
-        .unwrap()
-        .is_empty());
+    assert!(
+        s.host()
+            .unwrap()
+            .snapshot()
+            .frozen_grants()
+            .unwrap()
+            .is_empty()
+    );
     let report = fx::report(30, 1, vec![]);
     call(
         &mut s,
@@ -528,9 +530,10 @@ fn runtime_policy_drift_and_an_authority_bound_to_another_market_store_are_rejec
     );
     let second = mm::Dir::new();
     let mut s = service(&second, true);
-    assert!(s
-        .open_local_simulation(first.0.join("authority.sqlite"), false)
-        .is_err());
+    assert!(
+        s.open_local_simulation(first.0.join("authority.sqlite"), false)
+            .is_err()
+    );
     let mut c = lf::config(UnixMillis(1000), false);
     c.runtime.as_mut().unwrap().execution_budget = 0;
     assert!(c.bootstrap().is_err());
@@ -591,12 +594,14 @@ fn each_poll_respects_worker_and_execution_budgets_and_resumes_the_same_pending_
         attempt.state,
         ExecutionReportState::Running { .. }
     ));
-    assert!(attempt
-        .milestones
-        .as_ref()
-        .unwrap()
-        .first_response_at
-        .is_none());
+    assert!(
+        attempt
+            .milestones
+            .as_ref()
+            .unwrap()
+            .first_response_at
+            .is_none()
+    );
     assert_eq!(a.task_start_count("exchange", &id).unwrap(), 1);
     drop(a);
     let mut s =
@@ -611,12 +616,14 @@ fn each_poll_respects_worker_and_execution_budgets_and_resumes_the_same_pending_
         attempt.state,
         ExecutionReportState::Running { .. }
     ));
-    assert!(attempt
-        .milestones
-        .as_ref()
-        .unwrap()
-        .first_response_at
-        .is_some());
+    assert!(
+        attempt
+            .milestones
+            .as_ref()
+            .unwrap()
+            .first_response_at
+            .is_some()
+    );
     drop(a);
     let mut s =
         ManualSellerService::shared(DurableMarketHost::open(dir.market()).unwrap(), &c).unwrap();

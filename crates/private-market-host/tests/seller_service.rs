@@ -221,8 +221,8 @@ fn selected_terms_revalidate_decoded_fields_and_revision_changes_binding() {
 }
 
 #[test]
-fn hard_delivery_is_explicit_bounded_and_checked_for_absolute_time_overflow(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn hard_delivery_is_explicit_bounded_and_checked_for_absolute_time_overflow()
+-> Result<(), Box<dyn std::error::Error>> {
     let mut s = schedule();
     for duration in [0, MAX_HARD_DELIVERY_MS + 1] {
         s.bins[0].hard_delivery_within_ms = duration;
