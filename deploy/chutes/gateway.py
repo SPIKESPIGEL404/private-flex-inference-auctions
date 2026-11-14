@@ -263,7 +263,16 @@ class ChutesGateway:
     async def bounded_json(self, url, *, method="GET", body=None, authenticated=False):
         return json.loads(await self.bounded_bytes(url, method=method, body=body, authenticated=authenticated))
 
-    async def verify(self):
+    def evidence_session(self, event, *, persist_evidence=True):
+        session_id = sha(canonical(event))
+        if persist_evidence:
+            path = self.evidence_dir / (session_id + ".json")
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as output:
+                output.write(canonical(event)); output.flush(); os.fsync(output.fileno())
+        return session_id
+
+    async def verify(self, *, persist_evidence=True):
         metadata = await self.bounded_json(f"{API}/chutes/{CHUTE_ID}", authenticated=True)
         require(metadata.get("chute_id") == CHUTE_ID and metadata.get("tee") is True
             and metadata.get("public") is False and metadata.get("disabled") is False
@@ -323,11 +332,7 @@ class ChutesGateway:
                 "model_identity_source": "authenticated Chutes control-plane source/version/revision/image pins",
                 "model_weights_hardware_proven": False, "cpu_gpu_session_topology_proven": False,
                 "evidence": raw, "e2ee_public_key": instance["e2e_pubkey"], "nras_appraisal": appraisal}
-            session_id = sha(canonical(event))
-            path = self.evidence_dir / (session_id + ".json")
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(fd, "wb") as output:
-                output.write(canonical(event)); output.flush(); os.fsync(output.fileno())
+            session_id = self.evidence_session(event, persist_evidence=persist_evidence)
             verified.append((instance, session_id))
         require(verified, "no verified Chutes instance")
         require(0 < discovery.get("nonce_expires_in", 0) <= 75
@@ -344,6 +349,9 @@ class ChutesGateway:
             "only the pinned streaming native Chat contract is supported")
         output_limit = body.get("max_completion_tokens")
         require(type(output_limit) is int and 1 <= output_limit <= 512, "invalid output token cap")
+        monitor=getattr(self,'supply_monitor',None)
+        if monitor is not None and not monitor.snapshot()['ready']:
+            return web.json_response({'error':{'code':'supply_not_ready'},'supply':monitor.snapshot()},status=503,headers={'Retry-After':'15'})
         instance, session_id = await self.verify()
         encrypted, response_sk = encrypt_request(instance["e2e_pubkey"], body)
         headers = {"Authorization": "Bearer " + self.key, "Content-Type": "application/octet-stream",
@@ -438,22 +446,22 @@ async def serve(args):
         async def health(request):
             return web.json_response({"ready": True, "model": PUBLIC_MODEL, "verification_required": True})
         app.router.add_get("/healthz", health)
-        async def warm_private_chute():
-            while True:
-                try:
-                    await gateway.bounded_json(f"{API}/chutes/warmup/{CHUTE_ID}?quick=true", authenticated=True)
-                except Exception:
-                    print('{"private_chute_warmup":"temporarily_unavailable"}', file=sys.stderr, flush=True)
-                await asyncio.sleep(60)
-        warmer = asyncio.create_task(warm_private_chute())
+        from readiness import SupplyMonitor
+        gateway.supply_monitor=SupplyMonitor(gateway)
+        async def supply(request):
+            return web.json_response(gateway.supply_monitor.snapshot(),headers={'Cache-Control':'no-store'})
+        app.router.add_get('/v1/supply',supply)
+        if args.warmup_once:
+            await gateway.bounded_json(f"{API}/chutes/warmup/{CHUTE_ID}?quick=true",authenticated=True)
+        monitor=asyncio.create_task(gateway.supply_monitor.run())
         runner = web.AppRunner(app, access_log=None)
         await runner.setup()
         await web.TCPSite(runner, args.host, args.port).start()
         try:
             await asyncio.Event().wait()
         finally:
-            warmer.cancel()
-            await asyncio.gather(warmer, return_exceptions=True)
+            monitor.cancel()
+            await asyncio.gather(monitor, return_exceptions=True)
             await runner.cleanup()
 
 
@@ -462,6 +470,7 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--config-sha256", required=True)
     parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument("--warmup-once", action="store_true", help="Explicit operator action; may start billable GPU time")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8091)
     args = parser.parse_args()

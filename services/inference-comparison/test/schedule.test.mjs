@@ -59,6 +59,9 @@ test("setup consumes each equal budget; receipts run after both usable results a
     }
     return {
       identity: { marketVerified: true },
+      async supply() {
+        return { state: "ready", expiresAtMs: wall + 100000 };
+      },
       async dispatch() {
         assert.equal(readOnly, undefined);
         dispatches++;
@@ -112,7 +115,7 @@ test("setup consumes each equal budget; receipts run after both usable results a
       report.arms.B.usableResultAtMs,
     );
     assert.equal(recovered.arms.B.responseState, "available");
-    assert.equal(recovered.arms.B.settlementState, "unknown");
+    assert.equal(recovered.arms.B.settlementState, "pending");
   } finally {
     runner.close();
     rmSync(directory, { recursive: true, force: true });

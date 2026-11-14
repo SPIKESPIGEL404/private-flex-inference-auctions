@@ -4,7 +4,7 @@
 
 ## 实现与边界
 
-基线为 `e2641db6f764af061059abe16a56794d3a021dac`，工作分支 `codex/single-seller-auction-agent`。实现对应[规格第 8 节](../specs/2026-11-14-single-seller-auction-and-agent-evaluation.md)，后续真实链验收网络已选择 NEAR testnet。
+基线为 `e2641db6f764af061059abe16a56794d3a021dac`，工作分支 `codex/single-seller-auction-agent`。开 PR 前已合入 `main` 的 `b3f6dc0`，保留共同导航、attestation 面板、供应 readiness 和签名结算恢复。实现对应[规格第 8 节](../specs/2026-11-14-single-seller-auction-and-agent-evaluation.md)，后续真实链验收网络已选择 NEAR testnet。
 
 首页 `/` 直接复用 App、TaskPane、Activity、任务设置和 owner 钱包入口。原 `/memory` 地址重定向首页，不再维护独立任务页面或登录表单。运行时由 App 的 [MemoryTaskController](../../clients/market-playground/src/memory-tasks.ts) 持有；隐藏、缩放或卸载终端 pane 不会终止 fx/just-bash。终端展示对话和工具结果，每个 pane 的同一状态行更新采购进度；Activity 展示本人订单、bid、付款、退款和本页工作区文件。
 
@@ -24,12 +24,14 @@
 | 现有入口 | 钱包弹窗显示 Testnet；受控模式不提供真实注资按钮；Activity 导出本页证据 |
 | 移动端 | Chromium 390×844，文档宽度 390，无页面横向溢出；终端完成 resize 后检查截图 |
 | 前端自动化 | 10 个测试通过，含 controller 生命周期、撤销 ACK 丢失、owner 切换与旧钱包回归 |
-| 既有 gateway 回归 | 17 个测试通过，含认证与 owner 隔离 |
+| 既有 gateway 回归 | 19 个测试通过，含认证、attestation 与 owner 隔离 |
 | 任务/拍卖单元测试 | 24 个测试通过，含真实本地 fx/tools、原操作重试、授权与报价合同；链适配器使用 fake provider |
 | 拥有者 PostgreSQL 集成 | 14 个测试通过，含并发分配、恢复/fence/退款、共享责任、NEP-413 登录与最小金融授权 |
-| 构建 | TypeScript 与 Vite production build 通过；git diff --check 通过 |
+| Comparison 回归 | 29 个测试通过；保留 run-b/reconcile，recover 与财务补证禁止 dispatch；供应 warming 不创建采购 claim |
+| 完整 comparison 集成 | 两个真实签名 Market 与各自 PG/Redis；每 arm 一次受控上游调用；实际签名 receipt 结算与重启防重通过 |
+| 构建 | TypeScript、Vite production build 与更新后的 P2 Rust binary build 通过；pinned source/tamper repair 检查、git diff --check 通过 |
 
-合计 65 个自动化测试，另加完整 Chromium 场景。浏览器结果及源码摘要见[机器可读证据](2026-11-14-main-workspace-client-tasks.json)，拥有者 schema/binary 摘要见[受控 Market 记录](2026-11-14-single-seller-auction-controlled.json)。截图与下载文件在本地 `output/playwright/`，不包含私钥。
+合计 96 个自动化测试，另加完整 Chromium 与双 Market comparison 场景。导航测试在第三个任务运行期间切至 proposal、检查隐藏工作区快捷键停用，再返回主界面继续；attestation 显示 controlled local，未声称通过硬件验证。浏览器结果及源码摘要见[机器可读证据](2026-11-14-main-workspace-client-tasks.json)，拥有者 schema/binary 摘要见[受控 Market 记录](2026-11-14-single-seller-auction-controlled.json)。截图：[桌面](2026-11-14-main-workspace-orders.png)、[移动端](2026-11-14-main-workspace-mobile.png)。原始截图与下载文件在本地 `output/playwright/`，不包含私钥。
 
 这些证据仅证明客户端与协议接线、工具执行、受控金融状态和生命周期行为。S1/S4 的真实钱包本金/gas/供应付款、真实模型资格验证，以及 S5 的机制统计实验仍待完成；不能由本轮结果推导真实链或生产验收通过。
 

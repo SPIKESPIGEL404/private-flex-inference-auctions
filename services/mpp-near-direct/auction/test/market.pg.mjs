@@ -682,6 +682,10 @@ test("main workspace reuses NEP-413 owner login and exposes only financial grant
     assert.equal(capabilities.taskRuntime, "client-memory-v1");
     assert.equal(capabilities.ownerAuth, "nep413");
     assert.equal(capabilities.nativeFunding, false);
+    const attestation = await (await request("attestation")).json();
+    assert.equal(attestation.status, "controlled_local");
+    assert.equal(attestation.compose_hash, null);
+    assert.equal(attestation.tls_pinned, false);
     const cookie = await login("owner.testnet");
     assert.equal(
       (await (await request("session", undefined, cookie)).json()).owner

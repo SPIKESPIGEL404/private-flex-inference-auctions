@@ -30,12 +30,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", required=True)
     parser.add_argument("--seed-sha256", required=True)
+    parser.add_argument("--run-directory",default="/data/chutes-run")
+    parser.add_argument("--credential-source-directory")
     args = parser.parse_args()
     os.umask(0o077)
     raw = Path(args.seed).read_bytes()
     assert digest(raw) == args.seed_sha256, "unapproved deployment seed"
     seed = json.loads(raw)
-    root = Path("/data/chutes-run")
+    root = Path(args.run_directory).resolve()
+    assert root in (Path("/data/chutes-run"),Path("/data/baseline-b-v2"),Path("/data/baseline-b-v3")), "explicit isolated runtime root required"
     root.mkdir(mode=0o700, exist_ok=True)
     for name in ("gateway.json", "plan.json", "buyers.public.json"):
         install(root / name, seed["files"][name].encode())
@@ -45,7 +48,15 @@ def main():
     assert config["local_secret_file"] == str(root / "local-secret")
     key = os.environ.pop("CHUTES_API_KEY", "").strip()
     os.environ.pop("MARKET_ARTIFACT_KEY", None)
-    buyer_keys = base64.b64decode(os.environ.pop("MARKET_BUYER_KEYS_B64", ""), validate=True)
+    sealed_buyers=os.environ.pop("MARKET_BUYER_KEYS_B64", "")
+    buyer_keys = base64.b64decode(sealed_buyers, validate=True) if sealed_buyers else b''
+    if args.credential_source_directory:
+        source=Path(args.credential_source_directory)
+        assert source==Path('/data/chutes-run') and root in (Path('/data/baseline-b-v2'),Path('/data/baseline-b-v3')), 'only the reviewed legacy credential migration is supported'
+        for name in ['chutes.key','buyer-tokens.json']:
+            assert (source/name).is_file() and (source/name).stat().st_mode&0o077==0
+        if not key:key=(source/'chutes.key').read_text().strip()
+        if not buyer_keys:buyer_keys=(source/'buyer-tokens.json').read_bytes()
     assert digest(buyer_keys) == seed["buyer_tokens_sha256"], "buyer credential seed differs from release"
     install(root / "buyer-tokens.json", buyer_keys)
     if key:

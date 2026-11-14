@@ -26,6 +26,16 @@ from tokenizer import Server
 STOP = threading.Event()
 
 
+def database_name(market_id):
+    # Market identifiers need not obey PostgreSQL's or the host's database
+    # naming contract. Keep new databases isolated and within the 63-byte limit.
+    return "private_market_" + sha(market_id.encode())[:32]
+
+
+def validate_database_name(name):
+    assert re.fullmatch(r"private_market_[A-Za-z0-9_]+", name) and len(name.encode()) <= 63, "database name violates the host contract; preserve and investigate"
+
+
 def port():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0)); return sock.getsockname()[1]
@@ -93,7 +103,8 @@ def main():
         assert plan["upstream_budget_micro_usd"] == 18446744073709551615
         assert plan["maximum_upstream_calls"] == 4 and plan["finite_offers"] == 3
         settings = {"pg_port": port(), "redis_port": port(), "tokenizer_port": port(), "bridge_port": port(),
-            "database": plan["market_id"], "binding": uuid.uuid4().hex, "cutover": uuid.uuid4().hex}
+            "database": database_name(plan["market_id"]), "binding": uuid.uuid4().hex, "cutover": uuid.uuid4().hex}
+        validate_database_name(settings["database"])
         save(root / "runtime.json", settings)
     else:
         assert (state / "catalog.json").exists() or args.resume_calibration_attempt, "first run needs explicit qualification approval"
@@ -101,6 +112,7 @@ def main():
             assert not (state / "catalog.json").exists(), "never recalibrate a qualified ledger"
             assert (root / "calibration-intent.json").exists(), "no original calibration to resume"
         settings = json.loads((root / "runtime.json").read_bytes())
+        validate_database_name(settings["database"])
     user = os.environ.get("USER", "market")
     env = {k: v for k, v in os.environ.items() if not k.startswith(("RAILWAY_", "BITROUTER_", "DATABASE_", "REDIS_", "PRIVATE_MARKET_", "INFERENCE_MARKET_"))}
     env.update(DATABASE_URL=f"postgres://{user}@127.0.0.1:{settings['pg_port']}/{settings['database']}",
@@ -116,6 +128,19 @@ def main():
         from tls import prepare as prepare_tls
         prepare_tls(args.tls_config)
         env["PRIVATE_MARKET_ATTESTATION_CONFIG"] = args.tls_config
+    public_identity = os.environ.get("MARKET_PUBLIC_IDENTITY_CONFIG")
+    public_spki = None
+    if public_identity:
+        assert args.tls_config, "public ingress identity requires the reviewed Market TLS runtime"
+        from public_tls import certificate_spki
+        try:
+            public_spki = certificate_spki(public_identity)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            # Retain the existing attested channel while ingress obtains its
+            # first public certificate. No ledger initialization is repeated.
+            print("Public certificate pending; retaining the existing attested TLS endpoint", flush=True)
+        else:
+            env["PRIVATE_MARKET_ATTESTATION_CONFIG"] = public_identity
     children, logs, qualifier, pg_started = [], [], None, False
     def spawn(name, argv, worker_env=None):
         log = open(root / (name + ".log"), "ab"); logs.append(log)
@@ -143,7 +168,13 @@ def main():
             "--port", str(settings["bridge_port"])])
         bridge_url = f"http://127.0.0.1:{settings['bridge_port']}"
         ready(bridge_url + "/healthz", bridge)
+        env["PRIVATE_MARKET_SUPPLY_STATUS_URL"]=bridge_url+"/v1/supply"
         if args.initialize or args.resume_calibration_attempt:
+            end=time.monotonic()+900
+            while True:
+                with urllib.request.urlopen(bridge_url+'/v1/supply',timeout=5) as response: supply=json.load(response)
+                if supply.get('ready') is True: break
+                if time.monotonic()>=end or STOP.wait(2): raise RuntimeError('verified provider supply is not ready; no calibration was invoked')
             request = {"model": PUBLIC_MODEL, "messages": [{"role": "user", "content": "Reply with exactly the word OK."}],
                 "stream": True, "stream_options": {"include_usage": True}, "max_completion_tokens": plan["max_output_tokens"], "temperature": 0}
             tokens = qualifier.qualifier.tokenize(request)
@@ -195,7 +226,9 @@ def main():
             run(args.binary, "qualify-live", str(state), str(measurement_file), env=env)
         if args.buyer_key_file:
             keys = json.loads(Path(args.buyer_key_file).read_bytes())
-            assert [b["token"] for b in json.loads((state / "state.json").read_bytes())["buyers"]] == keys, "original buyer credentials changed"
+            saved_buyers=json.loads((state / "state.json").read_bytes())["buyers"]
+            assert all(b['token']=='' for b in saved_buyers), "buyer tokens must remain outside persisted state"
+            env.update({f"PRIVATE_MARKET_BUYER_TOKEN_{i}":key for i,key in enumerate(keys)})
         if args.buyer_public_keys:
             public = json.loads(Path(args.buyer_public_keys).read_bytes())["public_keys"]
             assert [b["public_key"] for b in json.loads((state / "state.json").read_bytes())["buyers"]] == public, "buyer verifying keys changed"
@@ -207,8 +240,17 @@ def main():
             nginx = spawn("nginx", ["nginx", "-c", args.nginx_config, "-g", "daemon off;"])
         print(json.dumps({"ready": True, "model": PUBLIC_MODEL, "base_url": "http://" + args.listen + "/market/v1",
             "verification_required": True, "finite_offers": 3}), flush=True)
+        next_public_certificate_check = time.monotonic()+2
         next_certificate_check = time.monotonic() + 3600
         while not STOP.wait(0.5):
+            if public_identity and time.monotonic() >= next_public_certificate_check:
+                try:
+                    next_spki = certificate_spki(public_identity)
+                except (OSError, ValueError, subprocess.SubprocessError):
+                    next_spki = None
+                if next_spki != public_spki:
+                    raise RuntimeError("public ingress TLS identity changed; restarting Market identity")
+                next_public_certificate_check = time.monotonic() + 2
             if any(child.poll() is not None for child in children): raise RuntimeError("owned worker exited")
             if args.tls_config and time.monotonic() >= next_certificate_check:
                 certificate = Path("/run/market-tls/leaf.pem")

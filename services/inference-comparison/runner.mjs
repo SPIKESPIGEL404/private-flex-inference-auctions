@@ -1,4 +1,5 @@
 import { check, digest, validateComparison, usageCostMicro } from "./core.mjs";
+import { projectSettlement } from "./settlement.mjs";
 import { Store } from "../../clients/buyer-gateway/src/store.mjs";
 import { marketExecutor } from "./market-executor.mjs";
 // This journal records experiment observations; Market remains the only money authority.
@@ -85,29 +86,14 @@ export class ComparisonRunner {
       deadlineMs,
       paidInvokeAttempted: false,
     };
-    const claimed = this.store.transaction(() => {
-      if (this.store.get("comparison-arm", id, plan.ownerAccount)) return false;
-      this.store.put("comparison-arm", id, plan.ownerAccount, record);
-      return true;
+    const stop = (state, reason) => ({
+      ...record,
+      state,
+      responseState: state,
+      reason,
+      endedAtMs: this.now(),
+      elapsedMs: this.monotonic() - startedMono,
     });
-    if (!claimed)
-      return {
-        ...this.store.get("comparison-arm", id, plan.ownerAccount),
-        replayBlocked: true,
-      };
-    const save = (value) => {
-      this.store.put("comparison-arm", id, plan.ownerAccount, value);
-      return value;
-    };
-    const stop = (state, reason) =>
-      save({
-        ...record,
-        state,
-        responseState: state,
-        reason,
-        endedAtMs: this.now(),
-        elapsedMs: this.monotonic() - startedMono,
-      });
     const body = {
       ...plan.request,
       model: arm.model,
@@ -145,9 +131,37 @@ export class ComparisonRunner {
           "not_dispatched_deadline",
           "verification_exceeded_task_budget",
         );
+      if (armId === "B") {
+        try {
+          record.readiness = await executor.supply();
+        } catch {
+          return stop("supply_unknown", "supply_observation_unavailable");
+        }
+        if (
+          record.readiness.state !== "ready" ||
+          record.readiness.expiresAtMs <= this.now()
+        )
+          return stop("supply_" + record.readiness.state, "supply_not_ready");
+        if (this.now() >= deadlineMs)
+          return stop(
+            "not_dispatched_deadline",
+            "supply_check_exceeded_task_budget",
+          );
+      }
+      const claimed = this.store.transaction(() => {
+        if (this.store.get("comparison-arm", id, plan.ownerAccount))
+          return false;
+        this.store.put("comparison-arm", id, plan.ownerAccount, record);
+        return true;
+      });
+      if (!claimed)
+        return {
+          ...this.store.get("comparison-arm", id, plan.ownerAccount),
+          replayBlocked: true,
+        };
       record.paidInvokeAttempted = true;
       record.dispatchedAtMs = this.now();
-      save(record);
+      this.store.put("comparison-arm", id, plan.ownerAccount, record);
       try {
         const response = await executor.dispatch({
           body,
@@ -282,7 +296,7 @@ export class ComparisonRunner {
   }
   // This path never dispatches. Expired experiment authorization can still be reconciled.
   async enrich(plan, record) {
-    if (!record.marketRequestId) return record;
+    if (!record.marketRequestId || record.settlement) return record;
     let executor;
     let value = { ...record };
     try {
@@ -307,8 +321,23 @@ export class ComparisonRunner {
         }
       }
       value.financialObservedAtMs = this.now();
-      // A verified signature/head is evidence, not proof of final settlement.
-      value.settlementState = "unknown";
+      // Project only a verified receipt bound to the original operation.
+      if (value.signedReceipt) {
+        try {
+          value.settlement = projectSettlement(value.signedReceipt, {
+            requestId: record.marketRequestId,
+            idempotencyKey: record.idempotencyKey,
+            budgetMicro: plan.budgetPerArmMicro,
+          });
+          value.settlementIdentity = executor.identity;
+          value.settlementState = "committed";
+          value.serviceCostMicro = value.settlement.providerChargeMicro;
+          value.settlementCheckedAtMs = this.now();
+        } catch {
+          value.settlementState = "invalid";
+          value.serviceCostMicro = null;
+        }
+      } else value.settlementState = "pending";
     } catch {
       value.financialLookupError = "connection_unavailable";
     } finally {
@@ -348,6 +377,9 @@ export class ComparisonRunner {
       mode: input.mode,
       arms: results,
     };
+  }
+  async reconcile(plan) {
+    return this.recover(plan, plan.planHash);
   }
   close() {
     this.store.close();
@@ -393,6 +425,12 @@ export function publicReport(report) {
             "buyer-observed-includes-market-and-provider-verification",
           tariffEstimateMicro: r.tariffEstimateMicro ?? null,
           serviceCostMicro: r.serviceCostMicro ?? null,
+          settlement: r.settlement ?? null,
+          accountingScope: "market-USD-credit-ledger",
+          nativeChainPaymentVerified: false,
+          readiness: r.readiness ?? null,
+          settlementHardwareVerified:
+            r.settlementIdentity?.marketVerified === true,
           providerBillMicro: null,
           settlementEvidenceAvailable: Boolean(r.marketHead),
           signedFinancialReceiptVerified: Boolean(r.signedReceipt),

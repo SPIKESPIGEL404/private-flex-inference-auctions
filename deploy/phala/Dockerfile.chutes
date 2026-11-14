@@ -21,7 +21,7 @@ COPY scripts/requirements-market-c.txt /opt/market/requirements-tokenizer.txt
 RUN python3 -m venv /opt/market/venv && /opt/market/venv/bin/pip install --no-cache-dir \
     -r /opt/market/requirements-gateway.txt -r /opt/market/requirements-tokenizer.txt
 COPY --from=build /src/crates/private-market-host/target/release/private-market-host /usr/local/bin/private-market-host
-COPY deploy/chutes/gateway.py deploy/chutes/prepare_gateway.py deploy/chutes/tokenizer.py deploy/chutes/market_chute.py /opt/chutes/
+COPY deploy/chutes/gateway.py deploy/chutes/prepare_gateway.py deploy/chutes/tokenizer.py deploy/chutes/market_chute.py deploy/chutes/readiness.py /opt/chutes/
 COPY deploy/phala/runtime_chutes.py deploy/phala/tls.py deploy/phala/bootstrap_chutes.py /opt/market/
 ENV PATH="/opt/market/venv/bin:/usr/lib/postgresql/18/bin:${PATH}" USER=market \
     PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 TOKENIZERS_PARALLELISM=false HF_HUB_OFFLINE=1

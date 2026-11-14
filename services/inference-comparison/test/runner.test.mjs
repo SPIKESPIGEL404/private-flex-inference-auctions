@@ -14,6 +14,9 @@ function setup(mode) {
       now: () => time,
       executor: async (_, { arm }) => ({
         identity: { marketVerified: true },
+        async supply() {
+          return { state: "ready", expiresAtMs: time + 100000 };
+        },
         async dispatch({ body, idempotencyKey }) {
           calls.push({ arm: arm.id, body, idempotencyKey });
           if (mode === "loss" && arm.id === "A") throw Error("ack lost");

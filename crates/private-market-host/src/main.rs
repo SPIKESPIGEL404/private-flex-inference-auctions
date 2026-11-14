@@ -452,6 +452,11 @@ async fn serve(dir: &Path) -> Result<()> {
     // Hash before any Market load. Launch reads the same path on its own.
     let policy_digest = catalog_policy_digest(&catalog_path)?;
     let single_model_enabled = single_model::configured(&catalog_path)?;
+    let receipt_catalog: Value = live::read(&catalog_path)?;
+    let receipt_market_id = receipt_catalog["market"]["market_id"]
+        .as_str()
+        .context("catalog market identity missing")?
+        .to_owned();
     let is_live = state.registration_sha256.is_some();
     let direct_p1 = direct_p1_enabled(is_live)?;
     let procurement_config = procurement::configuration(is_live)?;
@@ -620,7 +625,7 @@ async fn serve(dir: &Path) -> Result<()> {
                 router,
                 db.clone(),
                 resolver.clone(),
-                catalog::EXCHANGE,
+                receipt_market_id,
                 ISSUER,
                 mounted.keyset_digest.clone(),
                 mounted.receipt_key.clone(),

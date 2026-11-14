@@ -6,6 +6,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import { TaskPane } from "./TaskPane";
+import { AttestationPanel } from "./AttestationPanel";
+import { SiteHeader } from "./SiteHeader";
 import { MemoryTaskController } from "./memory-tasks";
 import fxWasm from "../node_modules/libfx/fx-core.wasm?url";
 import type { PaneHandle } from "./TaskPane";
@@ -38,7 +40,7 @@ type Dialog = "settings" | "new" | "wallet" | "help" | "mode" | null;
 const layoutKey = (scope: string) =>
   "private-market.workspace.layout.v1:" + scope;
 
-export default function App() {
+export default function App({ active = true }: { active?: boolean }) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [connection, setConnection] = useState("loading");
   const [memoryController] = useState(
@@ -435,7 +437,7 @@ export default function App() {
   );
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
-      if (dialog || !authenticated) return;
+      if (!active || dialog || !authenticated) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         e.stopPropagation();
@@ -470,7 +472,13 @@ export default function App() {
     };
     window.addEventListener("keydown", keydown, true);
     return () => window.removeEventListener("keydown", keydown, true);
-  }, [dialog, authenticated, current, selected, tasks, prefixAction]);
+  }, [active, dialog, authenticated, current, selected, tasks, prefixAction]);
+  useEffect(() => {
+    if (!active) {
+      setDialog(null);
+      prefix.current = 0;
+    }
+  }, [active]);
   async function login() {
     setBusy(true);
     setError("");
@@ -650,124 +658,106 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="topbar">
-          <a className="wordmark" href="/" aria-label="Private Market">
-            <span className="brand-mark">∕</span> private market
-          </a>
-          <nav aria-label="Main navigation">
-            <span className="nav-current">try</span>
-            <a href="/proposal">proposal</a>
-            <a
-              href="https://github.com/SPIKESPIGEL404/private-flex-inference-auctions"
-              target="_blank"
-              rel="noreferrer"
-            >
-              source ↗
-            </a>
-          </nav>
-          <div className="header-controls">
-            <button className="preview-link" onClick={() => setDialog("mode")}>
-              {memory
-                ? "testnet · controlled"
-                : tasks
-                  ? "controlled"
-                  : capabilities
-                    ? "wallet setup"
-                    : "connecting"}
-            </button>
-            {authenticated && (
-              <>
+        <SiteHeader view="try">
+          <button className="preview-link" onClick={() => setDialog("mode")}>
+            {memory
+              ? "testnet · controlled"
+              : tasks
+                ? "controlled"
+                : capabilities
+                  ? "wallet setup"
+                  : "connecting"}
+          </button>
+          {authenticated && (
+            <>
+              <button
+                className="outline-button"
+                onClick={() => setDialog("wallet")}
+              >
+                {capabilities?.nativeWallets
+                  ? (native.owner?.account_id ?? "wallets")
+                  : tasks
+                    ? "wallets"
+                    : (wallet.owner?.account_id ?? "connect NEAR")}
+              </button>
+              <button
+                className="outline-button"
+                aria-expanded={activity}
+                onClick={() => setActivity((old) => !old)}
+              >
+                activity
+              </button>
+              <label className="pane-count">
+                panes{" "}
+                <input
+                  aria-label="Pane count"
+                  type="number"
+                  min={1}
+                  max={tasks ? sessions.length : allocation ? buyers.length : 8}
+                  value={countDraft}
+                  disabled={busy || !sessions.length}
+                  onChange={(e) => {
+                    setCountDraft(e.target.value);
+                    if (/^[1-8]$/.test(e.target.value))
+                      void resize(Number(e.target.value));
+                  }}
+                  onBlur={() => setCountDraft(String(shown.length))}
+                />
+              </label>
+              <button
+                className="outline-button"
+                aria-label="Configure task"
+                disabled={busy || !current}
+                onClick={() => setDialog("settings")}
+              >
+                <span className="configure-full">configure</span>
+                <span className="configure-short">config</span> <kbd>⌘K</kbd>
+              </button>
+              <button
+                className="outline-button"
+                aria-label="New task"
+                disabled={busy || !tasks || !sessions.length}
+                onClick={() => newTask()}
+              >
+                + task
+              </button>
+              <button
+                className="outline-button"
+                disabled={
+                  busy ||
+                  !tasks ||
+                  (!hasRunning &&
+                    !shown.some(
+                      (s) =>
+                        ready.has(s.id) &&
+                        (memory
+                          ? !s.started && s.state === "ready"
+                          : s.state !== "complete"),
+                    ))
+                }
+                onClick={() => void runAll()}
+              >
+                {hasRunning ? "pause all" : "run all"}
+              </button>
+              {(tasks || wallet.owner) && (
                 <button
-                  className="outline-button"
-                  onClick={() => setDialog("wallet")}
+                  className="help-button"
+                  disabled={busy}
+                  onClick={() => void logout()}
                 >
-                  {capabilities?.nativeWallets
-                    ? (native.owner?.account_id ?? "wallets")
-                    : tasks
-                      ? "wallets"
-                      : (wallet.owner?.account_id ?? "connect NEAR")}
+                  disconnect
                 </button>
-                <button
-                  className="outline-button"
-                  aria-expanded={activity}
-                  onClick={() => setActivity((old) => !old)}
-                >
-                  activity
-                </button>
-                <label className="pane-count">
-                  panes{" "}
-                  <input
-                    aria-label="Pane count"
-                    type="number"
-                    min={1}
-                    max={
-                      tasks ? sessions.length : allocation ? buyers.length : 8
-                    }
-                    value={countDraft}
-                    disabled={busy || !sessions.length}
-                    onChange={(e) => {
-                      setCountDraft(e.target.value);
-                      if (/^[1-8]$/.test(e.target.value))
-                        void resize(Number(e.target.value));
-                    }}
-                    onBlur={() => setCountDraft(String(shown.length))}
-                  />
-                </label>
-                <button
-                  className="outline-button"
-                  aria-label="Configure task"
-                  disabled={busy || !current}
-                  onClick={() => setDialog("settings")}
-                >
-                  <span className="configure-full">configure</span>
-                  <span className="configure-short">config</span> <kbd>⌘K</kbd>
-                </button>
-                <button
-                  className="outline-button"
-                  aria-label="New task"
-                  disabled={busy || !tasks || !sessions.length}
-                  onClick={() => newTask()}
-                >
-                  + task
-                </button>
-                <button
-                  className="outline-button"
-                  disabled={
-                    busy ||
-                    !tasks ||
-                    (!hasRunning &&
-                      !shown.some(
-                        (s) =>
-                          ready.has(s.id) &&
-                          (memory
-                            ? !s.started && s.state === "ready"
-                            : s.state !== "complete"),
-                      ))
-                  }
-                  onClick={() => void runAll()}
-                >
-                  {hasRunning ? "pause all" : "run all"}
-                </button>
-                {(tasks || wallet.owner) && (
-                  <button
-                    className="help-button"
-                    disabled={busy}
-                    onClick={() => void logout()}
-                  >
-                    disconnect
-                  </button>
-                )}
-              </>
-            )}
-            <button
-              className="help-button"
-              aria-label="Keyboard shortcuts"
-              onClick={() => setDialog("help")}
-            >
-              ?
-            </button>
-          </div>
-        </div>
+              )}
+            </>
+          )}
+          <button
+            className="help-button"
+            aria-label="Keyboard shortcuts"
+            onClick={() => setDialog("help")}
+          >
+            ?
+          </button>
+        </SiteHeader>
         <div className="sessionbar">
           <span className="session-name">[market]</span>
           <div className="window-list" aria-label="Agent tasks">
@@ -934,6 +924,7 @@ export default function App() {
           exportEvidence={memory ? exportEvidence : undefined}
         />
       )}
+      <AttestationPanel />
       {dialog === "settings" && current && (
         <TaskSettings
           key={current.id}

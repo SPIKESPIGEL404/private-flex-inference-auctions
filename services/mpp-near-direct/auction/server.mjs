@@ -209,6 +209,17 @@ export async function startAuctionServer({
           realChainPayments: false,
           realInference: false,
         });
+      if (req.url === "/market-api/attestation" && req.method === "GET")
+        // This server is gated to local fixtures above, never a verified deployment.
+        return json(res, 200, {
+          status: "controlled_local",
+          compose_hash: null,
+          catalog_policy_digest: null,
+          workload_keyset_digest: null,
+          tls_pinned: false,
+          quote_type: null,
+          checked_at: new Date().toISOString(),
+        });
       if (req.url === "/market-api/session" && req.method === "GET") {
         let owner = null;
         try {
@@ -428,12 +439,14 @@ export async function startAuctionServer({
         const status = await market.bidStatus(input.agentId, bid.bidId);
         if (!status.allocationId) return json(res, 202, status);
         if (status.result)
-          return void (res.writeHead(200, {
-            "content-type": "text/event-stream",
-            "cache-control": "no-store",
-            "x-order-id": status.orderId,
-          }),
-          res.end(status.result.sse));
+          return void (
+            res.writeHead(200, {
+              "content-type": "text/event-stream",
+              "cache-control": "no-store",
+              "x-order-id": status.orderId,
+            }),
+            res.end(status.result.sse)
+          );
         if (status.executionState === "fenced")
           return json(res, 409, {
             error: { code: "original_execution_fenced" },

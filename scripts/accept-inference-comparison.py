@@ -19,6 +19,7 @@ import uuid
 
 from market_b_support import Market, run, wait_for
 from market_c import canonical, save
+from controlled_dstack_rpc import Handler as RpcHandler
 
 CLI='services/inference-comparison/test/controlled-cli.mjs'
 MODELS={'A':'Qwen/Qwen3.8-27B','B':'qwen3.8-27b'}
@@ -34,6 +35,10 @@ def stream(model):
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_): pass
+    def do_GET(self):
+        now=time.time_ns()//1000000
+        raw=canonical({'version':1,'provider':'chutes','model':'qwen3.8-27b','state':self.server.supply_state,'observedAtMs':now,'expiresAtMs':now+45000,'modelRevisionRef':'controlled-qwen-revision'})
+        self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
     def do_POST(self):
         body=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         if self.path=='/tokenize':
@@ -56,7 +61,7 @@ def main(binary):
         for arm in ['A','B']:
             m=stack.enter_context(Market(binary,initialize=False));markets[arm]=m
             server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler);servers[arm]=server
-            server.public_model=MODELS[arm];server.secret=m.env['PRIVATE_MARKET_SELLER_KEY'];server.calls=[]
+            server.public_model=MODELS[arm];server.secret=m.env['PRIVATE_MARKET_SELLER_KEY'];server.calls=[];server.supply_state="ready"
             threading.Thread(target=server.serve_forever,daemon=True).start()
             stack.callback(server.server_close);stack.callback(server.shutdown)
             base=f'http://127.0.0.1:{server.server_port}'
@@ -86,6 +91,7 @@ def main(binary):
             for i in range(3):m.env[f'PRIVATE_MARKET_BUYER_TOKEN_{i}']='brk_'+str(uuid.uuid4())+'.'+uuid.uuid4().hex+uuid.uuid4().hex
             run(binary,'init-live-deploy',str(m.state),str(m.root/'profile.json'),str(offline/'public.json'),env=m.env)
             state=json.loads((m.state/'state.json').read_bytes());ended=time.time_ns()//1000000
+            m.buyers=state['buyers']
             assert state['buyer_tokens_from_env'] and all(b['token']=='' for b in state['buyers'])
             raw=stream(MODELS[arm] if arm=='A' else profile['native_model']);save(m.root/'calibration.sse',raw)
             save(m.root/'measurement.json',{'registration_sha256':state['registration_sha256'],'request_sha256':profile['request_sha256'],
@@ -93,10 +99,22 @@ def main(binary):
                 'started_at_ms':ended-1,'ended_at_ms':ended,'response_model':MODELS[arm] if arm=='A' else profile['native_model'],
                 'finish_reason':'stop','prompt_tokens':2,'completion_tokens':3,'total_tokens':5})
             run(binary,'qualify-live',str(m.state),str(m.root/'measurement.json'),env=m.env)
-            m.env['PRIVATE_MARKET_SIGNED_PURCHASES']='1';m.start()
+            m.env['PRIVATE_MARKET_SIGNED_PURCHASES']='1'
+            if arm=='B':m.env.update(PRIVATE_MARKET_PUBLIC_MODEL=MODELS['B'],PRIVATE_MARKET_SUPPLY_STATUS_URL=base+'/v1/supply')
+            rpc=http.server.ThreadingHTTPServer(('127.0.0.1',0),RpcHandler)
+            threading.Thread(target=rpc.serve_forever,daemon=True).start();stack.callback(rpc.server_close);stack.callback(rpc.shutdown)
+            run('openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(m.root/'tls.key'),'-out',str(m.root/'tls.pem'),'-days','1','-subj','/CN=controlled')
+            save(m.root/'attestation.json',{'dstack_http':f'http://127.0.0.1:{rpc.server_port}/','tls_certificate':str(m.root/'tls.pem'),'public_domain':'127.0.0.1','keyset_lifetime_seconds':300})
+            m.env['PRIVATE_MARKET_ATTESTATION_CONFIG']=str(m.root/'attestation.json')
+            m.start()
             config['arms'][arm]={'baseURL':m.url+'/market/v1','token':m.env['PRIVATE_MARKET_BUYER_TOKEN_0'],
-                'catalogFile':str(m.state/'catalog.json'),'signingKeyFile':str(offline/'buyer-0.key')}
+                'catalogFile':str(m.state/'catalog.json'),'signingKeyFile':str(offline/'buyer-0.key'),'attested':True}
         save(root/'runner.json',config)
+        servers['B'].supply_state='warming';cash_before=markets['B'].balance()
+        probe=json.loads(run('node',CLI,'probe-warming',str(root/'runner.json')))
+        assert probe=={'status':503,'code':'supply_not_ready'},probe
+        assert markets['B'].effects()==0 and markets['B'].balance()==cash_before and not servers['B'].calls
+        servers['B'].supply_state='ready'
         first=json.loads(run('node',CLI,'run',str(root/'runner.json')))
         assert first['states']=={'A':'complete','B':'complete'},first
         assert len(json.loads((root/'near-calls.json').read_bytes()))==len(servers['B'].calls)==1
@@ -107,12 +125,14 @@ def main(binary):
             assert wait_for(settled)['settlement']=='committed'
             assert m.effects()==1
             m.stop();m.start()
+        config['reconcile']=True;(root/'runner.json').write_bytes(canonical(config))
         second=json.loads(run('node',CLI,'run',str(root/'runner.json')))
         assert second['states']==first['states']
         assert len(json.loads((root/'near-calls.json').read_bytes()))==len(servers['B'].calls)==1
         report=json.loads((root/'report.json').read_bytes())
         assert not report['realAgentPayments'] and report['taskSuccess'] is None
-        assert all(r['serviceCostMicro'] is None and r['providerBillMicro'] is None for r in report['arms'].values())
+        assert all(r['serviceCostMicro'] is not None and r['settlement']['status']=='committed' and r['providerBillMicro'] is None for r in report['arms'].values())
+        assert all(r['signedFinancialReceiptVerified'] for r in report['arms'].values())
         print(json.dumps({'controlled_comparison':'pass','signed_market_arms':2,'upstream_calls_per_arm':1,'settlement_and_restart_replay':'pass',
             'external_inference_calls':0,'hardware_attestation':'not_tested','real_agent_payments':False}))
 

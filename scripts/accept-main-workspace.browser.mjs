@@ -13,6 +13,8 @@ async page => {
  await page.context().addCookies([{name:'auction_owner',value:'controlled-review',url:origin,httpOnly:true,sameSite:'Strict'}]);
  await page.goto(origin+'/');
  await page.getByRole('region',{name:'a task',exact:true}).getByRole('button',{name:/^Run /}).waitFor();
+ await page.getByText('controlled local stack',{exact:true}).waitFor();
+ await page.getByRole('button',{name:/Market deployment and channel/}).click();
  const financial=()=>page.evaluate(async()=> (await(await fetch('/buyer-api/orders')).json()).orders);
  const initial=await financial();
  await page.locator('.window-list button').first().click();
@@ -50,6 +52,12 @@ async page => {
   await pane.getByRole('button',{name:/^Run /}).click();
   for(let n=0;n<150&&!held;n++)await new Promise(r=>setTimeout(r,40));
   if(!held)throw Error('original_response_not_held');
+  await page.locator('.route-view:not([hidden])').getByRole('link',{name:'proposal',exact:true}).click();
+  await page.waitForURL(origin+'/proposal');
+  await page.keyboard.press('Control+k');
+  if(await page.getByRole('dialog').count())throw Error('hidden_workspace_shortcut');
+  await page.locator('.route-view:not([hidden])').getByRole('link',{name:'try',exact:true}).click();
+  await page.waitForURL(origin+'/');
   await page.getByRole('spinbutton',{name:'Pane count',exact:true}).fill('2');
   await page.waitForFunction(()=>document.querySelectorAll('.pane-slot').length===2);
   release=true;
@@ -77,16 +85,19 @@ async page => {
  if(await page.getByRole('tabpanel').getByText('/workspace/result.json',{exact:true}).count())throw Error('tool_workspace_restored');
  const after=await page.evaluate(async()=>({calls:window.__procureCalls,storage:window.__storageAttempts,orders:(await(await fetch('/buyer-api/orders')).json()).orders.length}));
  if(after.calls.length||after.storage.length||after.orders!==initial.length+6||legacy.length||errors.length)throw Error('refresh_or_legacy_api_regression:'+JSON.stringify({after,legacy,errors}));
+ await page.getByRole('button',{name:/Market deployment and channel/}).click();
  await page.setViewportSize({width:390,height:844});
  // Let wterm finish its ResizeObserver reflow before capturing the mobile terminal.
  await page.waitForTimeout(500);
  await page.screenshot({path:'output/playwright/main-workspace-mobile.png'});
  const mobile=await page.evaluate(()=>({width:innerWidth,documentWidth:document.documentElement.scrollWidth}));
  if(mobile.documentWidth>mobile.width+1)throw Error('mobile_horizontal_overflow:'+JSON.stringify(mobile));
+ const proposalBounds=await page.locator('.app-header').getByRole('link',{name:'proposal',exact:true}).boundingBox(),helpBounds=await page.getByRole('button',{name:'Keyboard shortcuts',exact:true}).boundingBox();
+ if(proposalBounds.x+proposalBounds.width>helpBounds.x)throw Error('mobile_navigation_overlap');
  await page.setViewportSize({width:1280,height:900});
  await page.goto(origin+'/memory');await page.waitForURL(origin+'/');
  if((await financial()).length!==after.orders)throw Error('compatibility_redirect_rebought');
  return {scope:'controlled-main-workspace-real-chromium-wasm',mainRoute:'/',standalonePageRemoved:true,completeTasks:3,originalModelCalls:before.calls.length,originalOrders:fresh.length+2,
-  independentArtifacts:[42,19,19],hiddenTaskCompleted:true,workspaceRetained:true,ownerLogin:'owned fixture cookie; NEP-413 separately verified in PG tests',
+  independentArtifacts:[42,19,19],hiddenTaskCompleted:true,workspaceRetained:true,proposalNavigationRetainsTask:true,attestationPreserved:true,ownerLogin:'owned fixture cookie; NEP-413 separately verified in PG tests',
   browserStorageAttempts:0,legacyTaskApiCalls:0,financialOnlyGrantBodies:true,refreshAutoPurchases:0,historicalOrdersAfterRefresh:after.orders,mobile,realChainPayments:false,realInference:false};
 }

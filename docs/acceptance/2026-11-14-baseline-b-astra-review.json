@@ -1,0 +1,84 @@
+{
+  "reviewer": "GPT-6-astra independent read-only reviewer",
+  "checkedAtUtc": "2026-11-14T22:45:06.293475+00:00",
+  "verdict": "SCOPED_B_CREDIT_SETTLEMENT_READINESS_SOURCE_ACCEPTED",
+  "reviewBase": "e2641db",
+  "featureCommit": "3c0c91eb37ed01b580fb92020c5508c4074adf4c",
+  "currentHead": "6d921208324bfd507c6f730fa320974edae6a24f",
+  "binding": "Current owning source hashes below, including uncommitted reviewed readiness persistence fix and edge attestation response. This is not approval of uninspected later source changes.",
+  "sourceSha256": {
+    "services/inference-comparison/settlement.mjs": "a9fe859e3770c78fe7c28094ea338a00295fcfb250591dca21fbcb24eb1c3530",
+    "services/inference-comparison/runner.mjs": "7df4f1cae48962c2003b4082c7d3033936d6385635bdfd81f4720424c9831f57",
+    "services/inference-comparison/market-executor.mjs": "d2da8c075d174890cebb676626e2d3e1d1fc7e15e6874c0325c517ea00112c67",
+    "deploy/chutes/readiness.py": "113c19b719b535f6efb2705a053e47fda2678109a8f156d67be581c5fdb32488",
+    "deploy/chutes/gateway.py": "c02177cd74185d3626acda2b022df359ea2c9725ffb68a339d2207a6ce294b6f",
+    "deploy/chutes/billing_snapshot.py": "55fe8fe02161442c9d45605c8dfb1b840fcce897775aaf09772da400f2e9477d",
+    "deploy/phala/runtime_chutes.py": "5fba5e5377583408bf67020a0bbaa10fa2b76de25e8389692780ce9f1dae9ec6",
+    "deploy/phala/bootstrap_chutes.py": "4668061a54622b8ccaf8c571f17964af465eaf46cc8e7b8c3a396bda396bac89",
+    "deploy/phala/Dockerfile.chutes": "fe22d92aa8dab3b2d7f3a89e9dac5a66b8f8853c78cb57cc6db9ceb7ff380d97",
+    "deploy/phala/nginx-chutes.conf": "38f0a924ca05a700134cc3e6af7c6137d556f44f6b1bf58f97acf0cb7fcb3714",
+    "scripts/prepare-baseline-b-overlay.py": "592ca30985a6f365debbc4f0e742a0aa8f8288678a5bdee1c26293658d6fd651",
+    "scripts/serve-agent-mpp-preview.py": "408522aac2f70408c11ba6f8b2479345bf268d7926cb222a24fb8d59f08c4f25",
+    "crates/private-market-host/src/main.rs": "01fa0e57f68b3bea79ed4092c432ac6b95854b726ee644eda53bc73a48340bf6",
+    "crates/private-market-host/src/single_model.rs": "03f6ca7b57526dca492a188d59a7d9a5243c67f4d13b9f3e23ea06afb678ae3f",
+    "clients/market-playground/src/SupplyAvailability.tsx": "aba1b9ca3fd0597eede369ccc730b643f2aa473f6c4a1f27d9270ccf652700e0"
+  },
+  "openP1P2Blockers": [],
+  "closedFindings": [
+    {
+      "severity": "P2",
+      "issue": "Continuous readiness polling previously persisted a fresh full CPU/GPU audit bundle every 15 seconds without retention, allowing unbounded volume growth.",
+      "resolution": "SupplyMonitor invokes verify(persist_evidence=False); full verification is retained while monitoring audit files are not written. Actual chat/default verification persists audit evidence as before.",
+      "verification": "Independent source review and Python suite; dedicated regression covers 100 memory-only events with no files and normal persistent audit event."
+    }
+  ],
+  "independentChecks": {
+    "comparisonNodeTests": {
+      "runtime": "24.22.1",
+      "passed": 26,
+      "failed": 0
+    },
+    "chutesPythonTests": {
+      "runtime": ".market-runs/comparison-venv/bin/python",
+      "passed": 31,
+      "failed": 0
+    },
+    "baselineOverlayTests": {
+      "passed": 2,
+      "failed": 0
+    },
+    "previewEdgeTests": {
+      "passed": 5,
+      "failed": 0
+    },
+    "rustOwningSource": "Reviewed modified dynamic receipt market ID and supply gate; Rust compile/integration not rerun by this reviewer."
+  },
+  "findings": {
+    "signedSettlement": "Executor verifies attested receipt keyset, original request and idempotency binding before projection. Projection checks safe nonnegative integer fields, cash=provider+platform-promo, fee agreement, zero held amount, terminal committed receipt and authorization bound. It does not create a second money ledger.",
+    "unknownRecovery": "Receipt absence stays pending/invalid rather than inventing cost. Reconcile queries the original receipt and never dispatches a new purchase; unknown delivery can remain unknown even after money settles.",
+    "supplyGate": "Readiness requires active instance plus existing gateway CPU/GPU verification and expires; Market middleware rejects non-ready supply before original cash admission. Gateway independently checks and verifies again before inference. No model invocation is made by UI polling.",
+    "persistence": "New /data/baseline-b-v2 namespace retains /data/chutes-run. Existing runtime/settings are resumed; no automatic ledger refill or replacement buyer verifying keys. Overlay generator preservation assertions and synthetic tests passed; no private actual manifest was read.",
+    "retainedSecurity": "Owning main retains sealed catalog/dynamic receipt market binding, signed purchase and attestation layers, and controlled-mode/live exclusion. Preview edge reports attestation not_checked rather than claiming verified TEE TLS.",
+    "networkChange": "Overlay explicitly adds preview to existing default Docker network for whitelisted GET market:8080/market/v1/supply. Original separate-bridge-only isolation no longer applies; credentials, old persistent volumes and sealed environment are not mounted into preview by this change."
+  },
+  "limitations": [
+    "Scope is signed USD credit-ledger settlement and readiness. Public agent UI remains controlled P2. Native/testnet components are not live B authority and their incompleteness is not a blocker to this scoped release.",
+    "No new production image/archive hashes, actual private compose preservation, Phala update or hosted B inference was independently validated in this review.",
+    "Bootstrap first-time warmup/calibration and finite qualification remain operator-controlled existing behavior; readiness polling itself does not start a GPU.",
+    "Readiness hash for nonpersistent monitor evidence is ephemeral; real inference audit evidence remains durable.",
+    "Initial tests on Node24.7 and system Python failed due declared runtime/dependency requirements; supported runtime reruns passed as recorded."
+  ],
+  "actions": {
+    "sourceModified": false,
+    "credentialsRead": false,
+    "privateDeploymentManifestsRead": false,
+    "paymentsBroadcast": 0,
+    "inferenceRequests": 0,
+    "deployments": 0
+  },
+  "separateTestnetEvidence": {
+    "initial": "/tmp/agent-mpp-astra-testnet-initial-review.json",
+    "expiredUnfulfilledFullRefund": "/tmp/agent-mpp-astra-testnet-cleanup-review.json",
+    "notEvidenceForProductionB": true
+  }
+}

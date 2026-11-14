@@ -1,5 +1,6 @@
 import { readFile, writeFile, stat, open } from "node:fs/promises";
 import {
+  validateComparison,
   freezeNearTariff,
   freezeSelfHostedTariff,
   prepareComparison,
@@ -147,7 +148,10 @@ try {
         qualificationStillRequired: true,
       }),
     );
-  } else if (["run", "recover"].includes(command) && args.length === 4) {
+  } else if (
+    ["run", "run-b", "recover"].includes(command) &&
+    args.length === 4
+  ) {
     const [configFile, planFile, reviewedHash, outputFile] = args,
       config = await privateConfig(configFile),
       plan = await read(planFile);
@@ -156,7 +160,23 @@ try {
     let runner;
     try {
       runner = new ComparisonRunner(config);
-      const report = publicReport(await runner[command](plan, reviewedHash));
+      check(plan.planHash === reviewedHash, "reviewed_plan_hash_required");
+      const report = publicReport(
+        command === "run-b"
+          ? {
+              version: 2,
+              planHash: plan.planHash,
+              requestHash: plan.requestHash,
+              mode: plan.mode,
+              arms: {
+                B: await runner.enrich(
+                  plan,
+                  await runner.runArm(validateComparison(plan), "B"),
+                ),
+              },
+            }
+          : await runner[command](plan, reviewedHash),
+      );
       await output.writeFile(JSON.stringify(report, null, 2) + "\n");
       console.log(
         JSON.stringify({
@@ -170,6 +190,17 @@ try {
     } finally {
       runner?.close();
       await output.close();
+    }
+  } else if (command === "reconcile" && args.length === 3) {
+    const [configFile, planFile, outputFile] = args,
+      config = await privateConfig(configFile),
+      plan = await read(planFile);
+    const runner = new ComparisonRunner(config);
+    try {
+      await save(outputFile, publicReport(await runner.reconcile(plan)));
+      console.log(JSON.stringify({ saved: true, inferenceCalls: 0 }));
+    } finally {
+      runner.close();
     }
   } else if (command === "report" && args.length === 3) {
     const [configFile, planFile, outputFile] = args,
