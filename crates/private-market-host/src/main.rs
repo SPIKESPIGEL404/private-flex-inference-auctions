@@ -884,5 +884,5 @@ fn controlled_p2_tokens(body: &Value) -> u64 {
     let n = bytes(&body["messages"])
         + bytes(&body["tools"])
         + body["messages"].as_array().map_or(0, |a| a.len() * 8);
-    ((n + 3) / 4).max(1) as u64
+    n.div_ceil(4).max(1) as u64
 }
