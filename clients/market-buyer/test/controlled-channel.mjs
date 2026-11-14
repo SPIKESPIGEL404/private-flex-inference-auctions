@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { verifyReportBinding, verifyComposeMeasurement } from '@phala/aci-verifier';
 import { assertBootPolicy, assertMarketPolicy, validatePolicy } from '../connection.mjs';
 import { freshNonce, readSigningKey, signPurchase } from '../purchase-sign.mjs';
+import { sealPurchaseRequest } from '../purchase-e2ee.mjs';
 
 const require = createRequire(import.meta.url);
 const dist = dirname(require.resolve('@phala/aci-verifier'));
@@ -51,30 +52,38 @@ try {
   if (!['success', 'retry'].includes(scenario)) throw new Error('NEGATIVE_SCENARIO_ACCEPTED');
   const token = (await readFile(config.credentialFile, 'utf8')).trim();
   const signing = await readSigningKey(config.signingKeyFile);
-  const request = await readFile(config.requestFile);
+  const requestObject = JSON.parse(await readFile(config.requestFile, 'utf8'));
   const idempotencyKey = 'd-controlled';
-  const headers = { authorization: 'Bearer ' + token, 'content-type': 'application/json',
+  const verifiedKeyset = connection.identity.keyset;
+  assert.ok(verifiedKeyset?.e2ee_public_keys?.length, 'verified keyset must publish market E2EE key');
+  const sealed = sealPurchaseRequest(requestObject, verifiedKeyset);
+  const signed = signPurchase({
+    seed: signing.seed,
+    publicKey: signing.publicKey,
+    body: sealed.body,
+    idempotencyKey,
+    keyset: connection.identity.workloadKeysetDigest,
+    nonce: freshNonce(),
+    ts: Math.floor(Date.now() / 1000),
+  });
+  const headers = {
+    authorization: 'Bearer ' + token,
+    'content-type': 'application/json',
     'idempotency-key': idempotencyKey,
-    ...signPurchase({
-      seed: signing.seed,
-      publicKey: signing.publicKey,
-      body: request,
-      idempotencyKey,
-      keyset: connection.identity.workloadKeysetDigest,
-      nonce: freshNonce(),
-      ts: Math.floor(Date.now() / 1000),
-    }).headers };
+    ...sealed.headers,
+    ...signed.headers,
+  };
   if (config.captureFile && scenario === 'success') {
     await writeFile(config.captureFile, JSON.stringify({
-      headers, body: request.toString('base64'),
+      headers, body: sealed.body.toString('base64'),
     }));
   }
   const response = await connection.fetch(policy.baseURL + '/chat/completions', { method: 'POST', redirect: 'error',
-    headers, body: request });
-  assert.equal(response.status, 200);
+    headers, body: sealed.body });
+  assert.equal(response.status, 200, await response.clone().text());
   assert.match(await response.text(), /\[DONE\]/);
   console.log(JSON.stringify({ controlled_market_purchase: 'pass', hardware_attestation: false,
-    signed: true, scenario }));
+    signed: true, e2ee: true, scenario }));
 } catch (error) {
   if (['success', 'retry'].includes(scenario) || error.message === 'NEGATIVE_SCENARIO_ACCEPTED') throw error;
   refused = true;

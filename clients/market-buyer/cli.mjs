@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { connectMarket, readPolicy } from './connection.mjs';
 import { freshNonce, readSigningKey, signPurchase } from './purchase-sign.mjs';
+import { sealPurchaseRequest } from './purchase-e2ee.mjs';
 
 const { values, positionals } = parseArgs({ allowPositionals: true, options: {
   policy: { type: 'string' }, 'credential-file': { type: 'string' },
@@ -25,14 +26,17 @@ try {
     // Credentials, signing key and procurement body are read only after full verification.
     const credential = (await readFile(values['credential-file'], 'utf8')).trim();
     const signing = await readSigningKey(values['signing-key-file']);
-    const body = await readFile(values['request-file']);
-    if (!credential || body.length > 128 * 1024) throw new Error('invalid bounded purchase input');
-    const request = JSON.parse(body);
+    const raw = await readFile(values['request-file']);
+    if (!credential || raw.length > 128 * 1024) throw new Error('invalid bounded purchase input');
+    const request = JSON.parse(raw);
     if (!request.bitrouter_purchase || request.stream !== true) throw new Error('a streaming Market purchase is required');
+    // E2EE key comes only from the verified ACI keyset after connectMarket.
+    const sealed = sealPurchaseRequest(request, connection.identity.keyset);
+    if (sealed.body.length > 128 * 1024) throw new Error('invalid bounded purchase input');
     const signed = signPurchase({
       seed: signing.seed,
       publicKey: signing.publicKey,
-      body,
+      body: sealed.body,
       idempotencyKey: key,
       keyset: connection.identity.workloadKeysetDigest,
       nonce: freshNonce(),
@@ -40,7 +44,8 @@ try {
     });
     const response = await connection.fetch(connection.baseURL + '/chat/completions', {
       method: 'POST', redirect: 'error', headers: { 'content-type': 'application/json',
-        authorization: 'Bearer ' + credential, 'idempotency-key': key, ...signed.headers }, body,
+        authorization: 'Bearer ' + credential, 'idempotency-key': key,
+        ...sealed.headers, ...signed.headers }, body: sealed.body,
     });
     for await (const chunk of response.body) {
       if (!process.stdout.write(Buffer.from(chunk))) await new Promise(resolve => process.stdout.once('drain', resolve));

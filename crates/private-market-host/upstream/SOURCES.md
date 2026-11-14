@@ -113,7 +113,9 @@ Serve refuses to listen if `catalog.json` changes after that hash and before
 the Market finishes loading it. `dstack-sdk-types` 0.1.2 supplies the official
 Info/Quote RPC response shapes; a bounded local Unix-socket HTTP client avoids
 pulling in the SDK's unrelated Ethereum client. RPC contracts and report assembly
-follow the pinned upstream `src/dstack.rs` and `src/aggregator/service/e2ee.rs`.
+follow the pinned upstream `src/dstack.rs` and `src/aci/e2ee.rs` (X25519
+helpers vendored into `src/e2ee.rs` for the Market `bitrouter_purchase`
+profile only; `supported_e2ee_versions` is not advertised).
 
 The buyer pins published `@phala/aci-verifier` 0.11.0 through npm integrity. It
 adds mandatory reviewed boot/compose policy and current TCB checks, then uses

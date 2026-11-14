@@ -8,7 +8,13 @@ use std::{io::Read, os::unix::fs::FileTypeExt, path::PathBuf};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Config {
-    dstack_socket: PathBuf,
+    /// Production: absolute path to the dstack Unix socket.
+    #[serde(default)]
+    dstack_socket: Option<PathBuf>,
+    /// Controlled local acceptance only: `http://127.0.0.1:PORT` mock RPC.
+    /// Mutually exclusive with `dstack_socket`.
+    #[serde(default)]
+    dstack_http: Option<String>,
     tls_certificate: PathBuf,
     public_domain: String,
     keyset_lifetime_seconds: u64,
@@ -16,6 +22,8 @@ struct Config {
 
 struct Identity {
     rpc: reqwest::Client,
+    /// Base URL used with the RPC client (`http://localhost` for Unix).
+    rpc_base: String,
     keyset: Value,
     digest: String,
     domain: String,
@@ -34,7 +42,7 @@ impl Identity {
     async fn rpc<T: serde::de::DeserializeOwned>(&self, method: &str, body: Value) -> Result<T> {
         let response = self
             .rpc
-            .post(format!("http://localhost/{method}"))
+            .post(format!("{}/{method}", self.rpc_base.trim_end_matches('/')))
             .json(&body)
             .send()
             .await?
@@ -113,7 +121,7 @@ fn is_policy_digest(value: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Option<Arc<str>>)> {
+pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Option<Mounted>)> {
     let Some(path) = env::var_os("PRIVATE_MARKET_ATTESTATION_CONFIG") else {
         return Ok((router, None));
     };
@@ -122,11 +130,49 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Optio
         "catalog identity changed during startup"
     );
     let config: Config = live::read(Path::new(&path))?;
-    ensure!(
-        config.dstack_socket.is_absolute()
-            && fs::metadata(&config.dstack_socket)?.file_type().is_socket(),
-        "dstack requires an explicit local Unix socket"
-    );
+    let (rpc, rpc_base) = match (&config.dstack_socket, &config.dstack_http) {
+        (Some(socket), None) => {
+            ensure!(
+                socket.is_absolute() && fs::metadata(socket)?.file_type().is_socket(),
+                "dstack requires an explicit local Unix socket"
+            );
+            (
+                reqwest::Client::builder()
+                    .unix_socket(socket.clone())
+                    .no_proxy()
+                    .redirect(reqwest::redirect::Policy::none())
+                    .timeout(Duration::from_secs(15))
+                    .build()?,
+                "http://localhost".to_owned(),
+            )
+        }
+        (None, Some(http)) => {
+            let url = url::Url::parse(http).context("invalid controlled dstack_http")?;
+            ensure!(
+                url.scheme() == "http"
+                    && url.host_str() == Some("127.0.0.1")
+                    && url.port().is_some_and(|p| p > 0)
+                    && url.path() == "/"
+                    && url.query().is_none()
+                    && url.fragment().is_none()
+                    && url.username().is_empty()
+                    && url.password().is_none(),
+                "controlled dstack_http must be http://127.0.0.1:PORT/"
+            );
+            (
+                reqwest::Client::builder()
+                    .no_proxy()
+                    .redirect(reqwest::redirect::Policy::none())
+                    .timeout(Duration::from_secs(15))
+                    .build()?,
+                format!(
+                    "http://127.0.0.1:{}",
+                    url.port().expect("port checked above")
+                ),
+            )
+        }
+        _ => anyhow::bail!("set exactly one of dstack_socket or dstack_http"),
+    };
     let domain = config.public_domain;
     let parsed = url::Url::parse(&format!("https://{domain}"))?;
     ensure!(
@@ -155,7 +201,12 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Optio
     let mut seed = [0u8; 32];
     fs::File::open("/dev/urandom")?.read_exact(&mut seed)?;
     let key = ed25519_dalek::SigningKey::from_bytes(&seed);
+    let e2ee_secret = crate::e2ee::generate_secret()
+        .map_err(|_| anyhow::anyhow!("failed to generate market E2EE key"))?;
+    let e2ee_public_hex = crate::e2ee::public_key_hex(&e2ee_secret);
     let not_after = chrono::Utc::now().timestamp() as u64 + config.keyset_lifetime_seconds;
+    // Do not advertise supported_e2ee_versions: this is a Market purchase
+    // profile that reuses the E2EE v2 construction for bitrouter_purchase only.
     let keyset = serde_json::to_value(WorkloadKeyset {
         // Pinned WorkloadKeyset has no extension field. subject is inside the
         // JCS digest, so report_data binds this catalog file hash.
@@ -166,19 +217,19 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Optio
             algo: "ed25519".into(),
             public_key_hex: hex::encode(key.verifying_key().to_bytes()),
         }],
-        e2ee_public_keys: vec![],
+        e2ee_public_keys: vec![KeyedPublicKey {
+            key_id: crate::e2ee::E2EE_KEY_ID.into(),
+            algo: crate::e2ee::E2EE_ALGO_X25519.into(),
+            public_key_hex: e2ee_public_hex.clone(),
+        }],
         tls_public_keys: vec![TlsSpki {
             spki_sha256_hex: spki,
             domain: Some(domain.clone()),
         }],
     })?;
     let identity = Arc::new(Identity {
-        rpc: reqwest::Client::builder()
-            .unix_socket(config.dstack_socket)
-            .no_proxy()
-            .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_secs(15))
-            .build()?,
+        rpc,
+        rpc_base,
         digest: identity::workload_keyset_digest(&keyset)?,
         keyset,
         domain,
@@ -210,6 +261,17 @@ pub async fn mount(router: Router, policy_digest: &str) -> Result<(Router, Optio
         router
             .route("/market/v1/aci/attestation", get(handler.clone()))
             .route("/v1/aci/attestation", get(handler)),
-        Some(digest),
+        Some(Mounted {
+            keyset_digest: digest,
+            e2ee_secret,
+            e2ee_public_hex,
+        }),
     ))
+}
+
+/// Attestation mount result: keyset digest plus in-process E2EE material.
+pub struct Mounted {
+    pub keyset_digest: Arc<str>,
+    pub e2ee_secret: x25519_dalek::StaticSecret,
+    pub e2ee_public_hex: String,
 }

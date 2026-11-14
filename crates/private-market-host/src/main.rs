@@ -2,6 +2,7 @@
 //! No attestation or real-provider claim is made by this executable.
 mod attestation;
 mod catalog;
+mod e2ee;
 mod fixtures;
 mod live;
 mod provision;
@@ -528,30 +529,42 @@ async fn serve(dir: &Path) -> Result<()> {
             }),
         )
         .nest("/market", native);
-    let (router, keyset_digest) = attestation::mount(router, &policy_digest).await?;
-    let attestation_available = keyset_digest.is_some();
+    let (router, mounted) = attestation::mount(router, &policy_digest).await?;
+    let attestation_available = mounted.is_some();
     // Deploy/local may require signed purchases without ACI by setting
     // PRIVATE_MARKET_SIGNED_PURCHASES=1 (keyset = catalog policy digest).
+    // E2EE for bitrouter_purchase is required only when attestation mounted.
     let signed_without_aci = env::var("PRIVATE_MARKET_SIGNED_PURCHASES").as_deref() == Ok("1");
-    let auth_digest = match keyset_digest {
-        Some(digest) => Some(digest),
-        None if signed_without_aci => Some(Arc::from(policy_digest.clone())),
-        None => None,
-    };
-    let router = if let Some(digest) = auth_digest {
-        let guard = purchase_auth::Guard::new(
-            digest,
-            process_start,
-            authority_url,
-            internal,
-            &state.buyers,
-        )?;
-        router.layer(axum::middleware::from_fn_with_state(
-            guard,
-            purchase_auth::layer,
-        ))
-    } else {
-        router
+    let router = match mounted {
+        Some(mounted) => {
+            let guard = purchase_auth::Guard::new(
+                mounted.keyset_digest,
+                process_start,
+                authority_url,
+                internal,
+                &state.buyers,
+                Some((mounted.e2ee_secret, mounted.e2ee_public_hex)),
+            )?;
+            router.layer(axum::middleware::from_fn_with_state(
+                guard,
+                purchase_auth::layer,
+            ))
+        }
+        None if signed_without_aci => {
+            let guard = purchase_auth::Guard::new(
+                Arc::from(policy_digest.clone()),
+                process_start,
+                authority_url,
+                internal,
+                &state.buyers,
+                None,
+            )?;
+            router.layer(axum::middleware::from_fn_with_state(
+                guard,
+                purchase_auth::layer,
+            ))
+        }
+        None => router,
     };
     let listener = tokio::net::TcpListener::bind(address).await?;
     let url = format!("http://{}", listener.local_addr()?);

@@ -215,8 +215,9 @@ unchanged): seller order `valid_until` / GTD `expires_at`, supply-state
 
 `/healthz` includes `catalog_policy_digest` (`sha256:` of the catalog bytes) in
 deploy mode so buyers and local acceptance can pin the policy digest without
-attestation. Local mode sets `PRIVATE_MARKET_SIGNED_PURCHASES=1` so purchase
-signatures use that digest as the keyset when ACI is off.
+attestation. Local acceptance enables a controlled attestation overlay so
+`bitrouter_purchase` must be E2EE-sealed (plaintext procurement is refused).
+Lab scripts with attestation off still use plaintext purchases.
 
 Regenerate (empty `private_market_*` DB required):
 

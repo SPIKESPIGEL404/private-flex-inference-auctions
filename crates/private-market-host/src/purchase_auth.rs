@@ -1,5 +1,10 @@
-//! Signed purchase admission. Runs only when the ACI identity surface is enabled.
+//! Signed purchase admission, with optional Market-purchase E2EE.
+//!
+//! Order on POST /market/v1/chat/completions when enabled:
+//! signature on the exact wire body → introspection → (if attested) E2EE
+//! decrypt of `bitrouter_purchase` → strip buyer/E2EE headers → Market.
 use super::*;
+use crate::e2ee;
 use aci_protocol::digest;
 use axum::{
     body::{Body, to_bytes},
@@ -11,6 +16,7 @@ use axum::{
 use ed25519_dalek::{Signature, VerifyingKey};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use x25519_dalek::StaticSecret as X25519SecretKey;
 
 const BODY_LIMIT: usize = 128 * 1024;
 const WINDOW_SECS: i64 = 300;
@@ -20,6 +26,13 @@ const BUYER_HEADERS: [&str; 4] = [
     "x-buyer-nonce",
     "x-buyer-ts",
     "x-buyer-signature",
+];
+const E2EE_HEADERS: [&str; 5] = [
+    "x-e2ee-version",
+    "x-client-pub-key",
+    "x-model-pub-key",
+    "x-e2ee-nonce",
+    "x-e2ee-timestamp",
 ];
 
 #[derive(Clone)]
@@ -33,8 +46,16 @@ struct Inner {
     authority_url: String,
     internal_token: String,
     keys_by_user: HashMap<String, String>,
+    /// Present only when attestation published an E2EE key (required path).
+    e2ee: Option<E2eeState>,
     replay: Mutex<Replay>,
+    e2ee_replay: Mutex<E2eeReplay>,
     http: reqwest::Client,
+}
+
+struct E2eeState {
+    secret: X25519SecretKey,
+    public_hex: String,
 }
 
 struct Replay {
@@ -42,10 +63,13 @@ struct Replay {
     entries: HashMap<(String, String), i64>,
 }
 
+struct E2eeReplay {
+    // (client_pub, service_pub, nonce) -> unix seconds
+    entries: HashMap<(String, String, String), i64>,
+}
+
 #[derive(Deserialize)]
 struct IntrospectBody {
-    // Partial view of the existing authority response; unknown fields are
-    // ignored so Market's richer introspect body stays unchanged.
     active: bool,
     #[serde(default)]
     sub: Option<String>,
@@ -54,6 +78,7 @@ struct IntrospectBody {
 enum Fail {
     Invalid,
     Authority,
+    E2ee(&'static str),
 }
 
 impl IntoResponse for Fail {
@@ -65,6 +90,13 @@ impl IntoResponse for Fail {
             Fail::Authority => {
                 (StatusCode::SERVICE_UNAVAILABLE, "purchase_auth_unavailable").into_response()
             }
+            Fail::E2ee(code) => (
+                StatusCode::BAD_REQUEST,
+                axum::Json(json!({
+                    "error": {"message": code, "type": code, "code": code}
+                })),
+            )
+                .into_response(),
         }
     }
 }
@@ -76,6 +108,7 @@ impl Guard {
         authority_url: String,
         internal_token: String,
         buyers: &[Buyer],
+        e2ee: Option<(X25519SecretKey, String)>,
     ) -> Result<Self> {
         let mut keys_by_user = HashMap::new();
         for buyer in buyers {
@@ -97,7 +130,11 @@ impl Guard {
                 authority_url,
                 internal_token,
                 keys_by_user,
+                e2ee: e2ee.map(|(secret, public_hex)| E2eeState { secret, public_hex }),
                 replay: Mutex::new(Replay {
+                    entries: HashMap::new(),
+                }),
+                e2ee_replay: Mutex::new(E2eeReplay {
                     entries: HashMap::new(),
                 }),
                 http: reqwest::Client::builder()
@@ -143,6 +180,8 @@ async fn admit(inner: Arc<Inner>, request: Request<Body>) -> Result<Request<Body
         return Err(Fail::Invalid);
     }
     let verifying = parse_public_key(key)?;
+    // Enforce body limit before any signature work that hashes the body and
+    // before any E2EE decryption.
     let bytes = to_bytes(body, BODY_LIMIT)
         .await
         .map_err(|_| Fail::Invalid)?;
@@ -191,11 +230,204 @@ async fn admit(inner: Arc<Inner>, request: Request<Body>) -> Result<Request<Body
         replay.entries.insert(entry, now);
     }
 
+    let forward_bytes = if let Some(e2ee_state) = &inner.e2ee {
+        decrypt_purchase(&inner, e2ee_state, &parts.headers, &bytes, now)?
+    } else {
+        bytes.to_vec()
+    };
+
     strip_buyer_headers(&mut parts.headers);
-    Ok(Request::from_parts(parts, Body::from(bytes)))
+    strip_e2ee_headers(&mut parts.headers);
+    Ok(Request::from_parts(parts, Body::from(forward_bytes)))
+}
+
+fn decrypt_purchase(
+    inner: &Inner,
+    e2ee_state: &E2eeState,
+    headers: &HeaderMap,
+    wire: &[u8],
+    now: i64,
+) -> Result<Vec<u8>, Fail> {
+    let present: Vec<_> = E2EE_HEADERS
+        .iter()
+        .filter(|name| headers.contains_key(**name))
+        .collect();
+    if present.is_empty() {
+        return Err(Fail::E2ee("e2ee_header_missing"));
+    }
+    if present.len() != E2EE_HEADERS.len() {
+        return Err(Fail::E2ee("e2ee_header_missing"));
+    }
+    let version =
+        single_header(headers, "x-e2ee-version").map_err(|_| Fail::E2ee("e2ee_header_missing"))?;
+    if version != e2ee::E2EE_VERSION {
+        return Err(Fail::E2ee("e2ee_invalid_version"));
+    }
+    let client_pub = single_header(headers, "x-client-pub-key")
+        .map_err(|_| Fail::E2ee("e2ee_header_missing"))?;
+    let model_pub =
+        single_header(headers, "x-model-pub-key").map_err(|_| Fail::E2ee("e2ee_header_missing"))?;
+    let e2ee_nonce =
+        single_header(headers, "x-e2ee-nonce").map_err(|_| Fail::E2ee("e2ee_header_missing"))?;
+    let e2ee_ts_raw = single_header(headers, "x-e2ee-timestamp")
+        .map_err(|_| Fail::E2ee("e2ee_header_missing"))?;
+
+    let client_norm = e2ee::normalize_public_key_hex(client_pub)
+        .map_err(|_| Fail::E2ee("e2ee_invalid_public_key"))?;
+    let model_norm = e2ee::normalize_public_key_hex(model_pub)
+        .map_err(|_| Fail::E2ee("e2ee_invalid_public_key"))?;
+    if model_norm != e2ee_state.public_hex {
+        return Err(Fail::E2ee("e2ee_model_key_mismatch"));
+    }
+    if !e2ee_nonce_ok(e2ee_nonce) {
+        return Err(Fail::E2ee("e2ee_invalid_nonce"));
+    }
+    let e2ee_ts = parse_e2ee_ts(e2ee_ts_raw)?;
+    if (now - e2ee_ts).abs() > WINDOW_SECS {
+        return Err(Fail::E2ee("e2ee_invalid_timestamp"));
+    }
+
+    let mut body: Value =
+        serde_json::from_slice(wire).map_err(|_| Fail::E2ee("e2ee_decryption_failed"))?;
+    let model = match body.get("model") {
+        Some(Value::String(s)) => s.clone(),
+        _ => return Err(Fail::E2ee("e2ee_invalid_payload_model")),
+    };
+    refuse_foreign_ciphertext(&body)?;
+
+    let ciphertext = match body.get(e2ee::FIELD_PURCHASE) {
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Object(_)) => return Err(Fail::E2ee("e2ee_decryption_failed")),
+        _ => return Err(Fail::E2ee("e2ee_decryption_failed")),
+    };
+    if ciphertext.len() > e2ee::PURCHASE_CIPHERTEXT_HEX_MAX
+        || !e2ee::looks_like_x25519_ciphertext(&ciphertext)
+    {
+        return Err(Fail::E2ee("e2ee_decryption_failed"));
+    }
+
+    let aad = digest::jcs_bytes(&json!({
+        "purpose": e2ee::AAD_PURPOSE,
+        "algo": e2ee::E2EE_ALGO_X25519,
+        "model": model,
+        "field": e2ee::FIELD_PURCHASE,
+        "nonce": e2ee_nonce,
+        "ts": e2ee_ts,
+    }))
+    .map_err(|_| Fail::E2ee("e2ee_decryption_failed"))?;
+    let plain = e2ee::decrypt_with_secret(&e2ee_state.secret, &ciphertext, &aad)
+        .map_err(|_| Fail::E2ee("e2ee_decryption_failed"))?;
+    let purchase: Value =
+        serde_json::from_slice(&plain).map_err(|_| Fail::E2ee("e2ee_decryption_failed"))?;
+    validate_purchase_object(&purchase)?;
+    body[e2ee::FIELD_PURCHASE] = purchase;
+
+    {
+        let mut replay = inner
+            .e2ee_replay
+            .lock()
+            .map_err(|_| Fail::E2ee("e2ee_decryption_failed"))?;
+        replay.purge(now);
+        let entry = (client_norm, model_norm, e2ee_nonce.to_ascii_lowercase());
+        if replay.entries.contains_key(&entry) {
+            return Err(Fail::E2ee("e2ee_replay_detected"));
+        }
+        if replay.entries.len() >= REPLAY_CAP {
+            return Err(Fail::E2ee("e2ee_replay_detected"));
+        }
+        replay.entries.insert(entry, now);
+    }
+
+    serde_json::to_vec(&body).map_err(|_| Fail::E2ee("e2ee_decryption_failed"))
+}
+
+fn validate_purchase_object(value: &Value) -> Result<(), Fail> {
+    let obj = value
+        .as_object()
+        .ok_or(Fail::E2ee("e2ee_decryption_failed"))?;
+    let service = obj
+        .get("service_type")
+        .and_then(|v| v.as_str())
+        .ok_or(Fail::E2ee("e2ee_decryption_failed"))?;
+    if service != "on_demand" {
+        return Err(Fail::E2ee("e2ee_decryption_failed"));
+    }
+    for key in ["provider_cap_micro_usd", "total_cap_micro_usd"] {
+        let n = obj
+            .get(key)
+            .and_then(|v| v.as_i64())
+            .ok_or(Fail::E2ee("e2ee_decryption_failed"))?;
+        if n <= 0 {
+            return Err(Fail::E2ee("e2ee_decryption_failed"));
+        }
+    }
+    Ok(())
+}
+
+fn refuse_foreign_ciphertext(body: &Value) -> Result<(), Fail> {
+    let Some(messages) = body.get("messages").and_then(|v| v.as_array()) else {
+        return Ok(());
+    };
+    for message in messages {
+        match message.get("content") {
+            Some(Value::String(s)) if e2ee::looks_like_x25519_ciphertext(s) => {
+                return Err(Fail::E2ee("e2ee_decryption_failed"));
+            }
+            Some(Value::Array(parts)) => {
+                for part in parts {
+                    for key in ["text", "input_audio"] {
+                        if let Some(Value::String(s)) = part.get(key)
+                            && e2ee::looks_like_x25519_ciphertext(s)
+                        {
+                            return Err(Fail::E2ee("e2ee_decryption_failed"));
+                        }
+                    }
+                    if let Some(Value::Object(url)) = part.get("image_url")
+                        && let Some(Value::String(s)) = url.get("url")
+                        && e2ee::looks_like_x25519_ciphertext(s)
+                    {
+                        return Err(Fail::E2ee("e2ee_decryption_failed"));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(Value::String(s)) = body.get("prompt")
+        && e2ee::looks_like_x25519_ciphertext(s)
+    {
+        return Err(Fail::E2ee("e2ee_decryption_failed"));
+    }
+    Ok(())
+}
+
+fn e2ee_nonce_ok(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b) || (b'A'..=b'F').contains(&b))
+}
+
+fn parse_e2ee_ts(value: &str) -> Result<i64, Fail> {
+    if value.is_empty()
+        || !value.bytes().all(|b| b.is_ascii_digit())
+        || (value.len() > 1 && value.starts_with('0'))
+    {
+        return Err(Fail::E2ee("e2ee_invalid_timestamp"));
+    }
+    value
+        .parse()
+        .map_err(|_| Fail::E2ee("e2ee_invalid_timestamp"))
 }
 
 impl Replay {
+    fn purge(&mut self, now: i64) {
+        self.entries
+            .retain(|_, seen| now.saturating_sub(*seen) <= WINDOW_SECS);
+    }
+}
+
+impl E2eeReplay {
     fn purge(&mut self, now: i64) {
         self.entries
             .retain(|_, seen| now.saturating_sub(*seen) <= WINDOW_SECS);
@@ -260,6 +492,25 @@ fn strip_buyer_headers(headers: &mut HeaderMap) {
     for name in remove {
         headers.remove(name);
     }
+}
+
+fn strip_e2ee_headers(headers: &mut HeaderMap) {
+    let remove: Vec<HeaderName> = headers
+        .keys()
+        .filter(|name| {
+            let lower = name.as_str();
+            E2EE_HEADERS.contains(&lower)
+                || lower
+                    .strip_prefix("x-e2ee-")
+                    .is_some_and(|rest| !rest.is_empty())
+        })
+        .cloned()
+        .collect();
+    for name in remove {
+        headers.remove(name);
+    }
+    headers.remove("x-client-pub-key");
+    headers.remove("x-model-pub-key");
 }
 
 fn nonce_ok(value: &str) -> bool {

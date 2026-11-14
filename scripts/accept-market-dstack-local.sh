@@ -31,12 +31,14 @@ cleanup() {
   docker compose --project-directory "$DEPLOY" \
     -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.local.yml" \
     --env-file "$WORK/local.env" down -v --remove-orphans >/dev/null 2>&1 || true
-  docker rm -f market-catalog-golden-regen-pg market-catalog-golden-regen-redis >/dev/null 2>&1 || true
+  docker rm -f market-catalog-golden-regen-pg market-catalog-golden-regen-redis \
+    market-controlled-dstack >/dev/null 2>&1 || true
   if [ -n "$BUYERS_BAK" ]; then
     cp "$BUYERS_BAK" "$DEPLOY/buyers.public.json"
   else
     rm -f "$DEPLOY/buyers.public.json"
   fi
+  rm -f "$DEPLOY/attestation.local.json"
   rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -78,6 +80,35 @@ python3 "$ROOT/scripts/render-market-compose-hash.py" \
   --out-dir "$WORK/rendered" >/dev/null
 
 bash "$ROOT/scripts/prepare-market-docker-cargo.sh"
+
+# Controlled dstack RPC on the Docker host network (attestation overlay).
+# Avoid bind mounts (Docker Desktop WSL path issues); copy the script in.
+docker rm -f market-controlled-dstack >/dev/null 2>&1 || true
+PY_IMAGE="python:3.12-slim-bookworm"
+dcid="$(docker create --network host --name market-controlled-dstack \
+  --entrypoint sleep "$PY_IMAGE" 3600)"
+docker cp "$ROOT/scripts/controlled_dstack_rpc.py" "${dcid}:/controlled_dstack_rpc.py"
+docker start "$dcid" >/dev/null
+docker exec -d "$dcid" python /controlled_dstack_rpc.py 19527
+for i in $(seq 1 30); do
+  if docker run --rm --network host --entrypoint bash \
+    debian@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc \
+    -c 'timeout 1 bash -c "echo >/dev/tcp/127.0.0.1/19527"' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+# Must be world-readable: Market runs as uid 10001 and bind-mounts this path.
+# Contents are non-secret (RPC URL + cert path). umask 077 would make it 0600.
+cat >"$DEPLOY/attestation.local.json" <<'EOF'
+{
+  "dstack_http": "http://127.0.0.1:19527/",
+  "tls_certificate": "/run/market-tls/leaf.pem",
+  "public_domain": "localhost",
+  "keyset_lifetime_seconds": 300
+}
+EOF
+chmod 0644 "$DEPLOY/attestation.local.json"
 
 docker compose --project-directory "$DEPLOY" \
   -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.local.yml" \
@@ -220,34 +251,27 @@ done < <(tail -n +2 /proc/net/tcp)
 
 host_curl -sf --connect-timeout 2 http://127.0.0.1:8080/healthz | grep -q '"ready":true'
 
-# Signed purchase end-to-end through 443 against the golden catalog.
-# Must run on the Docker host network (WSL/Windows localhost cannot reach it).
-TOKEN0="$(python3 -c 'import json; print(json.load(open("'"$WORK"'/tokens.json"))[0])')"
+# Attestation is on: fetch keyset, reject plaintext purchase, then E2EE purchase.
+TOKEN0="$(python3 -c "import json; print(json.load(open(r'$WORK/tokens.json'))[0])")"
+ATTEST_NONCE="$(python3 -c 'print("11"*32)')"
+REPORT="$(host_curl -skf --connect-timeout 5 \
+  "https://127.0.0.1/market/v1/aci/attestation?nonce=${ATTEST_NONCE}")"
+KEYSET_DIGEST="$(printf '%s' "$REPORT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workload_keyset_digest"])')"
+printf '%s' "$REPORT" | python3 -c \
+  'import json,sys; k=json.load(sys.stdin)["attestation"]["workload_keyset"]; assert k.get("e2ee_public_keys"), k; json.dump(k, open(sys.argv[1],"w"))' \
+  "$WORK/verified-keyset.json"
+BODY_JSON='{"model":"m/external","messages":[{"role":"user","content":"Batch A public synthetic prompt"}],"max_completion_tokens":64,"stream":true,"background":true,"stream_options":{"include_usage":true},"bitrouter_purchase":{"service_type":"on_demand","provider_cap_micro_usd":4500,"total_cap_micro_usd":4510},"bitrouter_delivery":{"auto_fallback":"off"}}'
 cat >"$WORK/purchase.json" <<EOF
 {
   "marketUrl": "https://127.0.0.1",
   "token": "$TOKEN0",
-  "keyset": "$DIGEST",
+  "keyset": "$KEYSET_DIGEST",
+  "verifiedKeyset": $(cat "$WORK/verified-keyset.json"),
   "signingKeyFile": "/work/buyer-0.secret",
-  "idempotencyKey": "dstack-local-signed-1",
-  "body": {
-    "model": "m/external",
-    "messages": [{"role": "user", "content": "Batch A public synthetic prompt"}],
-    "max_completion_tokens": 64,
-    "stream": true,
-    "background": true,
-    "stream_options": {"include_usage": true},
-    "bitrouter_purchase": {
-      "service_type": "on_demand",
-      "provider_cap_micro_usd": 4500,
-      "total_cap_micro_usd": 4510
-    },
-    "bitrouter_delivery": {"auto_fallback": "off"}
-  }
+  "idempotencyKey": "dstack-local-e2ee-1",
+  "body": $BODY_JSON
 }
 EOF
-# Run the signed purchase on the Docker host network without bind mounts
-# (Docker Desktop WSL bind mounts are brittle). Copy inputs via docker cp.
 NODE_IMAGE="node:20-bookworm"
 pcid="$(docker create --network host \
   -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
@@ -258,15 +282,22 @@ docker exec "$pcid" mkdir -p /work /clients/test
 docker cp "$WORK/purchase.json" "${pcid}:/work/purchase.json"
 docker cp "$WORK/buyer-0.secret" "${pcid}:/work/buyer-0.secret"
 docker cp "$ROOT/clients/market-buyer/purchase-sign.mjs" "${pcid}:/clients/purchase-sign.mjs"
-docker cp "$ROOT/clients/market-buyer/test/signed-purchase.mjs" \
-  "${pcid}:/clients/test/signed-purchase.mjs"
+docker cp "$ROOT/clients/market-buyer/purchase-e2ee.mjs" "${pcid}:/clients/purchase-e2ee.mjs"
+docker cp "$ROOT/clients/market-buyer/test/encrypted-purchase.mjs" \
+  "${pcid}:/clients/test/encrypted-purchase.mjs"
 set +e
 docker exec -e NODE_TLS_REJECT_UNAUTHORIZED=0 -w /clients "$pcid" \
-  node /clients/test/signed-purchase.mjs /work/purchase.json ok
+  node /clients/test/encrypted-purchase.mjs /work/purchase.json plaintext-caps
+plain_rc=$?
+docker exec -e NODE_TLS_REJECT_UNAUTHORIZED=0 -w /clients "$pcid" \
+  node /clients/test/encrypted-purchase.mjs /work/purchase.json ok
 purchase_rc=$?
 set -e
 docker rm -f "$pcid" >/dev/null
+test "$plain_rc" -eq 0
 test "$purchase_rc" -eq 0
+# Catalog policy digest from healthz must still match golden file bytes.
+test "$DIGEST" = "$(python3 -c 'import hashlib,pathlib; print("sha256:"+hashlib.sha256(pathlib.Path("deploy/market/catalog.json").read_bytes()).hexdigest())')"
 
 # Mutating the state catalog must refuse the next serve (fail closed).
 docker compose --project-directory "$DEPLOY" \
@@ -304,4 +335,4 @@ if [ "$refused" != 1 ]; then
   exit 1
 fi
 
-echo "{\"market_dstack_local\":\"pass\",\"attested\":false,\"https_443\":true,\"signed_purchase\":true,\"catalog_policy_digest\":\"$DIGEST\",\"golden_regen\":true,\"catalog_mutate_refused\":true,\"fixture_18080_loopback\":true,\"non_loopback_stack_ports\":false,\"frozen_clock_ge_24h\":true}"
+echo "{\"market_dstack_local\":\"pass\",\"attested\":false,\"https_443\":true,\"e2ee_purchase\":true,\"plaintext_purchase_refused\":true,\"catalog_policy_digest\":\"$DIGEST\",\"keyset_digest\":\"$KEYSET_DIGEST\",\"golden_regen\":true,\"catalog_mutate_refused\":true,\"fixture_18080_loopback\":true,\"non_loopback_stack_ports\":false,\"frozen_clock_ge_24h\":true,\"controlled_attestation\":true}"

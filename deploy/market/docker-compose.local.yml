@@ -1,4 +1,4 @@
-# Local overlay: attestation off, self-signed TLS via Caddy on 443, no dstack.
+# Local overlay: controlled attestation mock, self-signed TLS via Caddy on 443.
 # Usage:
 #   docker compose -f deploy/market/docker-compose.yml \
 #     -f deploy/market/docker-compose.local.yml up --build
@@ -25,9 +25,9 @@ services:
     environment:
       PRIVATE_MARKET_MODE: local
       PRIVATE_MARKET_DOMAIN: localhost
-      PRIVATE_MARKET_ENABLE_ATTESTATION: "0"
-      PRIVATE_MARKET_SIGNED_PURCHASES: "1"
+      PRIVATE_MARKET_ENABLE_ATTESTATION: "1"
       PRIVATE_MARKET_TLS_DIR: /run/market-tls
+      PRIVATE_MARKET_ATTESTATION_PATH: /etc/market/attestation.json
       PRIVATE_MARKET_BUYER_TOKEN_0: ${BUYER_0_TOKEN}
       PRIVATE_MARKET_BUYER_TOKEN_1: ${BUYER_1_TOKEN}
       PRIVATE_MARKET_BUYER_TOKEN_2: ${BUYER_2_TOKEN}
@@ -35,7 +35,7 @@ services:
       - market-data:/var/lib/market
       - tls-data:/run/market-tls
       - ./buyers.public.json:/etc/market/buyers.public.json:ro
-      # No dstack.sock in local mode.
+      - ./attestation.local.json:/etc/market/attestation.json:ro
 
   tls-terminator:
     image: caddy@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb

@@ -196,6 +196,22 @@ def main(binary):
                 sign_driver_file.write_text(json.dumps(sign_driver))
                 print(run('node', sign_script, str(sign_driver_file), scenario, env=env))
                 assert market.effects() == 0 and sum(p.sensitive_posts for p in proxies) == 0
+            # Market-purchase E2EE refusals (attestation on ⇒ plaintext caps rejected).
+            e2ee_script = str(ROOT / 'clients/market-buyer/test/encrypted-purchase.mjs')
+            e2ee_driver = {
+                'marketUrl': market.url, 'token': market.buyers[0]['token'],
+                'body': market.body(), 'keyset': first_keyset,
+                'verifiedKeyset': first['attestation']['workload_keyset'],
+                'signingKeyFile': str(signing0),
+            }
+            e2ee_driver_file = root / 'e2ee-driver.json'
+            e2ee_refusals = ['plaintext-caps', 'tampered-ciphertext', 'wrong-field', 'wrong-model',
+                             'stale-ts', 'wrong-service-key', 'wrong-client-key']
+            for scenario in e2ee_refusals:
+                e2ee_driver['idempotencyKey'] = f'e2ee-{scenario}'
+                e2ee_driver_file.write_text(json.dumps(e2ee_driver))
+                print(run('node', e2ee_script, str(e2ee_driver_file), scenario, env=env))
+                assert market.effects() == 0 and sum(p.sensitive_posts for p in proxies) == 0
             driver['policy']['baseURL'] = origin + '/market/v1'
             driver_file.write_text(json.dumps(driver))
             completed = subprocess.run(['node', script, str(driver_file), 'success'], env=env,
@@ -217,6 +233,12 @@ def main(binary):
             print(retry.stdout)
             assert sum(p.sensitive_posts for p in proxies) == 2 and market.effects() == 1
             assert market.balance() == 24963
+            # Replay E2EE (client, service, nonce) from the successful capture; no new effect.
+            e2ee_driver['idempotencyKey'] = 'e2ee-replay-nonce'
+            e2ee_driver['capture'] = capture
+            e2ee_driver_file.write_text(json.dumps(e2ee_driver))
+            print(run('node', e2ee_script, str(e2ee_driver_file), 'replay-nonce', env=env))
+            assert market.effects() == 1 and market.balance() == 24963
             market.stop()
             rpc.bad_slot = True
             refused = subprocess.run([binary, 'serve', str(market.state)], env=market.env, capture_output=True, timeout=40)
@@ -271,9 +293,10 @@ def main(binary):
             rpc.shutdown()
             rpc.server_close()
     print(json.dumps({'buyer_market_identity': 'controlled-pass', 'hardware_attestation': False,
-        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 18,
-        'signed_purchase_refusals': 8, 'controlled_tls_purchases': 1, 'controlled_tls_posts': 2,
-        'idempotent_signed_retry': True,
+        'real_provider': False, 'external_inference_calls': 0, 'refusal_cases': 26,
+        'signed_purchase_refusals': 8, 'e2ee_purchase_refusals': 8,
+        'controlled_tls_purchases': 1, 'controlled_tls_posts': 2,
+        'idempotent_signed_retry': True, 'e2ee': True,
         'provider_micro_usd': 35, 'platform_micro_usd': 2, 'balance_micro_usd': 24963}))
 
 

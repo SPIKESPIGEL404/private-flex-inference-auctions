@@ -96,7 +96,9 @@ if ! grep -q "BEGIN CERTIFICATE" "${LEAF}"; then
 fi
 
 if [ "${PRIVATE_MARKET_ENABLE_ATTESTATION:-0}" = "1" ]; then
-  cat >"${ATTESTATION_CONFIG_PATH}" <<EOF
+  # Local controlled acceptance may mount a pre-written config (e.g. dstack_http).
+  if [ ! -f "${ATTESTATION_CONFIG_PATH}" ]; then
+    cat >"${ATTESTATION_CONFIG_PATH}" <<EOF
 {
   "dstack_socket": "/var/run/dstack.sock",
   "tls_certificate": "${LEAF}",
@@ -104,7 +106,8 @@ if [ "${PRIVATE_MARKET_ENABLE_ATTESTATION:-0}" = "1" ]; then
   "keyset_lifetime_seconds": 3600
 }
 EOF
-  chmod 0600 "${ATTESTATION_CONFIG_PATH}"
+    chmod 0600 "${ATTESTATION_CONFIG_PATH}"
+  fi
   export PRIVATE_MARKET_ATTESTATION_CONFIG="${ATTESTATION_CONFIG_PATH}"
 else
   unset PRIVATE_MARKET_ATTESTATION_CONFIG || true
