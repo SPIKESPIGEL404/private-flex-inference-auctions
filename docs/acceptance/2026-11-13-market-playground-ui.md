@@ -73,3 +73,39 @@ preview information and actions live in the header or its dialogs.
 
 The revised TypeScript/static build passes. These checks remain UI/UX acceptance
 only; the Market transport and real inference are still deferred.
+
+## Provider statistics preview — 2026-11-13
+
+Added a collapsible, terminal-style provider pane for the proposed single-GPU
+vLLM / Qwen3.8-27B / RTX PRO 6000 experiment. This section verifies presentation
+and interaction only. Every feed value, baseline and percentage change is
+scripted browser-local data, independent of buyer terminal activity. There is no
+wallet settlement, provider telemetry, hardware-counter or attestation connection.
+
+- The three readouts are revenue/GPU-hour, estimated margin/GPU-hour and SLO
+  goodput/GPU. Earnings, cache, latency and trust views are available, together
+  with baseline, matching, priority and combined modes.
+- Browser checks verified zero uplift in baseline mode, zero priority fees and
+  non-applicable priority fulfillment without priority service, and a negative
+  goodput difference in the priority-only sample. Trust fields remain explicitly
+  unconnected/unavailable; an assumed GPU cost is disclosed.
+- Pausing the statistics feed held the chart points unchanged across collapse,
+  expansion and buyer-count edits. The feed controls do not start or pause fx.
+- Collapsing increased terminal workspace height and retained the original buyer
+  UUIDs. Eight panes remained nonzero in size; returning to three preserved the
+  original three identities. Existing fx conversations resumed from storage.
+- Keyboard tab navigation switched earnings to cache; selecting the margin
+  readout switched the plot and returned to earnings. No browser console errors
+  were recorded during these checks.
+- Layouts were checked at 1280×800, 390×844 and 320×740. Narrow header controls
+  were adjusted to fit, including a final 320px check where the control group's
+  scroll width equaled its available width. Experiment/view preferences survived
+  reload; the feed restarts as a fresh sample stream.
+- The static TypeScript/Vite build passes with the existing embedded-runtime
+  bundle-size warning. No dependencies were added. Direct checks verified sample
+  revenue = base service + priority fee − refunds, margin = revenue − assumed
+  cost, bounded ratios and undefined relative changes at a zero baseline.
+
+Quantile snapshots are supplied by the scripted source and are not averaged by
+the UI. Connecting live evidence and demonstrating actual revenue improvement
+remain separate work.

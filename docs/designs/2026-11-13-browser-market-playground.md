@@ -60,3 +60,19 @@ Future identity, budget and order authority stay in the existing Phala Market.
 Browser storage holds the buyer's local experience, not authoritative funds.
 Seller persistence must preserve explicit validity/capacity/authorization;
 remaining registered does not imply unlimited free replenishment.
+
+## Provider statistics presentation
+
+A bottom pane previews revenue/GPU-hour, estimated margin/GPU-hour and SLO
+goodput/GPU, with earnings/cache/latency/trust views. It shares the terminal's
+monochrome styling and edge-to-edge separators; header and pane-label controls
+collapse it without unmounting buyer terminals. Charts use solid current-mode
+and dashed baseline lines; four experiment modes illustrate the eventual paired
+baseline/matching/priority/combined comparison.
+
+The current one-second feed is explicitly simulated. Its sample GPU cost,
+baseline and uplift are not real experiment results, and there is no relationship
+between its values and the number/activity of buyer terminals. Missing evidence
+stays unavailable. Actual source aggregation, seller settlement/cost attribution,
+histogram quantiles and experiment provenance must be implemented before a live
+data source is presented as measured.

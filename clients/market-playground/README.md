@@ -39,6 +39,32 @@ without silently substituting a fake terminal.
 - Responsive tiling, native modal focus handling,
   precise integer microUSD parsing/display, and reduced-motion support.
 
+## Provider statistics preview
+
+The bottom statistics pane previews a single-GPU vLLM / Qwen3.8-27B seller on
+RTX PRO 6000. Toggle it from the header or its pane label; terminal sessions stay
+mounted and retile into the available space. Its open state, view and experiment
+mode are retained for this browser session.
+
+Three primary readouts show seller revenue/GPU-hour, estimated margin/GPU-hour
+and SLO goodput/GPU. Switch among earnings, cache, latency and trust views, or
+select baseline, matching, priority and combined modes. The sixty-second chart
+updates once per second and can be paused independently of buyer terminals.
+
+**Every statistics value is a scripted fixture, including its baseline and
+uplift.** The feed is independent of terminal activity. No provider telemetry,
+wallet settlement, hardware counters or remote attestation is connected. The
+assumed GPU cost is explicitly shown; missing trust evidence stays unavailable.
+Priority-only fixtures intentionally include a goodput regression, and modes
+without priority service show its fulfillment rate as not applicable.
+
+`src/statistics.ts` owns the sample data; `src/ProviderStatistics.tsx` renders it
+without a charting dependency. Each sample is a rolling-window snapshot, with
+quantiles supplied by the source rather than averaged in the UI. A future live
+adapter must provide actual settlement/cost provenance, aggregate histograms
+before calculating percentiles, distinguish instance epochs/counter resets,
+and keep measured comparisons separate from estimates.
+
 `Ctrl B`, then an arrow switches panes; `Ctrl B Z` zooms/restores the selected
 pane. `Ctrl B %` adds a pane and `Ctrl B X` parks the last pane.
 `Cmd/Ctrl K` configures the selected buyer; `Cmd/Ctrl Enter` starts it.

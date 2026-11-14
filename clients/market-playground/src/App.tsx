@@ -6,6 +6,8 @@ import type { WTerm } from '@wterm/dom';
 import { BuyerRuntime } from './runtime';
 import { loadBrowserSession, maxBuyers, money, parseBudget, resizeSession, sessionConfigKey, tilePanes } from './model';
 import type { Buyer, BuyerStatus } from './model';
+import { ProviderStatistics } from './ProviderStatistics';
+import { loadStatisticsPreferences, statisticsStorageKey } from './statistics';
 
 type Dialog = 'settings' | 'help' | 'preview' | null;
 type Registry = (id: string, runtime?: BuyerRuntime) => void;
@@ -103,6 +105,7 @@ function Info({ kind, onClose }: { kind: 'help' | 'preview'; onClose: () => void
       <dl className="key-list"><dt>market</dt><dd>not connected</dd><dt>provider calls</dt><dd>0</dd>
         <dt>actual spend</dt><dd>$0.00</dd><dt>attestation / signatures</dt><dd>not checked</dd></dl>
       <p>Per-call Market procurement is deferred. This preview contains no provider credentials.</p>
+      <p>Provider statistics are an independent, scripted comparison for layout preview. They are not derived from these terminals or a measured GPU experiment. Hardware attestation is not connected.</p>
     </>}
   </dialog>;
 }
@@ -116,6 +119,7 @@ export default function App() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [countDraft, setCountDraft] = useState(String(buyers.length));
   const [storageError, setStorageError] = useState(false);
+  const [statistics, setStatistics] = useState(loadStatisticsPreferences);
   const workspace = useRef<HTMLElement>(null);
   const [size, setSize] = useState({ width: 1280, height: 720 });
   const runtimes = useRef(new Map<string, BuyerRuntime>());
@@ -158,6 +162,9 @@ export default function App() {
     try { sessionStorage.setItem(sessionConfigKey, JSON.stringify(session)); } catch { setStorageError(true); }
   }, [session]);
   useEffect(() => { setCountDraft(String(buyers.length)); }, [buyers.length]);
+  useEffect(() => {
+    try { sessionStorage.setItem(statisticsStorageKey, JSON.stringify(statistics)); } catch { /* Optional presentation preferences. */ }
+  }, [statistics]);
   useEffect(() => {
     if (!buyers.some(b => b.id === selected)) setSelected(buyers[0].id);
     if (zoomed && !buyers.some(b => b.id === zoomed)) setZoomed(null);
@@ -203,10 +210,12 @@ export default function App() {
           <a href="https://github.com/SPIKESPIGEL404/private-flex-inference-auctions" target="_blank" rel="noreferrer">source ↗</a></nav>
         <div className="header-controls">
           <button className="preview-link" onClick={() => setDialog('preview')}>preview</button>
+          <button className="outline-button stats-header-toggle" aria-expanded={statistics.open} aria-label="Toggle provider statistics"
+            onClick={() => setStatistics(old => ({ ...old, open: !old.open }))}>stats</button>
           <label className="pane-count">buyers <input aria-label="Buyer count" type="number" min={1} max={maxBuyers} value={countDraft}
             onChange={e => { setCountDraft(e.target.value); if (/^[1-8]$/.test(e.target.value)) resize(Number(e.target.value)); }}
             onBlur={() => setCountDraft(String(buyers.length))} /></label>
-          <button className="outline-button" onClick={() => setDialog('settings')}>configure <kbd>⌘K</kbd></button>
+          <button className="outline-button" aria-label="Configure buyer" onClick={() => setDialog('settings')}><span className="configure-full">configure</span><span className="configure-short">config</span> <kbd>⌘K</kbd></button>
           <button className="outline-button" disabled={!ready} onClick={() => {
             if (running) for (const b of buyers) runtimes.current.get(b.id)?.pause();
             else for (const b of buyers) runtimes.current.get(b.id)?.start();
@@ -235,6 +244,10 @@ export default function App() {
           onSelect={setSelected} onStatus={status} onUsage={usage} onRuntime={register} onInput={terminalInput} />
       </div>;
     })}</main>
+    <ProviderStatistics open={statistics.open} mode={statistics.mode} view={statistics.view}
+      onOpenChange={open => setStatistics(old => ({ ...old, open }))}
+      onModeChange={mode => setStatistics(old => ({ ...old, mode }))}
+      onViewChange={view => setStatistics(old => ({ ...old, view }))} />
     {dialog === 'settings' && <Settings key={current.id} buyer={current} onClose={() => setDialog(null)} onSave={(task, budgetMicros, scenario, all) => {
       for (const b of buyers) if (all || b.id === current.id) runtimes.current.get(b.id)?.pause();
       const update = (b: Buyer) => all || b.id === current.id ? { ...b, task, budgetMicros, scenario, previewMicros: Math.min(b.previewMicros, budgetMicros) } : b;
