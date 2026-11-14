@@ -1,0 +1,120 @@
+{
+  "result": "pass",
+  "payment_method": "nearintents",
+  "sdk_version": "0.4.1",
+  "mppx_version": "0.17.0",
+  "settlement_backend": "controlled-1click",
+  "real_payment": false,
+  "real_provider": false,
+  "external_spend": 0,
+  "funding_entries": 1,
+  "controlled_native_calls": 2,
+  "remaining_micro_usd": 9926,
+  "sdk_client_interop": true,
+  "checks": [
+    "official-sdk-client-server",
+    "exact-output-credit",
+    "funding-quote-isolation",
+    "buyer-isolation",
+    "concurrent-replay",
+    "canonical-origin-hash-dedup",
+    "one-funding-two-native-purchases",
+    "cash-conservation",
+    "restart-receipt-recovery",
+    "lost-commit-ack",
+    "sdk-ledger-atomic-rollback",
+    "durable-proof-journal",
+    "unavailable-retry",
+    "timeout-retry",
+    "wrong-hash-rejection",
+    "failed-uncredited",
+    "refunded-uncredited",
+    "underdeposit-uncredited",
+    "no-second-charge-challenge",
+    "known-hash-sdk-client",
+    "live-buyer-refund-fence"
+  ],
+  "live_preflight": {
+    "result": "pass-unfunded",
+    "backend": "https://1click.chaindefuser.com",
+    "quote_status": 201,
+    "challenge_status": 402,
+    "method": "nearintents",
+    "intent": "charge",
+    "credential_header": "Payment-Authorization",
+    "historical_expires": "2026-11-14T03:59:42.972Z",
+    "origin_asset": "near:mainnet/nep141:wrap.near",
+    "origin_amount_atomic": "4276710746386491665684",
+    "destination_asset": "near:mainnet/nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+    "destination_amount_atomic": "10000",
+    "challenge_header_sha256": "0462216f01ff3105c790309ffb48fa36f48270be70c627a67449b968acca5261",
+    "funds_moved": false,
+    "cash_credited": false,
+    "provider_calls": 0,
+    "account_state": {
+      "buyer": "UNKNOWN_ACCOUNT",
+      "merchant": "UNKNOWN_ACCOUNT"
+    },
+    "storage_bounds": {
+      "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1": {
+        "method": "storage_balance_bounds",
+        "value": {
+          "min": "1250000000000000000000",
+          "max": "1250000000000000000000"
+        }
+      },
+      "wrap.near": {
+        "method": "storage_balance_bounds",
+        "value": {
+          "min": "1250000000000000000000",
+          "max": "1250000000000000000000"
+        }
+      }
+    },
+    "temporary_deposit_address_is_payment_instruction": false,
+    "merchant_address_sha256": "3fc5019c5418f834fbf112828d553abc590dae206855650f4e76743a22f78339",
+    "refund_address_sha256": "2f4d8e36dd3809d277403eef3f67f37d1e2ae5c6d67323a8895e7c218c24c51a",
+    "provenance": "Historical unpaid observation before PR isolation, using the same pinned SDK and bridge; not a final-branch mainnet transfer test."
+  },
+  "validation": {
+    "node_unit_tests": 2,
+    "rust_binary_unit_tests": 1,
+    "clippy_warnings_denied": "pass",
+    "rustfmt": "pass",
+    "python_node_syntax": "pass",
+    "legacy_controlled_checks": 21,
+    "baseline_a_buyers": 3,
+    "baseline_a_submit_effects": 3,
+    "native_lost_commit_regression": "pass",
+    "branch": "codex/mpp-nearintents-charge-main",
+    "base_commit": "dcca86c8e912a404945026d4996b86fd4a2752f3",
+    "scope": "isolated PR source, controlled settlement; no asset transfers",
+    "completed_at_utc": "2026-11-14T04:28:56.885550+00:00"
+  },
+  "source_sha256": {
+    "crates/private-market-host/Cargo.lock": "1b32df479162b34995901d5443054d02dfee686ddecd7dd07dc5d626323bee5a",
+    "crates/private-market-host/Cargo.toml": "05260c9c497139e039a522293078816b366e1978efdf6ad46d4e707da2ec38da",
+    "crates/private-market-host/src/main.rs": "c884c7774508cd340e6ea8637391ca6a4786b215e360e8edff7b2bb4ca0ff462",
+    "crates/private-market-host/src/procurement/bids.rs": "599bcc8f202df0ef358ec8165ef9660c330ba5805a6462ba4906395e33b4946f",
+    "crates/private-market-host/src/procurement/bids.sql": "3bb3af482939159f4322e820a6244b555bb67af34e2a8aa5054b1abc729608e4",
+    "crates/private-market-host/src/procurement/funding.rs": "c7e81ba716ea95c7638b86fd2bff3c26168db958ec8b588435b0bd64baaf4fbe",
+    "crates/private-market-host/src/procurement/mod.rs": "6692276b124e03d5c74f3500bfbc434eb09297e0f6af6b5c76984c29ff3b89b9",
+    "crates/private-market-host/src/procurement/nearintents.rs": "d22aef16898a0591eb8146ece0ede693106595d137ff6d72b6e1c511b25c84b4",
+    "crates/private-market-host/src/procurement/schema.sql": "461f2111b19d12efe5b15dc93b85fd9152f90e6adfd0cd63811be4ca13c0fbc5",
+    "scripts/accept-market-a.py": "af8cc37e519a93ccc61d1d8e3a1358820d6e533f7c84ecfbf2e5ca3b3bf8c278",
+    "scripts/accept-market-b.py": "4af4718b955ec045c39c03d06dfea75a42433e77ddaecac3297b111c35281385",
+    "scripts/accept-market-mpp.py": "7a77caa9bed90a62f41897e47e753941151c38a1e8d01b32afbf004311bb3583",
+    "scripts/accept-market-mpp.sh": "27edef773752ad00e7e7e430bdd327dea9abf54cac59397ae908950e9336367a",
+    "scripts/accept-market-nearintents.py": "28f9d226dd2f32d9d0b25d0c071ad8c9e038afbb461014ae3ff0155dbdca0cec",
+    "scripts/accept-market-nearintents.sh": "101d6e5ac0fb9d21fd5fe4a353c4a529f887e9fc649c9d771ad36a6560ae51b7",
+    "scripts/market_b_support.py": "c05add533ad0cb810d6592b74e3f1752a3be8f39186212db038765f2c3759958",
+    "services/mpp-nearintents/bridge.mjs": "669f0f5f9370d734c7e5b70fd6e62617a1518dfc92e1607fdac1882e0762d39f",
+    "services/mpp-nearintents/client.mjs": "3d2d3ba69fa6a8a798bfb43cd281ffee74cb163e1756ebd1577ce5227eca952b",
+    "services/mpp-nearintents/package-lock.json": "13638f04f667bf2e8030147df87216c120aca19468b631a6ae341c17dd7940d6",
+    "services/mpp-nearintents/package.json": "bdcce8560254eadd1f1abb601bf86e834c24c75638b53b373bdaf017e0763b53",
+    "services/mpp-nearintents/preflight.mjs": "51fe35c4600661f139cc2353a0e31d392cbfb15dc60cb3a4c4a85fb250a18d4a",
+    "services/mpp-nearintents/schema.sql": "ea006d365319ce95ff95314c7e83ff495835e97f8b601dd7655dd43489b120b4",
+    "services/mpp-nearintents/test/config.test.mjs": "4e04ba7aed43c678880069195277add6070cd10f8ac5a7b4f7c3d5486e662311",
+    "services/mpp-nearintents/test/pay.mjs": "e7b0ce4442507fb95370a743fe946bcfe56e9b0de6deb6069d3345dcd9ae27d1"
+  }
+}

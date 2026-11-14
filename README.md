@@ -61,6 +61,25 @@ The script builds the independent host, creates its own temporary PostgreSQL clu
 
 The host is an independent Cargo package under `crates/private-market-host`, with its own lockfile. It has no `flex-scheduler` dependency. Buy caps authorize spending; they do not promise GPU priority or lower latency. Auto-bidder is deferred.
 
+## Fund inference credit with MPP
+
+The optional `nearintents.charge` adapter uses the official NEAR Intents SDK to
+fund the existing cash ledger. It starts new payment-enabled instances at zero
+credit and retains replay and reconciliation through the original Redis outbox.
+Funding APIs are disabled by default. Dynamic bid revisions are persisted;
+automatic admission and Provider dispatch remain deferred.
+
+```bash
+bash scripts/accept-market-nearintents.sh
+```
+
+This runs the official client/server SDK against a controlled 1Click backend,
+local PostgreSQL/Redis and a controlled seller. It transfers no real assets.
+See the [implementation and configuration](docs/market-nearintents-charge.md),
+[dynamic bidding spec](docs/specs/2026-11-13-mpp-funded-dynamic-bidding.md) and
+[acceptance limits](docs/acceptance/2026-11-13-nearintents-charge.md).
+Real settlement, refunds and deployment of the new adapter remain unaccepted.
+
 ## Historical scheduler experiment
 
 The original scheduler, fixtures and phase-one through phase-four evidence remain available as an independent experiment. Its Chutes evidence applies to that scheduler configuration. Start with the [historical overview](docs/scheduler-experiment.md), [scheduler spec](docs/specs/2026-11-02-external-prefill-gating-scheduler.md), and [phase-four report](docs/acceptance/2026-11-02-phase4.md).
