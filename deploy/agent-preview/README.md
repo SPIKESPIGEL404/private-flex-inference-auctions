@@ -18,8 +18,10 @@ The container requires `AGENT_PREVIEW_ORIGIN` (the exact public HTTPS origin) an
 code). Keep the code outside the repository. The public compose contains only
 its hash. `AGENT_PREVIEW_REVISION` identifies the deployed code. Mount a new,
 dedicated volume at `/data`; no existing gateway volume or dstack socket is used.
-Publish only port 3000. Attach only to a new dedicated `internal` bridge network;
-the fixture requires no external network access. All PostgreSQL, Redis, wallet,
+Publish only port 3000. Attach only to a new dedicated bridge network, separate
+from the gateway network. This is not an egress firewall; Docker's `internal`
+bridge prevents the host-published preview port from working. The application
+uses only loopback model/payment fixtures. All PostgreSQL, Redis, wallet,
 proxy and Market ports remain on the container's loopback interface. Set a memory limit, CPU limit,
 read-only root filesystem, `/tmp` tmpfs and `no-new-privileges`.
 

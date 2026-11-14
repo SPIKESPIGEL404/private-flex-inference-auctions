@@ -48,7 +48,10 @@ def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origi
         'logging': {'driver': 'json-file', 'options': {'max-size': '5m', 'max-file': '2'}},
     }
     overlay['volumes']['agent-preview-data'] = {}
-    overlay.setdefault('networks', {})['agent-preview-private'] = {'internal': True}
+    # Docker's internal bridge blocks the host-published preview port. A
+    # dedicated ordinary bridge keeps this service off the gateway network.
+    # It is not an egress firewall; model/payment targets are loopback fixtures.
+    overlay.setdefault('networks', {})['agent-preview-private'] = {}
     after['docker_compose_file'] = yaml.safe_dump(overlay, sort_keys=False)
     loader = f'''
 # Controlled agent preview. No gateway state or environment is modified below.
@@ -86,7 +89,7 @@ def prepare(before, image, archive_url, archive_sha, owner_hash, revision, origi
               'originalVolumesUnchanged': list(compose['volumes']), 'sealedEnvironmentNamesUnchanged': True,
               'manifestMetadataUnchanged': True, 'preLaunchPrefixUnchanged': True,
               'originalNetworksUnchanged': list(compose.get('networks', {})),
-              'newNetwork': {'agent-preview-private': {'internal': True}},
+              'newNetwork': {'agent-preview-private': {}}, 'networkEgressBlocked': False,
               'dataDiskEphemeral': False, 'initScriptUnchangedAndEmpty': True,
               'newService': overlay['services']['agent-preview'], 'newVolume': 'agent-preview-data'}
     return after, report
