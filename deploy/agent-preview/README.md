@@ -18,8 +18,9 @@ The container requires `AGENT_PREVIEW_ORIGIN` (the exact public HTTPS origin) an
 code). Keep the code outside the repository. The public compose contains only
 its hash. `AGENT_PREVIEW_REVISION` identifies the deployed code. Mount a new,
 dedicated volume at `/data`; no existing gateway volume or dstack socket is used.
-Publish only port 3000. All PostgreSQL, Redis, wallet, proxy and Market ports
-remain on the container's loopback interface. Set a memory limit, CPU limit,
+Publish only port 3000. Attach only to a new dedicated `internal` bridge network;
+the fixture requires no external network access. All PostgreSQL, Redis, wallet,
+proxy and Market ports remain on the container's loopback interface. Set a memory limit, CPU limit,
 read-only root filesystem, `/tmp` tmpfs and `no-new-privileges`.
 
 The public-origin guard rejects cross-origin browser writes and sets Secure
@@ -35,6 +36,13 @@ expiry. Restart resumes the same configuration, ledger, journal, virtual files
 and original operations; it never replenishes money, offers or task counts.
 Transient first-boot interruption can finish the original seed transaction;
 occupied data or an altered owner binding fail closed.
+
+Use `scripts/prepare-agent-preview-overlay.py` (operator dependency: PyYAML) to
+generate the additive overlay and preservation report from the backed-up
+app-compose, immutable image ID, archive SHA-256, source revision, public origin
+and owner hash. Keep input/output manifests and the access code outside git.
+The report proves the original service, volume and network definitions, other
+manifest fields, and original pre-launch prefix remain equal.
 
 Use the Phala CLI to back up the existing app-compose, apply the release overlay
 to that same CVM, and preserve encrypted environments. The overlay must assert
