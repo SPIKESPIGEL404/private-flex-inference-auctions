@@ -1,0 +1,23 @@
+---
+description: Before Phala/dstack/CVM/ingress work, read docs index and linked sources
+globs: deploy/market/**/*,docs/market-dstack.md,scripts/*dstack*,scripts/render-market-compose-hash.py,scripts/prepare-market-docker-cargo.sh,scripts/accept-market-dstack*
+alwaysApply: false
+---
+
+# Phala / dstack documentation gate
+
+Before implementing or changing anything that touches Phala Cloud, dstack, CVM
+deploy, compose-hash, encrypted envs, custom domains / dstack-ingress, GHCR, or
+attestation packaging:
+
+1. Read `docs/market-dstack.md` (repo packaging source of truth).
+2. Fetch https://docs.phala.com/llms.txt and pick the pages that match the task
+   (deploy CLI, env vars, private registry, networking, custom domain, KMS,
+   attestation, etc.).
+3. Read those pages (and any dstack-examples links cited in `docs/market-dstack.md`)
+   **before** writing code, compose, or operator commands.
+4. Prefer quoted upstream behavior over memory; if our packaging doc and upstream
+   disagree, stop and reconcile explicitly.
+
+Do not invent Phala CLI flags, `allowed_envs`, DNS provider vars, or app-compose
+fields from prior chat alone.

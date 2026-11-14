@@ -1,0 +1,56 @@
+# Local overlay: attestation off, self-signed TLS via Caddy on 443, no dstack.
+# Usage:
+#   docker compose -f deploy/market/docker-compose.yml \
+#     -f deploy/market/docker-compose.local.yml up --build
+
+services:
+  dstack-ingress:
+    profiles: ["production-only"]
+
+  init-secrets:
+    environment:
+      PRIVATE_MARKET_SECRETS_DIR: /var/lib/market/secrets
+      PRIVATE_MARKET_TLS_DIR: /run/market-tls
+      PRIVATE_MARKET_DOMAIN: localhost
+    volumes:
+      - market-data:/var/lib/market
+      - tls-data:/run/market-tls
+      - ./init-secrets.sh:/usr/local/bin/init-secrets.sh:ro
+
+  market:
+    build:
+      context: ../..
+      dockerfile: deploy/market/Dockerfile
+    image: private-market-host:local
+    environment:
+      PRIVATE_MARKET_MODE: local
+      PRIVATE_MARKET_DOMAIN: localhost
+      PRIVATE_MARKET_ENABLE_ATTESTATION: "0"
+      PRIVATE_MARKET_SIGNED_PURCHASES: "1"
+      PRIVATE_MARKET_TLS_DIR: /run/market-tls
+      PRIVATE_MARKET_BUYER_TOKEN_0: ${BUYER_0_TOKEN}
+      PRIVATE_MARKET_BUYER_TOKEN_1: ${BUYER_1_TOKEN}
+      PRIVATE_MARKET_BUYER_TOKEN_2: ${BUYER_2_TOKEN}
+    volumes:
+      - market-data:/var/lib/market
+      - tls-data:/run/market-tls
+      - ./buyers.public.json:/etc/market/buyers.public.json:ro
+      # No dstack.sock in local mode.
+
+  tls-terminator:
+    image: caddy@sha256:c3d7ee5d2b11f9dc54f947f68a734c84e9c9666c92c88a7f30b9cba5da182adb
+    network_mode: host
+    depends_on:
+      init-secrets:
+        condition: service_completed_successfully
+      market:
+        condition: service_started
+    volumes:
+      - tls-data:/run/market-tls:ro
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
+    ports:
+      - "443:443"
+    restart: unless-stopped
+
+volumes:
+  tls-data:

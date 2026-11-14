@@ -106,7 +106,11 @@ model weights or confidential Market deployment.
 `src/attestation.rs` uses `aci-protocol` from
 `Dstack-TEE/private-ai-gateway@0edde219a8ecb970c76c4cb3d1ca557d4fd567b3`
 (Apache-2.0). It reuses the canonical wire types, keyset digest and exact nonce
-statement/report-data encoding. `dstack-sdk-types` 0.1.2 supplies the official
+statement/report-data encoding. The pinned `WorkloadKeyset` has no extension
+field, so the catalog file digest is sealed as
+`subject = market-policy:sha256:<hex>` and is inside the JCS keyset digest.
+Serve refuses to listen if `catalog.json` changes after that hash and before
+the Market finishes loading it. `dstack-sdk-types` 0.1.2 supplies the official
 Info/Quote RPC response shapes; a bounded local Unix-socket HTTP client avoids
 pulling in the SDK's unrelated Ethereum client. RPC contracts and report assembly
 follow the pinned upstream `src/dstack.rs` and `src/aggregator/service/e2ee.rs`.

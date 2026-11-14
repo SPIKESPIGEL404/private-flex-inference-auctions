@@ -67,6 +67,9 @@ async fn chat(
 ) -> axum::response::Response {
     let expected = format!("Bearer {credential}");
     if headers.get("authorization").and_then(|v| v.to_str().ok()) != Some(&expected)
+        || headers
+            .keys()
+            .any(|name| name.as_str().starts_with("x-buyer-"))
         || body["model"] != "native-a"
         || body["stream"] != true
         || body["max_completion_tokens"] != 64
