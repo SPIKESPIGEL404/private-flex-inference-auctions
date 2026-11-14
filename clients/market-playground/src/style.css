@@ -148,5 +148,23 @@ dialog textarea { resize: vertical; min-height: 108px; }
 .bid-control { display: flex; width: 100%; align-items: center; flex-wrap: wrap; gap: 10px; }.bid-control label { display: flex; gap: 10px; align-items: center; }.bid-control input { background: #000; color: #ddd; border: 1px solid #333; padding: 6px; font: inherit; width: 110px; }
 .wallet-limit { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-bottom: 1px solid #262626; padding: 16px 0; font-size: 11px; color: #999; }.wallet-limit strong { color: #ddd; font-weight: 400; }
 @media (max-width: 700px) { .task-pane-heading { padding: 8px 12px; gap: 9px; }.activity-budget { display: none; }.task-activity.stats-expanded { height: 240px; }.activity-body { padding: 0 12px 12px; }.gateway-status { line-height: 1.6; }.workspace-login { margin: 28px auto; padding: 22px; } }
+.attestation-panel.stats-expanded { height: auto; max-height: 40dvh; }
+.attestation-status { color: #b5b5b5; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attestation-status.is-verified { color: #cfcfcf; }
+.attestation-status.is-local { color: #b8b8b8; }
+.attestation-status.is-failed { color: #e07070; }
+.attestation-reverify { margin-left: auto; min-height: 26px; padding: 3px 9px; font-size: 11px; }
+.attestation-body { flex: 1; min-height: 0; overflow: auto; padding: 0 22px 14px; }
+.attestation-failed { margin: 8px 0 0; color: #e07070; font-size: 12px; }
+.attestation-fields { margin: 10px 0 0; display: grid; gap: 8px; }
+.attestation-fields > div { display: flex; justify-content: space-between; gap: 16px; }
+.attestation-fields dt { color: #888; font-size: 10px; }
+.attestation-fields dd { margin: 0; color: #ccc; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+.attestation-footnote { margin: 12px 0 0; color: #666; font-size: 10px; line-height: 1.5; }
+@media (max-width: 700px) {
+  .attestation-body { padding: 0 12px 12px; }
+  .attestation-fields > div { flex-direction: column; gap: 2px; }
+  .attestation-fields dd { max-width: 100%; }
+}
 
 .native-field{display:flex;flex-direction:column;gap:8px;margin:20px 0}.native-field input,.native-transfer input{background:#101010;color:#ededed;border:1px solid #333;padding:10px;font:inherit}.native-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.native-confirm{display:flex;gap:10px;line-height:1.6;margin:20px 0;font-size:12px}.native-agent{padding:20px 0;border-top:1px solid #333}.native-agent h3{font-size:14px}.native-agent small{color:#777;font-weight:400}.native-address{font-size:11px;overflow-wrap:anywhere;color:#aaa}.native-transfer{display:flex;flex-direction:column;gap:8px;font-size:12px;padding:12px 0}.native-transfer a{color:#ccc}.wallet-error{color:#ffaaaa}
