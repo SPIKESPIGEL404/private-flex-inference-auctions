@@ -9,6 +9,7 @@ import {NativeWallets} from './NativeWallets';
 import {WalletController} from './wallet-api';
 import {WalletSetup} from './WalletSetup';
 import {AttestationPanel} from './AttestationPanel';
+import {SiteHeader} from './SiteHeader';
 import {loadBrowserSession, resizeSession, tilePanes} from './model';
 import type {Buyer} from './model';
 import {taskApi, TaskApiError, nanoUsd} from './task-api';
@@ -18,7 +19,7 @@ interface Hosted {ownerScope: string; agents: AgentSession[]; limits: AgentLimit
 type Dialog = 'settings' | 'new' | 'wallet' | 'help' | 'mode' | null;
 const layoutKey = (scope: string) => 'private-market.workspace.layout.v1:' + scope;
 
-export default function App() {
+export default function App({active = true}: {active?: boolean}) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [connection, setConnection] = useState('loading');
   const [hosted, setHosted] = useState<Hosted | null>(null);
@@ -163,14 +164,15 @@ export default function App() {
   }, [prefixAction]);
   useEffect(() => {
     const keydown = (e: KeyboardEvent) => {
-      if (dialog || !authenticated) return;
+      if (!active || dialog || !authenticated) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); e.stopPropagation(); if (current) setDialog('settings'); return; }
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (tasks) void handles.current.get(selected)?.run(); else setDialog('wallet'); return; }
       if (e.ctrlKey && e.key.toLowerCase() === 'b') { e.preventDefault(); e.stopPropagation(); prefix.current = Date.now(); return; }
       if (Date.now() - prefix.current < 10000) { prefix.current = 0; if (prefixAction(selected, e.key.length === 1 ? e.key.toLowerCase() : e.key)) { e.preventDefault(); e.stopPropagation(); } }
     };
     window.addEventListener('keydown', keydown, true); return () => window.removeEventListener('keydown', keydown, true);
-  }, [dialog, authenticated, current, selected, tasks, prefixAction]);
+  }, [active, dialog, authenticated, current, selected, tasks, prefixAction]);
+  useEffect(() => { if (!active) { setDialog(null); prefix.current = 0; } }, [active]);
   async function login() {
     setBusy(true); setError('');
     try { await nativeController.connect(); if(nativeController.snapshot().owner)await refresh(); }
@@ -213,10 +215,7 @@ export default function App() {
   }
   const layout = tilePanes(shown.length, size.width, size.height);
   return <div className="app-shell">
-    <header className="app-header"><div className="topbar">
-      <a className="wordmark" href="/" aria-label="Private Market"><span className="brand-mark">∕</span> private market</a>
-      <nav aria-label="Main navigation"><span className="nav-current">try</span><a href="/proposal">proposal</a><a href="https://github.com/SPIKESPIGEL404/private-flex-inference-auctions" target="_blank" rel="noreferrer">source ↗</a></nav>
-      <div className="header-controls">
+    <header className="app-header"><SiteHeader view="try">
         <button className="preview-link" onClick={() => setDialog('mode')}>{tasks ? 'controlled' : capabilities ? 'wallet setup' : 'connecting'}</button>
         {authenticated && <><button className="outline-button" onClick={() => setDialog('wallet')}>{capabilities?.nativeWallets ? native.owner?.account_id ?? 'wallets' : tasks ? 'wallets' : wallet.owner?.account_id ?? 'connect NEAR'}</button>
           <button className="outline-button" aria-expanded={activity} onClick={() => setActivity(old => !old)}>activity</button>
@@ -227,8 +226,7 @@ export default function App() {
           <button className="outline-button" disabled={busy || !tasks || !shown.some(s => ready.has(s.id) && s.state !== 'complete')} onClick={() => void runAll()}>{hasRunning ? 'pause all' : 'run all'}</button>
           {(tasks || wallet.owner) && <button className="help-button" disabled={busy} onClick={() => void logout()}>disconnect</button>}</>}
         <button className="help-button" aria-label="Keyboard shortcuts" onClick={() => setDialog('help')}>?</button>
-      </div>
-    </div><div className="sessionbar"><span className="session-name">[market]</span>
+    </SiteHeader><div className="sessionbar"><span className="session-name">[market]</span>
       <div className="window-list" aria-label="Agent sessions">{shown.map((s, i) => <button key={s.id} className={current?.id === s.id ? 'window-current' : ''} aria-label={'Select ' + s.id} aria-pressed={current?.id === s.id}
         onClick={() => focus(s.id)} onDoubleClick={() => setZoomed(old => old === s.id ? null : s.id)} title={s.agent_id + ' · ' + s.prompt}>{i + 1}:fx{current?.id === s.id ? '*' : ''}</button>)}</div>
       <div className="session-actions">{current && <><button className="selected-state" onClick={() => setDialog('settings')}>{current.agent_id} · {current.state}</button>
