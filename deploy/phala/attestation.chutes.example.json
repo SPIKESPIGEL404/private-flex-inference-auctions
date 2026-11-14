@@ -1,0 +1,6 @@
+{
+  "dstack_socket": "/var/run/dstack.sock",
+  "tls_certificate": "/run/market-tls/leaf.pem",
+  "public_domain": "REVIEWED-TLS-PASSTHROUGH-DOMAIN",
+  "keyset_lifetime_seconds": 3600
+}

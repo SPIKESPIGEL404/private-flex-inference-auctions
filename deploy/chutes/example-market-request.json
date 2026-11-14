@@ -1,0 +1,24 @@
+{
+  "model": "qwen3.8-27b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Reply with exactly the word OK."
+    }
+  ],
+  "stream": true,
+  "background": true,
+  "stream_options": {
+    "include_usage": true
+  },
+  "max_completion_tokens": 512,
+  "temperature": 0,
+  "bitrouter_purchase": {
+    "service_type": "on_demand",
+    "provider_cap_micro_usd": 10000,
+    "total_cap_micro_usd": 20000
+  },
+  "bitrouter_delivery": {
+    "auto_fallback": "off"
+  }
+}

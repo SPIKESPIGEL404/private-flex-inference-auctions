@@ -6,6 +6,7 @@ mod fixtures;
 mod live;
 mod provision;
 mod purchase_auth;
+mod single_model;
 
 use anyhow::{Context, Result, ensure};
 use axum::{Router, routing::get};
@@ -266,7 +267,7 @@ async fn initialize(
         tx.execute(sql("INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,idempotency_key,metadata) VALUES($1,$2,'test_credit',$3,$1,'{\"source\":\"batch-a-isolated-test-credit\"}'::jsonb)", vec![entry.into(), account.into(), CASH.into()])).await?;
     }
     tx.commit().await?;
-    let deploy = deploy_buyers.is_some();
+    let deploy = deploy_buyers.is_some() && registration.is_none();
     let mut registration_sha256 = None;
     let (fixture_addr, deploy_golden) = if deploy {
         // Measured deploy fixture: fixed loopback port (not operator env).
@@ -407,6 +408,7 @@ async fn serve(dir: &Path) -> Result<()> {
     }
     // Hash before any Market load. Launch reads the same path on its own.
     let policy_digest = catalog_policy_digest(&catalog_path)?;
+    let single_model_enabled = single_model::configured(&catalog_path)?;
     let is_live = state.registration_sha256.is_some();
     if is_live {
         ensure!(
@@ -508,7 +510,7 @@ async fn serve(dir: &Path) -> Result<()> {
         "catalog identity changed during startup"
     );
     // The catalog qualifies Chat only; other native protocols have no product.
-    let native = market.router();
+    let native = single_model::mount(market.router(), single_model_enabled);
     let mode = if is_live {
         "live-provider"
     } else {
@@ -596,7 +598,7 @@ async fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
     ensure!(
         args.len() >= 3,
-        "usage: private-market-host <init|init-deploy|serve|emit-deploy-catalog|init-live|qualify-live|validate-live> <state-or-profile> [input]"
+        "usage: private-market-host <init|init-deploy|serve|emit-deploy-catalog|init-live|init-live-deploy|qualify-live|validate-live> <state-or-profile> [input]"
     );
     match (args[1].as_str(), args.len()) {
         ("init", 3) => initialize(Path::new(&args[2]), None, None).await,
@@ -609,6 +611,14 @@ async fn main() -> Result<()> {
                 Path::new(&args[2]),
                 Some(live::read(Path::new(&args[3]))?),
                 None,
+            )
+            .await
+        }
+        ("init-live-deploy", 5) => {
+            initialize(
+                Path::new(&args[2]),
+                Some(live::read(Path::new(&args[3]))?),
+                Some(Path::new(&args[4])),
             )
             .await
         }
