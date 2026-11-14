@@ -1,0 +1,10 @@
+{
+  "tag": "private-market:agent-preview-bea14549f5b1",
+  "sourceRevision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
+  "localManifestDigest": "sha256:78793dbbdb6664dc2a559f1ab647ba69d4efd6990acd8dd014ed71ed05c46f00",
+  "classicImageConfigDigest": "sha256:b4a42b15ed38942767dbf88c118304e65e7a0339507808f3c7668ac55b00733d",
+  "archiveSha256": "a99b9eb032acedbc843e4457a0ac303c8ab73f55560cf331b73a538c0ee06f80",
+  "archiveBytes": 224583672,
+  "architecture": "amd64",
+  "os": "linux"
+}

@@ -1,0 +1,51 @@
+{
+  "reviewer": "gpt-6-astra",
+  "verdict": "SCOPED_PREDEPLOY_CONTROLLED_PREVIEW_ACCEPTED",
+  "sourceRevision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
+  "artifacts": {
+    "tag": "private-market:agent-preview-bea14549f5b1",
+    "sourceRevision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
+    "localManifestDigest": "sha256:78793dbbdb6664dc2a559f1ab647ba69d4efd6990acd8dd014ed71ed05c46f00",
+    "classicImageConfigDigest": "sha256:b4a42b15ed38942767dbf88c118304e65e7a0339507808f3c7668ac55b00733d",
+    "archiveSha256": "a99b9eb032acedbc843e4457a0ac303c8ab73f55560cf331b73a538c0ee06f80",
+    "archiveBytes": 224583672,
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "expectedComposeHash": "e68bf8bfbf1ee6fe4899d042e167e873ca4938a5441d3944e156e079da5a91ed",
+  "blockingFindings": [],
+  "independentlyVerified": [
+    "archive SHA-256 and byte length",
+    "archive classic config digest and Linux amd64 architecture",
+    "local container manifest digest links to the exact classic config digest",
+    "fixture container identity and dedicated bridge membership",
+    "only container port 3000 published; only new fixture data volume mounted",
+    "nonroot user, read-only rootfs, no-new-privileges, cap-drop ALL, tmpfs, 1536MiB memory, 1 CPU, 192 PID limit",
+    "container model/payment/PG/Redis internal ports unreachable on container nonloopback IPv4",
+    "additional startup healthy with expected revision and realPayment=false",
+    "PostgreSQL 18.7 running",
+    "two completed sessions with persisted results 42 and 19 and one application marker each",
+    "four fixture payments, four fixture refunds, all four refund ledger rows confirmed",
+    "two tool rows and four seller execution claims",
+    "after additional startup both task budgets 10000000/spent1575000/reserved0, both agent budgets20000000/spent1575000/reserved0",
+    "runner and P2 server file hashes match reviewed worktree",
+    "fixture container restored to stopped state"
+  ],
+  "parentEvidenceReviewed": [
+    "original two FX task execution and refund completion",
+    "before/after restart report equality and no duplicate effects or refill",
+    "auth and Origin checks",
+    "private original manifest preservation assertions"
+  ],
+  "preservationBoundary": "Reviewer validated generator logic using synthetic manifests and read only explicitly authorized preservation report. Original private manifest and sealed environments were not independently read. Report asserts original market service, six volumes, metadata and sealed environment names preserved; actual deployment remains to be verified.",
+  "networkEgressBlocked": false,
+  "limitations": [
+    "controlled scripted provider and virtual chain/wallet only",
+    "legacy NEP-366 fixtures do not establish real principal/gas economics",
+    "not real P3 payment/provider acceptance",
+    "not live Phala deployment or postdeployment acceptance",
+    "dedicated bridge is not an egress firewall",
+    "published old gateway remains reachable under its existing authentication"
+  ],
+  "operations": "Reviewer started only the explicitly authorized isolated local fixture container, performed read-only SQL and health/port/hash checks, then stopped it; no reset or credentials/live service access."
+}

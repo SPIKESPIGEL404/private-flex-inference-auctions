@@ -1,0 +1,120 @@
+{
+  "passed": true,
+  "image": "private-market:agent-preview-bea14549f5b1",
+  "revision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2",
+  "health": {
+    "ready": true,
+    "phase": "P2",
+    "mode": "controlled",
+    "realPayment": false,
+    "revision": "bea14549f5b18b78a35bf2755ee3cb02be9ac3d2"
+  },
+  "twoTaskResults": [
+    "42",
+    "19"
+  ],
+  "counts": {
+    "tools": 2,
+    "refunds": 4,
+    "payments": 4,
+    "executions": 4,
+    "confirmedRefunds": 4
+  },
+  "before": {
+    "tasks": [
+      {
+        "id": "task-1",
+        "spent": 1575000,
+        "budget": 10000000,
+        "reserved": 0
+      },
+      {
+        "id": "task-2",
+        "spent": 1575000,
+        "budget": 10000000,
+        "reserved": 0
+      }
+    ],
+    "counts": {
+      "tools": 2,
+      "refunds": 4,
+      "payments": 4,
+      "executions": 4,
+      "confirmedRefunds": 4
+    },
+    "limits": [
+      {
+        "user_id": "99371c8b-29f4-454a-b8d8-7bde77b363ae",
+        "spent_nano": 1575000,
+        "budget_nano": 20000000,
+        "reserved_nano": 0
+      },
+      {
+        "user_id": "ad280574-64e9-4091-ae91-cfc45ec7f052",
+        "spent_nano": 1575000,
+        "budget_nano": 20000000,
+        "reserved_nano": 0
+      }
+    ],
+    "chainHash": "5c9bfb82535135fa66b863a210c36cc9",
+    "configHash": "3c4d50728b5dae67c009036f89ef73dacd279de2bfd79e135b47d8c2d8a9f950",
+    "catalogHash": "2708c6ad1739faa3e09c70d33bdea195fce8857178fd23094858a041fac3fac4",
+    "stateHash": "de3b791be1c6a6c53b19d591b380c0ccc314985060533e8c3479cc41f75908e8"
+  },
+  "afterRestart": {
+    "tasks": [
+      {
+        "id": "task-1",
+        "spent": 1575000,
+        "budget": 10000000,
+        "reserved": 0
+      },
+      {
+        "id": "task-2",
+        "spent": 1575000,
+        "budget": 10000000,
+        "reserved": 0
+      }
+    ],
+    "counts": {
+      "tools": 2,
+      "refunds": 4,
+      "payments": 4,
+      "executions": 4,
+      "confirmedRefunds": 4
+    },
+    "limits": [
+      {
+        "user_id": "99371c8b-29f4-454a-b8d8-7bde77b363ae",
+        "spent_nano": 1575000,
+        "budget_nano": 20000000,
+        "reserved_nano": 0
+      },
+      {
+        "user_id": "ad280574-64e9-4091-ae91-cfc45ec7f052",
+        "spent_nano": 1575000,
+        "budget_nano": 20000000,
+        "reserved_nano": 0
+      }
+    ],
+    "chainHash": "5c9bfb82535135fa66b863a210c36cc9",
+    "configHash": "3c4d50728b5dae67c009036f89ef73dacd279de2bfd79e135b47d8c2d8a9f950",
+    "catalogHash": "2708c6ad1739faa3e09c70d33bdea195fce8857178fd23094858a041fac3fac4",
+    "stateHash": "de3b791be1c6a6c53b19d591b380c0ccc314985060533e8c3479cc41f75908e8"
+  },
+  "noDuplicateEffectsOrRefill": true,
+  "authAndOriginGuards": true,
+  "onlyPublishedPort": 3000,
+  "isolatedVolume": "agent-mpp-preview-accept-pg18-20261114-data",
+  "containerImageId": "sha256:78793dbbdb6664dc2a559f1ab647ba69d4efd6990acd8dd014ed71ed05c46f00",
+  "networkMembership": [
+    "agent-mpp-preview-accept-pg18-20261114-private"
+  ],
+  "networkEgressBlocked": false,
+  "resourceCaps": {
+    "memory": 1610612736,
+    "nanoCpus": 1000000000,
+    "readOnlyRoot": true
+  },
+  "scope": "controlled local Linux container; fake provider, wallet and chain; not real NEP-366 economic proof"
+}
