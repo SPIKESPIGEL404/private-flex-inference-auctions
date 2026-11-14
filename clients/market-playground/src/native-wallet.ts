@@ -187,6 +187,16 @@ export class NativeWalletController {
       provider?: () => JsonRpcProvider;
     } = {},
   ) {}
+  private authNetwork: "mainnet" | "testnet" = "mainnet";
+  private ownerOnly = false;
+  configureAuthentication(network: "mainnet" | "testnet", ownerOnly = false) {
+    if (this.authNetwork !== network || this.ownerOnly !== ownerOnly) {
+      this.lock();
+      this.connector = undefined;
+    }
+    this.authNetwork = network;
+    this.ownerOnly = ownerOnly;
+  }
   private provider() {
     return this.dependencies.provider?.() ?? new JsonRpcProvider({ url: RPC });
   }
@@ -264,6 +274,10 @@ export class NativeWalletController {
     const owner = this.state.owner?.account_id,
       e = this.epoch;
     try {
+      if (this.ownerOnly) {
+        await fn();
+        return;
+      }
       if (!navigator.locks)
         throw new Error(
           "This wallet flow requires a browser with Web Locks support.",
@@ -307,6 +321,7 @@ export class NativeWalletController {
         this.lock();
         this.update({ owner });
         const current = this.epoch;
+        if (this.ownerOnly) return;
         const record = await vaultRecord("mainnet:" + owner.account_id);
         this.assertOwner(owner.account_id, current);
         if (record) {
@@ -328,12 +343,12 @@ export class NativeWalletController {
     if (!this.connector) {
       const { NearConnector } = await import("@hot-labs/near-connect");
       this.connector = new NearConnector({
-        network: "mainnet",
+        network: this.authNetwork,
         autoConnect: false,
         features: {
           signInAndSignMessage: true,
           signMessage: true,
-          signAndSendTransactions: true,
+          signAndSendTransactions: !this.ownerOnly,
         },
       });
       this.connector.on("wallet:signOut", () => {
@@ -402,6 +417,8 @@ export class NativeWalletController {
     }
   }
   async prepare(ids: string[]) {
+    if (this.ownerOnly)
+      throw new Error("Native funding is not enabled for this market.");
     await this.action(async () => {
       const owner = this.state.owner,
         e = this.epoch;
@@ -477,6 +494,8 @@ export class NativeWalletController {
     await taskApi("native-wallets", { agents });
   }
   async backup(password: string) {
+    if (this.ownerOnly)
+      throw new Error("Native funding is not enabled for this market.");
     await this.action(async () => {
       if (!this.vault) throw new Error("Create local agent wallets first.");
       const owner = this.vault.owner,
@@ -506,6 +525,8 @@ export class NativeWalletController {
     });
   }
   async restore(text: string, password: string, ids: string[]) {
+    if (this.ownerOnly)
+      throw new Error("Native funding is not enabled for this market.");
     await this.action(async () => {
       const owner = this.state.owner?.account_id,
         e = this.epoch;
@@ -596,6 +617,8 @@ export class NativeWalletController {
     return a;
   }
   async fund(id: string, amount: string) {
+    if (this.ownerOnly)
+      throw new Error("Native funding is not enabled for this market.");
     await this.action(async () => {
       const a = this.agent(id),
         raw = parseNear(amount),
@@ -679,6 +702,8 @@ export class NativeWalletController {
     });
   }
   async withdraw(id: string, amount: string) {
+    if (this.ownerOnly)
+      throw new Error("Native funding is not enabled for this market.");
     await this.action(async () => {
       const a = this.agent(id),
         raw = parseNear(amount),
@@ -742,6 +767,8 @@ export class NativeWalletController {
     });
   }
   async resumeWithdrawal(id: string) {
+    if (this.ownerOnly)
+      throw new Error("Native funding is not enabled for this market.");
     await this.action(async () => {
       const owner = this.state.owner!.account_id,
         e = this.epoch,
