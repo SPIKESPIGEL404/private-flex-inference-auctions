@@ -68,3 +68,13 @@ An upgrade preserves the existing `/data/pg`, private preview database, `market`
 The preview's inference model and settlement are still controlled. Its separate ordinary-wallet panel supports optional real mainnet funding and returning funds with browser-held keys. Only owner authentication and final transfer verification use the mainnet read-only RPC; the server cannot sign real NEAR transactions. Back up the preview volume including `configuration.json` and the encrypted authentication database together. Agent key backups remain the user's responsibility and never enter this volume.
 
 The historical `AGENT_PREVIEW_OWNER_HASH` environment field remains solely as an upgrade compatibility check. It grants no public access and is not requested by the UI. The overlay update changes only preview image/revision, appends a digest-verified image loader, and preserves the original gateway service, sealed env names, volume definitions and manifest metadata.
+
+A host may explicitly set `AGENT_PREVIEW_FALLBACK_ORIGIN` to one additional exact
+HTTPS origin it owns (for example its original Phala preview address). The
+canonical origin is retained. Both request origins are whitelisted; login
+challenges and local wallet-possession proofs bind to the actual selected origin.
+Wildcards, paths, extra origins and HTTPS-to-HTTP downgrade are rejected. Cookies
+and browser vaults remain local to each host. Moving to the other host requires
+restoring the same encrypted backup if real wallets have already been registered.
+The overlay's optional `--fallback-origin` records this extra preview environment
+field explicitly in its preservation report.

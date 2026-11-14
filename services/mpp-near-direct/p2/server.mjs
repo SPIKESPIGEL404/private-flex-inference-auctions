@@ -18,14 +18,20 @@ export function publicOrigin(value){
  requireThat(u.origin===value&&!u.username&&!u.password&&(u.protocol==='https:'||(u.protocol==='http:'&&u.hostname==='127.0.0.1'&&u.port)),'invalid_public_origin');
  return value;
 }
+export function approvedOrigins(origin,additional=[]){
+ requireThat(Array.isArray(additional)&&additional.length<=1,'invalid_additional_origins');
+ const values=[origin,...additional].filter(x=>x!==null);
+ for(const value of values){publicOrigin(value);requireThat(!new URL(value).hostname.includes('*'),'wildcard_origin_forbidden');requireThat(!origin||new URL(value).protocol===new URL(origin).protocol,'mixed_origin_security');}
+ requireThat(!additional.length||origin,'canonical_origin_required');return new Set(values);
+}
 const json=(res,status,value)=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));};
 async function read(req,raw=false){let n=0;const chunks=[];for await(const b of req){n+=b.length;requireThat(n<=(raw?128*1024:6*1024*1024),'body_too_large');chunks.push(b);}const text=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks));return raw?text:JSON.parse(text||'{}');}
 export async function start(config){
- const origin=publicOrigin(config.publicOrigin),secureCookie=origin?.startsWith('https:')?'; Secure':'';
+ const origin=publicOrigin(config.publicOrigin),origins=approvedOrigins(origin,config.additionalPublicOrigins),secureCookie=origin?.startsWith('https:')?'; Secure':'';
  requireThat(config.payments.phase2===true&&config.payments.mode==='controlled','controlled_p2_required');
  const proxy=await startProxy(config.payments,{AuthorityClass:Authority});
  const {authority:a,pool}=proxy,tasks=new Tasks(a);let stopping=false;
- const workspace=config.publicWorkspace?new PublicWorkspace({...config.publicWorkspace,origin},pool):null;
+ const workspace=config.publicWorkspace?new PublicWorkspace({...config.publicWorkspace,origin,origins:[...origins]},pool):null;
  const cookies=req=>Object.fromEntries(String(req.headers.cookie??'').split(';').map(x=>x.trim().split(/=(.*)/s).slice(0,2)));
  const cookie=(name,value)=>name+'='+encodeURIComponent(value)+'; HttpOnly; SameSite=Strict; Path=/'+secureCookie;
  const tokenFor=user=>{const token=config.agentCredentials.find(x=>x.userId===user)?.token;requireThat(token,'agent_credentials_unavailable');return token;};
@@ -75,14 +81,15 @@ export async function start(config){
  }
  const server=http.createServer(async(req,res)=>{
   try{
-   if(req.headers.origin&&req.headers.origin!==(origin??`http://127.0.0.1:${server.address().port}`))throw new Error('origin_denied');
+   const requestOrigin=req.headers.origin??origin??`http://127.0.0.1:${server.address().port}`;
+   if(req.headers.origin&&!origins.has(req.headers.origin)&&req.headers.origin!==(origin??`http://127.0.0.1:${server.address().port}`))throw new Error('origin_denied');
    if(req.method==='GET'&&req.url==='/healthz')return json(res,200,{ready:true,phase:'P2',mode:'controlled',realPayment:false,revision:config.buildRevision??null});
    if(req.method==='GET'&&req.url==='/buyer-api/capabilities')return json(res,200,{version:1,mode:'controlled',tasks:true,walletSetup:false,realInferencePayments:false,maxTasksPerAgent:2,taskWindowMs:180000,ownerAuth:workspace?'nep413':'code',nativeWallets:!!workspace});
    if(workspace&&req.url==='/buyer-api/session'&&req.method==='GET'){
     let owner=null;try{owner=workspace.auth.owner(decodeURIComponent(cookies(req).near_owner??''));}catch{}return json(res,200,{owner});
    }
    if(workspace&&req.method==='POST'&&req.url==='/buyer-api/auth/challenge'){
-    const challenge=workspace.auth.challenge();res.setHeader('set-cookie',cookie('near_challenge',challenge.token));return json(res,200,challenge.payload);
+    const challenge=workspace.auth.challenge(requestOrigin);res.setHeader('set-cookie',cookie('near_challenge',challenge.token));return json(res,200,challenge.payload);
    }
    if(workspace&&req.method==='POST'&&req.url==='/buyer-api/auth/verify'){
     const signed=await read(req),challenge=decodeURIComponent(cookies(req).near_challenge??''),result=await workspace.auth.verify(challenge,signed);
@@ -116,7 +123,7 @@ export async function start(config){
    if(workspace&&nativeHash&&req.method==='POST')return json(res,200,workspace.bindHash(owner,nativeHash[1],await read(req)));
    const nativeOp=req.url.match(/^\/buyer-api\/native-operations\/([a-zA-Z0-9_-]{1,96})\/reconcile$/);
    if(workspace&&nativeOp&&req.method==='POST')return json(res,200,await workspace.reconcile(owner,nativeOp[1],await read(req)));
-   if(workspace&&req.url==='/buyer-api/native-wallets'){if(req.method==='GET')return json(res,200,{agents:workspace.wallets(owner)});if(req.method==='POST')return json(res,200,{agents:await workspace.register(owner,(await read(req)).agents)});}
+   if(workspace&&req.url==='/buyer-api/native-wallets'){if(req.method==='GET')return json(res,200,{agents:workspace.wallets(owner)});if(req.method==='POST')return json(res,200,{agents:await workspace.register(owner,(await read(req)).agents,requestOrigin)});}
    if(req.method==='POST'&&req.url==='/v1/chat/completions'){
     const body=await read(req,true),value=await purchase(owner,String(req.headers['x-fx-session']??''),String(req.headers['x-fx-writer']??''),String(req.headers['x-fx-generation']??''),body,req.headers['x-fx-recovery']==='libfx-0.0.16');
     res.writeHead(200,{...value.headers,'cache-control':'no-store'});res.end(value.body);return;

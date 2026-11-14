@@ -30,6 +30,7 @@ NODE = os.environ.get('P1_NODE', '/usr/local/bin/node')
 DATABASE = 'private_market_agent_public_v1'
 DIRECT = 'postgres://preview@127.0.0.1:25432/' + DATABASE
 ORIGIN = os.environ['AGENT_PREVIEW_ORIGIN']
+FALLBACK_ORIGIN = os.environ.get('AGENT_PREVIEW_FALLBACK_ORIGIN')
 OWNER_HASH = os.environ['AGENT_PREVIEW_OWNER_HASH']
 BIND_PORT = int(os.environ.get('AGENT_PREVIEW_PORT', '3000'))
 TTL = 604_800_000
@@ -318,6 +319,7 @@ def main():
                     'gasEstimateYocto': '100000000000000000000', 'paymentWindowMs': 60000, 'leaseTailMs': 15000,
                     'paymentEstimateMs': 100, 'estimatedTerminalMs': 500, 'refundAuto': True, 'port': 28082}
         app = {'port': 28081, 'publicOrigin': ORIGIN, 'buildRevision': os.environ.get('AGENT_PREVIEW_REVISION'),
+               'additionalPublicOrigins': [FALLBACK_ORIGIN] if FALLBACK_ORIGIN else [],
                'agentCredentials': [{'userId': b['user'], 'token': b['token']} for b in data['buyers'][3:]], 'payments': payments, 'publicWorkspace': {'storePath': str(DATA / 'public-auth.sqlite'),
                 'storageKey': config['publicStorageKey']}}
         private(DATA / 'app.json', app)
