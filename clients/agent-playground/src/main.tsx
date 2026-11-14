@@ -4,7 +4,7 @@ async function mount() {
   const proposal = ['/proposal', '/proposal/'].includes(location.pathname);
   if (proposal) {
     document.documentElement.lang = 'en';
-    document.title = 'A purchasing loop for NEAR AI · Private Market';
+    document.title = 'Model fidelity in autonomous procurement · Private Market';
     const {default: Proposal} = await import('../../proposal/Proposal');
     createRoot(document.getElementById('root')!).render(<Proposal />);
   } else {
