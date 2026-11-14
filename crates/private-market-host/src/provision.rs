@@ -26,14 +26,15 @@ pub async fn create(
 ) -> Result<Value> {
     bitrouter_cloud::market::pg::install(&db).await?;
     let work = Workload {
-        token_ids: vec![42, 43],
+        token_ids: if std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") { (0..512).collect() } else {vec![42,43]},
     };
     let at = ms();
-    let sellers = &[
+    let p2_sellers: Vec<_> = (11..27).map(|id| (id,7,"controlled")).collect();
+    let sellers = if std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") { p2_sellers.as_slice() } else { &[
         (11, 7, "controlled"),
         (12, 7, "controlled"),
         (13, 7, "controlled"),
-    ];
+    ] };
     let protocol = "chat_completions";
     let until = UnixMillis(at.0 + 1_800_000);
     let mut config = catalog::config(&work, at, protocol, sellers);
@@ -133,7 +134,10 @@ pub async fn create(
                     ThroughputObservation {
                         offering,
                         profile: catalog::profile(&work, protocol),
-                        started_at: at,
+                        // This catalog is an explicit synthetic fixture. PG
+                        // bootstrap time is not an inference measurement: using
+                        // it here can spuriously fail the 1 request/sec claim.
+                        started_at: UnixMillis(observed.0 - 1),
                         ended_at: observed,
                         valid_until: until,
                         demand_sufficient: true,

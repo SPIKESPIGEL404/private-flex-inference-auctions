@@ -2,8 +2,26 @@
   "name": "private-market-near-direct-p0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "scripts": { "test": "node --test test/*.test.mjs", "test:p1": "node --test test/*.test.mjs p1/test/*.test.mjs" },
-  "dependencies": { "mppx": "0.17.0", "bs58": "6.0.0", "@near-intents-agent-api/sdk": "0.9.1", "pg": "8.23.1" },
-  "devDependencies": { "ajv": "8.20.0" }
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:p1": "node --test test/*.test.mjs p1/test/*.test.mjs"
+  },
+  "dependencies": {
+    "@near-intents-agent-api/sdk": "0.9.1",
+    "bs58": "6.0.0",
+    "just-bash": "3.6.0",
+    "libfx": "0.0.16",
+    "mppx": "0.17.0",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0"
+  },
+  "overrides": {
+    "undici": "7.30.2",
+    "guarded-fetch": "0.3.0"
+  }
 }

@@ -1,0 +1,88 @@
+{
+  "repeated-crash": {
+    "case": "second-full-process-crash-during-paid-continuation-replay",
+    "initial": {
+      "tools": 1,
+      "refunds": 1,
+      "payments": 2,
+      "executions": 2
+    },
+    "secondCrash": {
+      "tools": 1,
+      "refunds": 2,
+      "payments": 2,
+      "executions": 2
+    },
+    "final": {
+      "tools": 1,
+      "refunds": 2,
+      "payments": 2,
+      "executions": 2
+    },
+    "result": {
+      "stopReason": "end_turn",
+      "usage": {
+        "inputTokens": 512,
+        "outputTokens": 6
+      }
+    },
+    "append": "applied\n",
+    "passed": true
+  },
+  "pay-first-cancel": {
+    "case": "payment-commits-before-cancel",
+    "presentStatus": 400,
+    "counts": {
+      "tools": 0,
+      "refunds": 1,
+      "payments": 1,
+      "executions": 0
+    },
+    "reserve": "0",
+    "principal": {
+      "P": "608000000000000000000",
+      "C": "0",
+      "H": "0",
+      "W": "0",
+      "R": "608000000000000000000"
+    }
+  },
+  "cancel-first-races": [
+    {
+      "iteration": 0,
+      "cancelStatus": 200,
+      "paymentStatus": 400,
+      "counts": {
+        "tools": 0,
+        "refunds": 0,
+        "payments": 0,
+        "executions": 0
+      },
+      "reserved": "0"
+    },
+    {
+      "iteration": 1,
+      "cancelStatus": 200,
+      "paymentStatus": 400,
+      "counts": {
+        "tools": 0,
+        "refunds": 0,
+        "payments": 0,
+        "executions": 0
+      },
+      "reserved": "0"
+    },
+    {
+      "iteration": 2,
+      "cancelStatus": 200,
+      "paymentStatus": 400,
+      "counts": {
+        "tools": 0,
+        "refunds": 0,
+        "payments": 0,
+        "executions": 0
+      },
+      "reserved": "0"
+    }
+  ]
+}

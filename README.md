@@ -103,6 +103,23 @@ funding, tool continuation and multiple agents belong to P2/P3.
 See the [P1 implementation](docs/agent-mpp-p1.md) and
 [acceptance record](docs/acceptance/2026-11-14-agent-mpp-p1.md).
 
+## Agent native MPP — controlled Phase 2
+
+P2 runs two independent real fx sessions through `/v1/chat/completions`, virtual
+bash tools, paid continuation, per-task and aggregate agent budgets, durable
+cost/speed decisions, manual controls and full-process recovery. The browser
+uses fx WASM and wterm; refreshing or reopening a completed pane replays its
+persisted conversation and artifact. Original Market accounting remains the
+authority. Model responses and chain evidence are local fixtures; G1/P3 remain
+closed.
+
+```bash
+bash scripts/accept-agent-mpp-p2.sh
+```
+
+See [P2 implementation and demo](docs/agent-mpp-p2.md) and
+[P2 acceptance](docs/acceptance/2026-11-14-agent-mpp-p2.md).
+
 ## Historical scheduler experiment
 
 The original scheduler, fixtures and phase-one through phase-four evidence remain available as an independent experiment. Its Chutes evidence applies to that scheduler configuration. Start with the [historical overview](docs/scheduler-experiment.md), [scheduler spec](docs/specs/2026-11-02-external-prefill-gating-scheduler.md), and [phase-four report](docs/acceptance/2026-11-02-phase4.md).

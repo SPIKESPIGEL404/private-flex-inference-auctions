@@ -1,0 +1,2 @@
+export interface TaskRuntime {alreadyComplete?:boolean;generation?:string;run():Promise<{stopReason:string;usage?:unknown}>;close():Promise<void>}
+export function createTaskRuntime(options:{url:string;sessionId:string;fetcher?:typeof fetch;backend?:'native'|'wasm';wasm?:string;force?:boolean;onEvent?:(event:Record<string,unknown>)=>void;fault?:(phase:string,value:unknown)=>void|Promise<void>}):Promise<TaskRuntime>;

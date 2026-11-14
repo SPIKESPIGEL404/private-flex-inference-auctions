@@ -1,0 +1,348 @@
+{
+  "phase": "P1",
+  "mode": "controlled",
+  "realChainTransactions": 0,
+  "realProviderCalls": 0,
+  "checks": [
+    {
+      "case": "native-sse",
+      "passed": true,
+      "nativeStream": true,
+      "providerCalls": 1,
+      "payments": 1,
+      "refunds": 1,
+      "cashAfterRefund": 0,
+      "order": {
+        "id": "8aac8340438dbe077623b5d14b5b6bcd3aab151292e6509127f713af2d478805",
+        "state": "refunded",
+        "nativeId": "480582fb-f6d3-48da-a545-1a25228a3d8b",
+        "principal": {
+          "P": "354000000000000000000",
+          "C": "18500000000000000000",
+          "H": "0",
+          "W": "0",
+          "R": "335500000000000000000"
+        },
+        "expectedP": "354000000000000000000",
+        "mode": "controlled",
+        "realPayment": false,
+        "financial": {
+          "seller": "seller-fixture",
+          "cash_micro_usd": 37,
+          "promo_micro_usd": 0,
+          "platform_micro_usd": 2,
+          "provider_micro_usd": 35,
+          "released_micro_usd": 671
+        },
+        "anomalies": [],
+        "timings": [
+          {
+            "atMs": 1794670508509,
+            "clock": "postgres_wall_clock",
+            "stage": "quote_prepared"
+          },
+          {
+            "atMs": 1794670508531,
+            "clock": "postgres_wall_clock",
+            "stage": "proof_presented"
+          },
+          {
+            "atMs": 1794670508545,
+            "clock": "postgres_wall_clock",
+            "stage": "funds_recorded"
+          },
+          {
+            "atMs": 1794670508763,
+            "clock": "postgres_wall_clock",
+            "stage": "native_admission_requested"
+          },
+          {
+            "atMs": 1794670508937,
+            "clock": "postgres_wall_clock",
+            "stage": "admission_committed"
+          },
+          {
+            "atMs": 1794670509042,
+            "clock": "postgres_wall_clock",
+            "stage": "financial_committed"
+          },
+          {
+            "atMs": 1794670509096,
+            "clock": "postgres_wall_clock",
+            "stage": "native_response_read_finished"
+          }
+        ],
+        "decision": {
+          "quote": {
+            "mode": "controlled",
+            "meter": {
+              "version": "cl100k_0_7_text_tools_micro_v3",
+              "protocol": "chat_completions",
+              "streaming": true,
+              "input_bytes": 1228,
+              "input_sha256": "8566e0e29a9a852eb52305a134b2a9c641b2161a23c5265082af2af767d5a5d6",
+              "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+              "normalization": "cloud_text_tools_json_micro_v3",
+              "execution_sha256": "e366e65b8211dba3fb5d6667c167c42a197f0edace043133688a1ece4b83e381",
+              "total_input_tokens": 207,
+              "reused_input_tokens": 0,
+              "billable_input_tokens": 207
+            },
+            "rates": {
+              "input": 1000000,
+              "output": 11000000,
+              "cache_input": 1000000
+            },
+            "total_micro": 708,
+            "input_tokens": 2,
+            "platform_micro": 2,
+            "provider_micro": 706,
+            "expected_purchase": {
+              "options": [
+                {
+                  "id": 1,
+                  "model_ref": "m/external",
+                  "providers": [
+                    7
+                  ]
+                }
+              ],
+              "total_cap": "708000",
+              "max_attempts": 1,
+              "provider_cap": 706,
+              "service_type": "on_demand",
+              "wait_budget_ms": null
+            },
+            "observed_input_units": 2
+          },
+          "result": {
+            "id": "controlled-native",
+            "action": "accept",
+            "version": "cost-speed-v1",
+            "scoreNano": "722000",
+            "endToEndMs": 700,
+            "reserveNano": "708000",
+            "urgencyMultiplier": "1"
+          },
+          "forecast": {
+            "source": "controlled-fixture",
+            "usableMs": 500,
+            "observedAtMs": 1794670508487
+          },
+          "buyerRouteFeeNano": "0",
+          "projectEstimateYocto": "100000000000000000000"
+        }
+      }
+    },
+    {
+      "case": "native-json",
+      "passed": true,
+      "nativeStream": false,
+      "providerCalls": 1,
+      "payments": 1,
+      "refunds": 1,
+      "cashAfterRefund": 0,
+      "order": {
+        "id": "448954994920f83da43e923a66ada821103c4096544819f4a047b9c23b922ae7",
+        "state": "refunded",
+        "nativeId": "f3da76bd-388d-493a-913f-e1dd48d9be2e",
+        "principal": {
+          "P": "354000000000000000000",
+          "C": "18500000000000000000",
+          "H": "0",
+          "W": "0",
+          "R": "335500000000000000000"
+        },
+        "expectedP": "354000000000000000000",
+        "mode": "controlled",
+        "realPayment": false,
+        "financial": {
+          "seller": "seller-fixture",
+          "cash_micro_usd": 37,
+          "promo_micro_usd": 0,
+          "platform_micro_usd": 2,
+          "provider_micro_usd": 35,
+          "released_micro_usd": 671
+        },
+        "anomalies": [],
+        "timings": [
+          {
+            "atMs": 1794670513065,
+            "clock": "postgres_wall_clock",
+            "stage": "quote_prepared"
+          },
+          {
+            "atMs": 1794670513095,
+            "clock": "postgres_wall_clock",
+            "stage": "proof_presented"
+          },
+          {
+            "atMs": 1794670513115,
+            "clock": "postgres_wall_clock",
+            "stage": "funds_recorded"
+          },
+          {
+            "atMs": 1794670513442,
+            "clock": "postgres_wall_clock",
+            "stage": "native_admission_requested"
+          },
+          {
+            "atMs": 1794670513682,
+            "clock": "postgres_wall_clock",
+            "stage": "admission_committed"
+          },
+          {
+            "atMs": 1794670513851,
+            "clock": "postgres_wall_clock",
+            "stage": "financial_committed"
+          },
+          {
+            "atMs": 1794670513887,
+            "clock": "postgres_wall_clock",
+            "stage": "native_response_read_finished"
+          }
+        ],
+        "decision": {
+          "quote": {
+            "mode": "controlled",
+            "meter": {
+              "version": "cl100k_0_7_text_tools_micro_v3",
+              "protocol": "chat_completions",
+              "streaming": true,
+              "input_bytes": 1228,
+              "input_sha256": "8566e0e29a9a852eb52305a134b2a9c641b2161a23c5265082af2af767d5a5d6",
+              "vocab_sha256": "223921b76ee99bde995b7ff738513eef100fb51d18c93597a113bcffe865b2a7",
+              "normalization": "cloud_text_tools_json_micro_v3",
+              "execution_sha256": "e366e65b8211dba3fb5d6667c167c42a197f0edace043133688a1ece4b83e381",
+              "total_input_tokens": 207,
+              "reused_input_tokens": 0,
+              "billable_input_tokens": 207
+            },
+            "rates": {
+              "input": 1000000,
+              "output": 11000000,
+              "cache_input": 1000000
+            },
+            "total_micro": 708,
+            "input_tokens": 2,
+            "platform_micro": 2,
+            "provider_micro": 706,
+            "expected_purchase": {
+              "options": [
+                {
+                  "id": 1,
+                  "model_ref": "m/external",
+                  "providers": [
+                    7
+                  ]
+                }
+              ],
+              "total_cap": "708000",
+              "max_attempts": 1,
+              "provider_cap": 706,
+              "service_type": "on_demand",
+              "wait_budget_ms": null
+            },
+            "observed_input_units": 2
+          },
+          "result": {
+            "id": "controlled-native",
+            "action": "accept",
+            "version": "cost-speed-v1",
+            "scoreNano": "722000",
+            "endToEndMs": 700,
+            "reserveNano": "708000",
+            "urgencyMultiplier": "1"
+          },
+          "forecast": {
+            "source": "controlled-fixture",
+            "usableMs": 500,
+            "observedAtMs": 1794670513038
+          },
+          "buyerRouteFeeNano": "0",
+          "projectEstimateYocto": "100000000000000000000"
+        }
+      }
+    },
+    {
+      "case": "known-unsent-cancel-and-role-isolation",
+      "passed": true
+    },
+    {
+      "case": "native-only-principal-and-project-sponsor-gate",
+      "passed": true
+    },
+    {
+      "case": "output-cap-no-refund-settles-task",
+      "passed": true
+    },
+    {
+      "case": "expired-pending-original-recovery-revoked-agent-full-refund",
+      "passed": true
+    },
+    {
+      "case": "abnormal-native-amount--1",
+      "passed": true
+    },
+    {
+      "case": "abnormal-native-amount-1",
+      "passed": true
+    },
+    {
+      "case": "ledger-rollback-journal-and-lost-payment-commit-ack",
+      "passed": true
+    },
+    {
+      "case": "cash-purpose-complete-controls-and-seller-scope-fence",
+      "passed": true
+    },
+    {
+      "case": "real-redis-projection-gates-provider-dispatch",
+      "passed": true
+    },
+    {
+      "case": "lost-native-admission-ack-host-and-proxy-restart",
+      "passed": true
+    },
+    {
+      "case": "native-json-refusal-preserved",
+      "passed": true
+    },
+    {
+      "case": "failed-delegate-fee-project-only-no-double-refund",
+      "passed": true
+    },
+    {
+      "case": "wallet-ack-lost-unpresented-expired-autonomous-recovery",
+      "passed": true
+    },
+    {
+      "case": "native-dto-preflight-and-concurrent-reservation",
+      "passed": true
+    },
+    {
+      "case": "cancel-versus-original-admission-one-commit-winner",
+      "passed": true
+    },
+    {
+      "case": "cryptographically-valid-reassignment-rejected-original-proof-recovers",
+      "passed": true
+    },
+    {
+      "case": "terminal-cancellations-cannot-starve-autonomous-recovery",
+      "passed": true
+    },
+    {
+      "case": "blocked-refund-batch-cannot-starve-later-liability",
+      "passed": true
+    },
+    {
+      "case": "wallet-send-locks-authorization-against-concurrent-revocation",
+      "passed": true
+    },
+    {
+      "case": "autonomous-worker-survives-temporary-pg-outage",
+      "passed": true
+    }
+  ]
+}

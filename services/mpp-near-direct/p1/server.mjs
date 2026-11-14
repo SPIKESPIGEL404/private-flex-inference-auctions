@@ -29,21 +29,24 @@ async function readBody(request) {
   return Buffer.concat(chunks).toString('utf8');
 }
 function json(res,status,value) {res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));}
-function completion(sse) {
+export function completion(sse) {
   const frames=sse.split('\n').filter(l=>l.startsWith('data: {')).map(l=>JSON.parse(l.slice(6)));
   requireThat(sse.endsWith('data: [DONE]\n\n') && frames.length,'original_native_terminal_unavailable');
-  const first=frames[0]; let content='',refusal='',finish=null,usage;
-  for (const f of frames) {for(const c of f.choices??[]){content+=c.delta?.content??'';refusal+=c.delta?.refusal??'';if(c.finish_reason)finish=c.finish_reason;}if(f.usage)usage=f.usage;}
+  const first=frames[0]; let content='',refusal='',finish=null,usage;const calls=new Map();
+  for (const f of frames) {for(const c of f.choices??[]){content+=c.delta?.content??'';refusal+=c.delta?.refusal??'';
+    for(const t of c.delta?.tool_calls??[]){const old=calls.get(t.index)??{id:'',type:'function',function:{name:'',arguments:''}};
+      if(t.id)old.id=t.id;if(t.function?.name)old.function.name+=t.function.name;old.function.arguments+=t.function?.arguments??'';calls.set(t.index,old);}
+    if(c.finish_reason)finish=c.finish_reason;}if(f.usage)usage=f.usage;}
   requireThat(finish && usage,'original_native_terminal_unavailable');
   return {id:first.id,object:'chat.completion',created:first.created,model:first.model,
-    choices:[{index:0,message:{role:'assistant',content:content||null,...(refusal?{refusal}:{})},finish_reason:finish}],usage};
+    choices:[{index:0,message:{role:'assistant',content:content||null,...(refusal?{refusal}:{}),...(calls.size?{tool_calls:[...calls.entries()].sort((a,b)=>a[0]-b[0]).map(x=>x[1])}:{})},finish_reason:finish}],usage};
 }
-export async function start(config) {
+export async function start(config, {AuthorityClass=Authority}={}) {
   validateConfig(config);
   const pool=new pg.Pool({connectionString:config.databaseUrl,max:8,connectionTimeoutMillis:5000});
   pool.on('error',()=>{ /* Recover idle connection loss without changing operation identity. */ });
   const rpc=new NearRpc({url:config.rpcUrl,network:config.network,controlled:true});
-  const authority=new Authority({pool,rpc,config}); await authority.pin();
+  const authority=new AuthorityClass({pool,rpc,config}); await authority.pin();
   const mpp=Mppx.create({realm:config.realm,secretKey:config.secret,credentialHeader:'Payment-Authorization',methods:[sponsoredServer({rpc,authority})]});
   let stopped=false,refundBusy=false;
   async function refunds() {
@@ -112,7 +115,8 @@ export async function start(config) {
       }
       requireThat(req.method==='POST'&&req.url==='/v1/chat/completions','not_found');
       const raw=await readBody(req),key=String(req.headers['idempotency-key']??''),task=String(req.headers['x-agent-task']??'');
-      let order=await authority.prepare(agent,task,key,raw);
+      let order=await authority.prepare(agent,task,key,raw,{headers:req.headers});
+      if(order.waiting)return json(res,order.closed?409:202,{...order,retryAfterMs:100});
       requireThat(!(order.state==='cancelled'&&!order.received)&&!(order.state==='refunded'&&!order.admitted_request),'order_closed');
       const credential=req.headers['payment-authorization'];
       if(credential)requireThat(Credential.deserialize(String(credential)).challenge.request.orderRef===order.id,'wrong_payment_resource');
@@ -160,7 +164,8 @@ export async function start(config) {
       await authority.timing(order.id,'native_admission_requested');
       const upstream=await fetch(config.upstream+'/market/v1/chat/completions',{method:'POST',redirect:'error',signal:AbortSignal.timeout(20_000),
         headers:{authorization:'Bearer '+token,'content-type':'application/json','idempotency-key':order.dispatch_key},body:JSON.stringify(nativeBody)});
-      if(!upstream.ok){await upstream.body?.cancel();return json(res,503,{error:{code:'original_admission_pending'},orderId:order.id});}
+      if(!upstream.ok){await upstream.body?.cancel();const current=await authority.getOrder(order.id,agent.user_id);
+        return json(res,current.financial?409:503,{error:{code:current.financial?'original_execution_closed':'original_admission_pending'},orderId:order.id});}
       const body=JSON.parse(raw);
       const paidHeaders={'content-type':body.stream?'text/event-stream':'application/json','cache-control':'no-store',
         'payment-receipt':Buffer.from(JSON.stringify(receipt)).toString('base64url'),'x-order-id':order.id};

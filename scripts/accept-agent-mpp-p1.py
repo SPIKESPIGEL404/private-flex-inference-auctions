@@ -152,7 +152,10 @@ def happy(binary,stream=True):
   return {'case':'native-sse' if stream else 'native-json','passed':True,'nativeStream':stream,'providerCalls':1,'payments':1,'refunds':1,'cashAfterRefund':0,'order':done}
 
 def quoted(x,key='call-1'):
- status,body,_=x.chat(key);assert status==402,(status,body)
+ status,body,_=x.chat(key)
+ if status!=402:
+  diagnostic=json.loads(x.m.sql("SELECT jsonb_build_object('pgNowMs',floor(extract(epoch FROM clock_timestamp())*1000)::bigint,'pythonNowMs',"+str(int(time.time()*1000))+",'tasks',(SELECT jsonb_agg(to_jsonb(t)) FROM mpp_direct_tasks t),'user',"+literal(x.user)+")"))
+  raise AssertionError((status,body,diagnostic))
  id=body['orderId'];challenge=json.loads(x.m.sql(f'SELECT challenge FROM mpp_direct_orders WHERE id={literal(id)}'))
  return id,challenge
 def pay(x,challenge):

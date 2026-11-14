@@ -13,3 +13,8 @@ __pycache__/
 .market-c-tools/
 **/node_modules/
 .market-p1-upstream/
+.market-p2-upstream/
+.playwright-cli/
+output/
+clients/agent-playground/dist/
+*.tsbuildinfo
