@@ -21,10 +21,10 @@ FROM ${NODE_IMAGE} AS assets
 WORKDIR /app/services/mpp-near-direct
 COPY services/mpp-near-direct ./
 RUN npm ci --ignore-scripts --omit=dev
-WORKDIR /app/clients/agent-playground
-COPY clients/agent-playground/package*.json ./
+WORKDIR /app/clients/market-playground
+COPY clients/market-playground/package*.json ./
 RUN npm ci --ignore-scripts
-COPY clients/agent-playground ./
+COPY clients/market-playground ./
 COPY clients/proposal /app/clients/proposal
 RUN npm run build
 
@@ -37,10 +37,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && groupadd --gid 10001 preview && useradd --uid 10001 --gid 10001 --create-home preview \
     && mkdir /data && chown preview:preview /data
 WORKDIR /app
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
 COPY --from=rustbuild /src/target/release/private-market-host-p2 /usr/local/bin/private-market-host-p2
-COPY --from=assets /app/clients/agent-playground/dist ./clients/agent-playground/dist
+COPY --from=assets /app/clients/market-playground/dist ./clients/market-playground/dist
 COPY services/mpp-near-direct ./services/mpp-near-direct
 COPY --from=assets /app/services/mpp-near-direct/node_modules ./services/mpp-near-direct/node_modules
+COPY clients/buyer-gateway/src ./clients/buyer-gateway/src
+RUN ln -s /app/services/mpp-near-direct/node_modules /app/clients/buyer-gateway/node_modules
 COPY scripts/*.py ./scripts/
 ENV PATH=/usr/lib/postgresql/18/bin:$PATH P1_NODE=/usr/local/bin/node PYTHONDONTWRITEBYTECODE=1 NODE_OPTIONS=--max-old-space-size=384
 USER preview:preview

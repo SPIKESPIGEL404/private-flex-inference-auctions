@@ -17,9 +17,11 @@ await pool.query(`CREATE TABLE IF NOT EXISTS p1_fixture_chain(key text PRIMARY K
  CREATE TABLE IF NOT EXISTS p1_fixture_settings(key text PRIMARY KEY,value jsonb NOT NULL);
  CREATE TABLE IF NOT EXISTS p1_fixture_cancelled(key text PRIMARY KEY)`);
 const b58=s=>bs58.encode(createHash('sha256').update(s).digest());
-function key(seed){const privateKey=createPrivateKey({key:Buffer.concat([Buffer.from('302e020100300506032b657004220420','hex'),Buffer.alloc(32,seed)]),format:'der',type:'pkcs8'});
+function key(seed){const privateKey=createPrivateKey({key:Buffer.concat([Buffer.from('302e020100300506032b657004220420','hex'),typeof seed==='number'?Buffer.alloc(32,seed):createHash('sha256').update(seed).digest()]),format:'der',type:'pkcs8'});
  return {privateKey,publicKey:'ed25519:'+bs58.encode(createPublicKey(privateKey).export({format:'der',type:'spki'}).subarray(-32))};}
 const keys={'agent.testnet':key(1),'merchant.testnet':key(2),'other.testnet':key(3),'agent2.testnet':key(5),'sponsor.testnet':key(4)};
+const payers=config.payers??['agent.testnet','agent2.testnet'];
+for(const payer of payers)if(!keys[payer])keys[payer]=key('controlled-only:'+payer);
 const setting=async(k,fallback)=>(await pool.query('SELECT value FROM p1_fixture_settings WHERE key=$1',[k])).rows[0]?.value??fallback;
 async function accountBalance(account,db=pool,includePending=false){
  const read=async(k,fallback)=>(await db.query('SELECT value FROM p1_fixture_settings WHERE key=$1',[k])).rows[0]?.value??fallback;
@@ -118,7 +120,7 @@ const server=http.createServer(async(req,res)=>{
   const provided=req.headers['x-fixture-key'],buyer=provided===config.buyerWalletKey,merchant=provided===config.walletFixtureKey,control=provided===config.faultControlKey;
   if(req.url==='/wallet/pay'&&buyer){
    const c=body.challenge,r=sponsoredRequest(c.request);
-   if(!['agent.testnet','agent2.testnet'].includes(r.payer)||r.gasSponsor!=='sponsor.testnet'||r.recipient!=='merchant.testnet'||c.realm!=='payments.example.com')throw new Error('fixture_principal_scope');
+   if(!payers.includes(r.payer)||r.gasSponsor!=='sponsor.testnet'||r.recipient!=='merchant.testnet'||c.realm!=='payments.example.com')throw new Error('fixture_principal_scope');
    const row=await send('payment','near-pay-v2-'+r.orderRef,c,r.payer,r.recipient,r.amount,c);
    if(await setting('dropPaymentAck',false)){await pool.query("DELETE FROM p1_fixture_settings WHERE key='dropPaymentAck'");req.socket.destroy();return;}
    return reply(200,{credential:row.credential,txHash:row.tx_hash});
@@ -133,7 +135,7 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.url==='/merchant/refund'&&merchant){
    const p=body.plan;
-   if(p.sender!=='merchant.testnet'||!['agent.testnet','agent2.testnet'].includes(p.recipient))throw new Error('fixture_refund_destination');
+   if(p.sender!=='merchant.testnet'||!payers.includes(p.recipient))throw new Error('fixture_refund_destination');
    const row=await send('refund',p.idempotencyKey,p,p.sender,p.recipient,p.amount);
    if(await setting('dropRefundAck',false)){await pool.query("DELETE FROM p1_fixture_settings WHERE key='dropRefundAck'");req.socket.destroy();return;}
    return reply(200,row.original_send);

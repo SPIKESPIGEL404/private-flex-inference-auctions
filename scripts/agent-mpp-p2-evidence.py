@@ -15,7 +15,7 @@ assert len(browser['checks'])==8 and all(c['passed'] for c in browser['checks'])
 for path,digest in {**browser['inputs'],**browser['build']}.items():
  assert sha(root/path)==digest,'browser evidence is stale: '+path
 paths=[]
-for base in ['crates/private-market-host','crates/private-market-p1','crates/private-market-p2','services/mpp-near-direct','clients/agent-playground']:
+for base in ['crates/private-market-host','crates/private-market-p1','crates/private-market-p2','services/mpp-near-direct','clients/market-playground']:
  paths.extend(p for p in (root/base).rglob('*') if p.is_file() and not any(x in p.relative_to(root/base).parts for x in ['node_modules','target','dist','__pycache__']) and not p.name.endswith('.tsbuildinfo'))
 for pattern in ['*agent-mpp-p1*','*agent-mpp-p2*','materialize-market-p[12].py','test-market-p2-source.py','market_b_support.py']:
  paths.extend((root/'scripts').glob(pattern))
@@ -34,7 +34,7 @@ evidence={'phase':'P2','status':'controlled-tests-pass','generatedAt':datetime.d
  'binarySha256':sha(binary),'p1BinarySha256':sha(binary.with_name('private-market-host-p1')),
  'materializedSource':json.loads((root/'.market-p2-upstream/.p2-source.json').read_text()),
  'inputs':{str(p.relative_to(root)):sha(p) for p in sorted(set(paths)) if p.is_file()},
- 'browserBuild':{str(p.relative_to(root)):sha(p) for p in sorted((root/'clients/agent-playground/dist').rglob('*')) if p.is_file()},
+ 'browserBuild':{str(p.relative_to(root)):sha(p) for p in sorted((root/'clients/market-playground/dist').rglob('*')) if p.is_file()},
  'artifacts':{name:sha(record/name) for name in sorted(set(artifacts))}}
 (record/'2026-11-14-agent-mpp-p2-evidence.json').write_text(json.dumps(evidence,indent=2)+'\n')
 print(json.dumps({k:v for k,v in evidence.items() if k not in ['inputs','materializedSource','artifacts','browserBuild']},indent=2))
