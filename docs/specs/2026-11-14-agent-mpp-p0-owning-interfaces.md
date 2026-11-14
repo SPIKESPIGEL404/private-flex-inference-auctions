@@ -1,3 +1,11 @@
+> Current wallet authority: [OutLayer migration specification](2026-11-14-outlayer-custody-migration.md).
+> Use OutLayer wallet_id, policy controller/version/hash, backend credentialRef,
+> UUID request_id and the native agent-paid payment route. Task/gas reservations
+> remain in the original money writer; merchant pays refund gas. Agent API
+> grants/correlation and sponsored fields below are historical, not the selected
+> implementation contract. These historical source/PR status statements are
+> snapshot claims, not current delivery status.
+
 # P0 owning interfaces and integration boundaries
 
 **Historical sponsored-route design:** the user subsequently selected agent-paid

@@ -27,3 +27,7 @@ deploy/market/*.secret.env
 # Buyer signing secrets stay on buyer machines only.
 **/buyer-*.secret
 **/buyer-*.seed
+
+.market-p3-upstream/
+.p3-secrets/
+.p3-runs/
