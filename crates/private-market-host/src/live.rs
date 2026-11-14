@@ -34,6 +34,10 @@ pub struct Registration {
     pub project_pays_upstream_costs: bool,
     pub origin: String,
     pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_bridge_url: Option<String>,
     pub model_revision_ref: String,
     pub tokenizer_ref: String,
     pub tokenizer_url: String,
@@ -102,7 +106,8 @@ fn verify_stream(registration: &Registration, measurement: &Measurement, raw: &[
         let frame: Value =
             serde_json::from_str(line).context("invalid native calibration frame")?;
         ensure!(
-            frame["model"] == registration.model && frame["object"] == "chat.completion.chunk",
+            frame["model"] == registration.native_model()
+                && frame["object"] == "chat.completion.chunk",
             "calibration model/protocol changed"
         );
         if let Some(value) = frame.get("usage").filter(|value| !value.is_null()) {
@@ -145,6 +150,14 @@ fn verify_stream(registration: &Registration, measurement: &Measurement, raw: &[
 }
 
 impl Registration {
+    pub fn native_model(&self) -> &str {
+        self.native_model.as_deref().unwrap_or(&self.model)
+    }
+
+    fn route_origin(&self) -> &str {
+        self.verified_bridge_url.as_deref().unwrap_or(&self.origin)
+    }
+
     pub fn validate(&self) -> Result<()> {
         let origin = url::Url::parse(&self.origin).context("invalid registered HTTPS origin")?;
         let local = url::Url::parse(&self.tokenizer_url).context("invalid local tokenizer URL")?;
@@ -163,6 +176,28 @@ impl Registration {
                 && origin.fragment().is_none(),
             "registered native seller must use HTTPS without credentials or URL options"
         );
+        if let Some(bridge) = &self.verified_bridge_url {
+            let url = url::Url::parse(bridge).context("invalid verified bridge URL")?;
+            ensure!(
+                self.model == "qwen3.8-27b"
+                    && self.native_model.as_deref() == Some("Qwen/Qwen3.8-27B-FP8")
+                    && self.origin == "https://kelsen-qwen-qwen3-8-27b-fp8.chutes.ai"
+                    && url.scheme() == "http"
+                    && url.host_str() == Some("127.0.0.1")
+                    && url.port().is_some_and(|port| port > 0)
+                    && url.path() == "/"
+                    && url.username().is_empty()
+                    && url.password().is_none()
+                    && url.query().is_none()
+                    && url.fragment().is_none(),
+                "Chutes requires the pinned model/origin and an in-CVM loopback verification bridge"
+            );
+        } else {
+            ensure!(
+                self.native_model.is_none(),
+                "native model mapping requires the verified Chutes bridge"
+            );
+        }
         ensure!(
             local.scheme() == "http"
                 && local.host_str() == Some("127.0.0.1")
@@ -392,7 +427,7 @@ pub async fn qualify(
             && measurement.ended_at_ms <= ms()
             && ms() - measurement.ended_at_ms <= 300_000
             && measurement.ended_at_ms - measurement.started_at_ms <= 90_000
-            && measurement.response_model == registration.model
+            && measurement.response_model == registration.native_model()
             && matches!(measurement.finish_reason.as_str(), "stop" | "length")
             && measurement.prompt_tokens == registration.token_ids.len() as u64
             && measurement.completion_tokens > 0
@@ -550,7 +585,7 @@ pub async fn qualify(
         });
     }
     let routes: Vec<_> = (11..=13).map(|id| json!({"backend":registration.backend(),"incarnation":registration.model_revision_ref,"offering_id":id,
-        "native_model":registration.model,"base_url":registration.origin,"credential_env":"PRIVATE_MARKET_SELLER_KEY"})).collect();
+        "native_model":registration.native_model(),"base_url":registration.route_origin(),"credential_env":"PRIVATE_MARKET_SELLER_KEY"})).collect();
     let order_time = registration
         .bootstrap(UnixMillis(ms()))
         .purchase_policy

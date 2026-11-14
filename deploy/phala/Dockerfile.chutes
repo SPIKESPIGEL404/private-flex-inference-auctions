@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+FROM rust:1.93-bookworm AS build
+RUN apt-get update && apt-get install -y --no-install-recommends clang libclang-dev cmake pkg-config libssl-dev git ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /src/crates/private-market-host
+COPY crates/private-market-host/ ./
+COPY deploy/market/catalog.json /src/deploy/market/catalog.json
+RUN --mount=type=secret,id=github_token,required=true \
+    printf '#!/bin/sh\ncase "$1" in *Username*) echo x-access-token;; *) cat /run/secrets/github_token;; esac\n' > /tmp/git-askpass && \
+    chmod 700 /tmp/git-askpass && \
+    GIT_ASKPASS=/tmp/git-askpass GIT_TERMINAL_PROMPT=0 CARGO_NET_GIT_FETCH_WITH_CLI=true \
+    CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=2 cargo build --locked --release --bin private-market-host && \
+    rm /tmp/git-askpass
+
+FROM postgres:18-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates python3 python3-venv redis-server nginx-light tini && \
+    rm -rf /var/lib/apt/lists/* && \
+    useradd --uid 1000 --create-home market && mkdir /data /tls-ca && chown market:market /data /tls-ca
+COPY deploy/chutes/requirements-gateway.txt /opt/market/requirements-gateway.txt
+COPY scripts/requirements-market-c.txt /opt/market/requirements-tokenizer.txt
+RUN python3 -m venv /opt/market/venv && /opt/market/venv/bin/pip install --no-cache-dir \
+    -r /opt/market/requirements-gateway.txt -r /opt/market/requirements-tokenizer.txt
+COPY --from=build /src/crates/private-market-host/target/release/private-market-host /usr/local/bin/private-market-host
+COPY deploy/chutes/gateway.py deploy/chutes/prepare_gateway.py deploy/chutes/tokenizer.py deploy/chutes/market_chute.py /opt/chutes/
+COPY deploy/phala/runtime_chutes.py deploy/phala/tls.py deploy/phala/bootstrap_chutes.py /opt/market/
+ENV PATH="/opt/market/venv/bin:/usr/lib/postgresql/18/bin:${PATH}" USER=market \
+    PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 TOKENIZERS_PARALLELISM=false HF_HUB_OFFLINE=1
+USER 1000:1000
+ENTRYPOINT ["/usr/bin/tini", "--", "python3", "/opt/market/bootstrap_chutes.py"]

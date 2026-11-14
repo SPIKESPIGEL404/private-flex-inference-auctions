@@ -1,0 +1,152 @@
+{
+  "as_of": "2026-11-14",
+  "status": "pass-scoped-live-single-model-integration",
+  "model": "qwen3.8-27b",
+  "public_models": [
+    "qwen3.8-27b"
+  ],
+  "chute_id": "5f5b67f2-139e-5857-bdfb-94a30e03a526",
+  "chute_version": "1dd34c0e-e472-5a33-8c7a-cadbbd349267",
+  "chutes_spend_cap": null,
+  "uncapped_authorized_by_user": true,
+  "strict_native_preflight": true,
+  "direct_encrypted_native_inference": {
+    "http_status": 200,
+    "input_tokens": 59,
+    "output_tokens": 28,
+    "native_authenticated_done": true,
+    "session_id": "620d37dcd6ba21cfd32935e642b3d6dba29035167e1c19c4a3d05433c87dc49a"
+  },
+  "model_weights_hardware_proven": false,
+  "cpu_gpu_session_topology_proven": false,
+  "per_request_aci_execution_receipt": false,
+  "release": {
+    "image_id": "sha256:8ef09a1a577ca51e306f7819165c07a9d44a0334074c7ed0df07b692b81cff15",
+    "plain_archive_sha256": "78c8cf65ebdb1902fcb7d409b226ec8ba72d0dbc5e1a9050480e6e124a9661fa",
+    "encrypted_archive_sha256": "4812462cb208a9d192479d876b952c8fca2cb42a6073c543b9f6df8345d68092",
+    "size_bytes": 285289250,
+    "seed_sha256": "781d7af63e43f263fea01d9e565caf50712efe55a3600217fbff5915dcdade08",
+    "build_inputs_sha256": "9c1d7a8d323c31b2c89fd8ac6ae1c6e9125bb99d0df613be31f44fa2c5ee7490",
+    "binary_sha256": "73742831654a037c48cc088483755d8f32f16c0a89300db6246b6eedd2d50107",
+    "compose_sha256": "0826a1d19659996aa96c8ea7cc4327b60686a4de040150cd2daf277c2a59ef17",
+    "pre_launch_sha256": "d45c5550c9c3dcc7732080316081117c4a79d2c402b100229c5d529daef94fe4",
+    "expected_app_compose_sha256": "116b2fb45bf9e39c80bb4fd671d3d06a8c58c99a24371b075f12f21a9a19d3a3",
+    "data_volume": "dstack_market-chutes-qwen38-verified-20261114",
+    "first_attempt_volume": "dstack_market-chutes-qwen38-20261114",
+    "chute_version": "1dd34c0e-e472-5a33-8c7a-cadbbd349267"
+  },
+  "old_near_ledger": "retained read-only",
+  "buyer_funding": "isolated test credit",
+  "market_supply": "three finite one-use offers; retained prototype qualification expiry",
+  "controlled_transport_tests": 8,
+  "first_attempt": {
+    "request_id": "b803efe3-7e05-45d0-a19b-f43ffa92fb82",
+    "status": "unknown",
+    "settlement": "unavailable",
+    "held_test_micro_usd": 10000,
+    "volume": "dstack_market-chutes-qwen38-20261114",
+    "preserved": true,
+    "automatically_retried": false,
+    "released_or_refilled": false
+  },
+  "old_instance_termination": {
+    "observed_at": 1794634482.703198,
+    "disabled": true,
+    "remaining_instances": [],
+    "terminated_instance": "ddeea6f0-bbf8-4372-b550-56efd43d219d",
+    "scope": "authenticated Chutes control-plane termination; no claim of original token usage or financial settlement"
+  },
+  "controlled_normalized_market_settlement_replay_restart": "pass",
+  "checked_at": "2026-11-14T05:52:34.579Z",
+  "gateway_url": "https://e83279da3fa5b47453cc62317df738b70fedf08c-8443s.dstack-pha1-prod9.phala.network/market/v1",
+  "phala_hardware_and_tls_verified": true,
+  "live_purchase": {
+    "result": "pass",
+    "at": "2026-11-14T05:48:27.736Z",
+    "model": "qwen3.8-27b",
+    "request_id": "6565ab34-72d2-402f-bc40-e8a7ffcb559d",
+    "usage": {
+      "total_tokens": 89,
+      "prompt_tokens": 59,
+      "completion_tokens": 30,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "created_cache_tokens": 0
+      }
+    },
+    "settlement": "committed",
+    "fees": {
+      "held_micro_usd": 0,
+      "provider_micro_usd": 389,
+      "platform_micro_usd": 0,
+      "protected_attempts": []
+    },
+    "stream_sha256": "646ba5910066e4e86c73c5df2381ca95ac979715ac46509dee2991547b2750e8",
+    "visible_output": "OK",
+    "compose_hash": "116b2fb45bf9e39c80bb4fd671d3d06a8c58c99a24371b075f12f21a9a19d3a3",
+    "tls_spki": [
+      "31a2eb648212daeb4e12c00f9df57ffddf62f829b543620e21422ab4fb432d76"
+    ],
+    "identical_idempotent_replay": true,
+    "buyer_isolation": true,
+    "scope": "Real first-hop hardware/TLS verified; native Chutes proof is separately recorded, not a complete per-request ACI execution proof"
+  },
+  "full_cvm_restart_replay": {
+    "result": "pass",
+    "at": "2026-11-14T05:52:34.579Z",
+    "model": "qwen3.8-27b",
+    "request_id": "6565ab34-72d2-402f-bc40-e8a7ffcb559d",
+    "usage": {
+      "total_tokens": 89,
+      "prompt_tokens": 59,
+      "completion_tokens": 30,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "created_cache_tokens": 0
+      }
+    },
+    "settlement": "committed",
+    "fees": {
+      "held_micro_usd": 0,
+      "provider_micro_usd": 389,
+      "platform_micro_usd": 0,
+      "protected_attempts": []
+    },
+    "stream_sha256": "646ba5910066e4e86c73c5df2381ca95ac979715ac46509dee2991547b2750e8",
+    "visible_output": "OK",
+    "compose_hash": "116b2fb45bf9e39c80bb4fd671d3d06a8c58c99a24371b075f12f21a9a19d3a3",
+    "tls_spki": [
+      "8cb0b5075d2737c33f7b413237734c24e0e70c757bf9b3ce6612ab064f1fc7f5"
+    ],
+    "identical_idempotent_replay": true,
+    "buyer_isolation": true,
+    "scope": "Real first-hop hardware/TLS verified; native Chutes proof is separately recorded, not a complete per-request ACI execution proof"
+  },
+  "provider_evidence_independent_verification": {
+    "result": "pass",
+    "checked_at": 1794635436,
+    "source": "production evidence fetched after verifying the Phala release and TLS channel",
+    "model": "qwen3.8-27b",
+    "instance_id": "bedbc503-9a61-4720-a350-b12b78875ea2",
+    "session_id": "6fa7bc5e729d57e39554ce22894647c9717f0565d9d568d4742ae98fa8908fae",
+    "tcb": "UpToDate",
+    "measurement_profile": "8xpro_6000 [10.2.1, numa-124c-768g] (58443435b208)",
+    "nras_signatures_verified": true,
+    "gpu_count": 1,
+    "nonce_and_mlkem_binding_verified": true,
+    "model_weights_hardware_proven": false,
+    "cpu_gpu_session_topology_proven": false,
+    "per_request_aci_receipt": false
+  },
+  "native_preflight_records_after_restart": 2,
+  "qualification_repeated_on_restart": false,
+  "old_test_hold_resolved": false,
+  "current_market_funding": "isolated project test credit, not production cash settlement",
+  "current_market_offers": "three finite one-use offers; one consumed in acceptance",
+  "evidence_scope": {
+    "kind": "historical pre-integration live run",
+    "binary_sha256": "73742831654a037c48cc088483755d8f32f16c0a89300db6246b6eedd2d50107",
+    "pr_security_base": "154581f",
+    "pr_head_live_tested": false
+  }
+}
