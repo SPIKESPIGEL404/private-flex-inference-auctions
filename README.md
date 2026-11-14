@@ -22,6 +22,18 @@ This command runs offline registration checks with zero inference calls. A new
 live run requires a prepared plan and explicit cost authorization as documented.
 Private deployment and final demo delivery remain batches D/E.
 
+## Browser playground
+
+The separate [browser playground](clients/market-playground/README.md) provides
+an fx-inspired, monochrome UI with independent fx/wterm/just-bash buyer terminals.
+Set the buyer count in the header to retile 1–8 panes automatically. The default
+mode now uses a [hosted buyer gateway](clients/buyer-gateway/README.md) for NEAR
+owner login, independent agent wallets/grants and equal funding plans. Funding
+defaults off and real inference procurement remains disabled. The original
+scripted preview is available only through an explicit development switch;
+wallet-mode failures do not fall back to scripted responses. No deployed Market
+or real funds were changed by this implementation batch.
+
 ## Verify the Market before buying
 
 The optional ACI identity endpoint and Node buyer now support fresh hardware
@@ -60,6 +72,84 @@ bash scripts/accept-market-a.sh
 The script builds the independent host, creates its own temporary PostgreSQL cluster and Redis process, checks native SSE, receipts, balances, buyer isolation and idempotency, and stops its owned services. It sends no GPU requests. See the [acceptance record](docs/acceptance/2026-11-11-market-batch-a.md) for the measured scope.
 
 The host is an independent Cargo package under `crates/private-market-host`, with its own lockfile. It has no `flex-scheduler` dependency. Buy caps authorize spending; they do not promise GPU priority or lower latency. Auto-bidder is deferred.
+
+## Fund inference credit with MPP
+
+The optional `nearintents.charge` adapter uses the official NEAR Intents SDK to
+fund the existing cash ledger. It starts new payment-enabled instances at zero
+credit and retains replay and reconciliation through the original Redis outbox.
+Funding APIs are disabled by default. Dynamic bid revisions are persisted;
+automatic admission and Provider dispatch remain deferred.
+
+```bash
+bash scripts/accept-market-nearintents.sh
+```
+
+This runs the official client/server SDK against a controlled 1Click backend,
+local PostgreSQL/Redis and a controlled seller. It transfers no real assets.
+See the [implementation and configuration](docs/market-nearintents-charge.md),
+[dynamic bidding spec](docs/specs/2026-11-13-mpp-funded-dynamic-bidding.md) and
+[acceptance limits](docs/acceptance/2026-11-13-nearintents-charge.md).
+Real settlement, refunds and deployment of the new adapter remain unaccepted.
+
+## Agent MPP integration status
+
+The current target is agent-paid native NEAR principal **and payment gas**,
+with merchant-paid refund gas. See the [current integration contract](docs/specs/2026-11-14-agent-mpp-inference-integration.md)
+and [P3 run plan](docs/specs/2026-11-14-agent-mpp-p3-run-plan.md).
+
+P0–P2 below provide controlled contracts, execution, budget and recovery tests.
+Their v2 NEP-366 fixture incorrectly debits agent principal: real NEP-366 charges
+both principal and gas to the outer relayer. Those tests do not qualify real
+payments. G1 must verify the selected Agent API native Transfer route; real P3
+wallet funding, inference and refund acceptance remain outstanding. Unfinished
+P3 runtime prototypes are excluded from this integration.
+
+The wallet onboarding playground (`clients/market-playground` plus
+`clients/buyer-gateway`) and controlled inference playground
+(`clients/agent-playground`) remain separate runnable entry points. This branch
+preserves both; it does not claim a single connected real-money UI.
+
+## Agent native MPP — controlled Phase 1
+
+The P1 integration serves `/v1/chat/completions` through an authenticated MPP
+Proxy. One controlled agent purchases one native Market execution, with native
+NEAR principal attributed to the agent and gas to the project in its historical
+controlled fixture. Its chain-economic limitation is explained above.
+The original Market PostgreSQL ledger, Redis projection, admission, execution
+and usage settlement remain authoritative. JSON and SSE use the same original
+execution on replay.
+
+```bash
+bash scripts/accept-agent-mpp-p1.sh
+```
+
+Requires Node >=24, Rust, PostgreSQL and Redis command-line tools. Uses a separate
+`crates/private-market-p1` manifest and pinned owning-source patch; it does not
+modify Cargo's shared checkout. The NEAR chain, delegated signer/sponsor and
+single-slot seller are explicit local fixtures. It sends no real transactions
+or provider requests. Real native-payment qualification G1 stays closed. Browser
+funding, tool continuation and multiple agents belong to P2/P3.
+
+See the [P1 implementation](docs/agent-mpp-p1.md) and
+[acceptance record](docs/acceptance/2026-11-14-agent-mpp-p1.md).
+
+## Agent native MPP — controlled Phase 2
+
+P2 runs two independent real fx sessions through `/v1/chat/completions`, virtual
+bash tools, paid continuation, per-task and aggregate agent budgets, durable
+cost/speed decisions, manual controls and full-process recovery. The browser
+uses fx WASM and wterm; refreshing or reopening a completed pane replays its
+persisted conversation and artifact. Original Market accounting remains the
+authority. Model responses and chain evidence are local fixtures; G1/P3 remain
+closed.
+
+```bash
+bash scripts/accept-agent-mpp-p2.sh
+```
+
+See [P2 implementation and demo](docs/agent-mpp-p2.md) and
+[P2 acceptance](docs/acceptance/2026-11-14-agent-mpp-p2.md).
 
 ## Historical scheduler experiment
 

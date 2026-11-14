@@ -1,5 +1,37 @@
 # Batch A source and dependency record
 
+## Controlled MPP extension
+
+### Standard NEAR Intents charge
+
+`services/mpp-nearintents` pins the official
+`@defuse-protocol/nearintents-mpp-sdk` 0.4.1 (MIT), its `mppx` 0.17.0 peer,
+`viem` 2.57.7 and `pg` 8.23.1 through npm lock integrity. The owned stdio
+adapter invokes the original `nearintents.charge` server method and official
+client method; no package source is patched. Its atomic Store uses the same
+PostgreSQL connection/transaction as the original cash ledger and Redis
+outbox. Only quote-cache keys are scoped to a funding resource; hash/deposit
+keys remain global. A separate durable presentation journal precedes external
+verification. See [implementation](../../../docs/market-nearintents-charge.md)
+and [scoped acceptance](../../../docs/acceptance/2026-11-13-nearintents-charge.md).
+
+### Initial test method
+
+The owned `src/procurement/` extension pins the official `mpp` core crate to
+0.20.0 (MIT OR Apache-2.0), without its chain/payment-method implementations.
+`bitrouter-test` is an offline signed fixture, not a NEAR or Tempo backend.
+Its PostgreSQL funding adapter follows this pinned Cloud source's per-user
+`balance_cache_advisory_key` fence, original `purchase` ledger, immutable ledger
+checks, and exact `redis_balance_mutations` outbox envelope. Mutation IDs use
+the original `bitrouter:redis-balance-mutation:v2` domain and SHA-256 rule from
+`src/db/redis_balance_mutation.rs`. The extension does not disable those guards,
+replace cash reservation/settlement, change the pinned source, or create a
+second spendable wallet. The public `RedisBalanceCache::reconcile_balance`
+repairs the original projection after commit/replay. Real funding and automatic
+admission still require the owning integration seams described in the spec.
+
+See [implementation scope](../../../docs/market-mpp-controlled.md).
+
 Cloud source: `https://github.com/bitrouter/bitrouter-cloud`, commit
 `244177cafa26e8c8b001e61297cf4e7f89ac8de9` (PR 667).
 Native protocol/client source: `https://github.com/bitrouter/bitrouter`, commit

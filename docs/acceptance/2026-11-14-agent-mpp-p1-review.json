@@ -1,0 +1,24 @@
+{
+  "phase": "P1",
+  "scope": "controlled single-agent single-call native MPP",
+  "reviewerModel": "gpt-6-astra",
+  "reviewerTask": "/root/p1_astra_review",
+  "verdict": "PASS",
+  "remainingBlockingFindings": [],
+  "binarySha256": "f636206b6302f67afe4c1dabaa0954b570123a3b9971d83c078634562f2d7bba",
+  "independentCoverage": {
+    "unitTestsPassed": 57,
+    "integrationScenariosCovered": 22,
+    "singleProcessFullMatrixExitZero": false,
+    "detail": "First 21 scenarios passed in the full process. Its already-loaded old PG restart test omitted port/socket flags and failed. The corrected last case passed in isolation; two successive final-failure nonce handling also independently replayed successfully. Primary final artifacts use corrected full runner."
+  },
+  "additionalPassed": [
+    "SSE client disconnect and original-result recovery: one payment, one seller execution",
+    "Qualified native capacity rejection: original zero-charge receipt and one full native refund",
+    "Unqualified 503, stream disconnect and missing usage: Unknown held, no refund or blind retry"
+  ],
+  "liveSponsorQualification": "G1 CLOSED",
+  "notAccepted": ["P2 tools and multiple agents", "continuous live bidding", "P3 real-chain and actual provider acceptance"],
+  "realChainTransactions": 0,
+  "realProviderCalls": 0
+}

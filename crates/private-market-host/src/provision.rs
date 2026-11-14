@@ -48,6 +48,7 @@ pub async fn create(
         seller_url,
         at,
         UnixMillis(at.0 + 1_800_000),
+        true,
     )
     .await
 }
@@ -65,6 +66,7 @@ pub async fn create_deploy(
         seller_url,
         UnixMillis(DEPLOY_CATALOG_AT_MS),
         UnixMillis(DEPLOY_CATALOG_VALID_UNTIL_MS),
+        false,
     )
     .await
 }
@@ -75,16 +77,24 @@ async fn create_with_schedule(
     seller_url: &str,
     at: UnixMillis,
     until: UnixMillis,
+    allow_agent_fixture: bool,
 ) -> Result<Value> {
     bitrouter_cloud::market::pg::install(&db).await?;
+    let p2 = allow_agent_fixture
+        && std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled");
     let work = Workload {
-        token_ids: vec![42, 43],
+        token_ids: if p2 { (0..512).collect() } else { vec![42, 43] },
     };
-    let sellers = &[
-        (11, 7, "controlled"),
-        (12, 7, "controlled"),
-        (13, 7, "controlled"),
-    ];
+    let p2_sellers: Vec<_> = (11..27).map(|id| (id, 7, "controlled")).collect();
+    let sellers = if p2 {
+        p2_sellers.as_slice()
+    } else {
+        &[
+            (11, 7, "controlled"),
+            (12, 7, "controlled"),
+            (13, 7, "controlled"),
+        ]
+    };
     let protocol = "chat_completions";
     let mut config = catalog::config(&work, at, protocol, sellers);
     // Three one-use sell orders from one Provider share one physical slot.
@@ -163,8 +173,14 @@ async fn create_with_schedule(
             )
             .await?;
     }
-    // Deterministic relative to `at` (lab and deploy). Do not call wall clock.
-    let observed = UnixMillis(at.0 + 1);
+    // The sealed deploy catalog stays deterministic. P2's lab fixture records
+    // bootstrap elapsed time separately; its synthetic observation window
+    // below is still exactly 1ms and does not measure database startup.
+    let observed = if p2 {
+        UnixMillis(ms().0.max(at.0 + 1))
+    } else {
+        UnixMillis(at.0 + 1)
+    };
     market
         .publish_supply(
             "observation-clock".into(),
@@ -184,7 +200,10 @@ async fn create_with_schedule(
                     ThroughputObservation {
                         offering,
                         profile: catalog::profile(&work, protocol),
-                        started_at: at,
+                        // This catalog is an explicit synthetic fixture. PG
+                        // bootstrap time is not an inference measurement: using
+                        // it here can spuriously fail the 1 request/sec claim.
+                        started_at: UnixMillis(observed.0 - 1),
                         ended_at: observed,
                         valid_until: until,
                         demand_sufficient: true,

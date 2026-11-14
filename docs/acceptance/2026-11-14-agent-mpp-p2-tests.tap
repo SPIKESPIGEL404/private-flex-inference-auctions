@@ -1,0 +1,388 @@
+TAP version 13
+# Subtest: NEP-366 Borsh signed-action vector uses on-chain tag and Transfer discriminant
+ok 1 - NEP-366 Borsh signed-action vector uses on-chain tag and Transfer discriminant
+  ---
+  duration_ms: 4.686333
+  type: 'test'
+  ...
+# Subtest: v2 separates principal payer, sponsor, delegated signature and actual fee
+ok 2 - v2 separates principal payer, sponsor, delegated signature and actual fee
+  ---
+  duration_ms: 16.792709
+  type: 'test'
+  ...
+# Subtest: v2 rejects agent-paid outer transaction
+ok 3 - v2 rejects agent-paid outer transaction
+  ---
+  duration_ms: 3.389583
+  type: 'test'
+  ...
+# Subtest: v2 rejects wrong inner principal
+ok 4 - v2 rejects wrong inner principal
+  ---
+  duration_ms: 2.122041
+  type: 'test'
+  ...
+# Subtest: v2 rejects NEP-413 cannot authorize a delegated transfer
+ok 5 - v2 rejects NEP-413 cannot authorize a delegated transfer
+  ---
+  duration_ms: 4.091375
+  type: 'test'
+  ...
+# Subtest: v2 rejects protocol block expiry
+ok 6 - v2 rejects protocol block expiry
+  ---
+  duration_ms: 4.377625
+  type: 'test'
+  ...
+# Subtest: v2 rejects unsafe nonce integer
+ok 7 - v2 rejects unsafe nonce integer
+  ---
+  duration_ms: 2.764875
+  type: 'test'
+  ...
+# Subtest: v2 rejects missing delegate receipt
+ok 8 - v2 rejects missing delegate receipt
+  ---
+  duration_ms: 1.97175
+  type: 'test'
+  ...
+# Subtest: v2 rejects intermediate final status
+ok 9 - v2 rejects intermediate final status
+  ---
+  duration_ms: 2.668
+  type: 'test'
+  ...
+# Subtest: v2 rejects merchant receipt failed
+ok 10 - v2 rejects merchant receipt failed
+  ---
+  duration_ms: 2.183208
+  type: 'test'
+  ...
+# Subtest: order wall-clock expiry does not invalidate an otherwise valid original delegate
+ok 11 - order wall-clock expiry does not invalidate an otherwise valid original delegate
+  ---
+  duration_ms: 2.033291
+  type: 'test'
+  ...
+# Subtest: under/overpayment may be verified only as an actual-amount liability
+ok 12 - under/overpayment may be verified only as an actual-amount liability
+  ---
+  duration_ms: 2.6775
+  type: 'test'
+  ...
+# Subtest: final failed transfer records sponsor gas only when delegate nonce is consumed
+ok 13 - final failed transfer records sponsor gas only when delegate nonce is consumed
+  ---
+  duration_ms: 2.819083
+  type: 'test'
+  ...
+# Subtest: pinned fx recovery-only suffix maps back to frozen native intent
+ok 14 - pinned fx recovery-only suffix maps back to frozen native intent
+  ---
+  duration_ms: 1.429084
+  type: 'test'
+  ...
+# Subtest: recovery does not drop changed user instructions or output limits
+ok 15 - recovery does not drop changed user instructions or output limits
+  ---
+  duration_ms: 0.376542
+  type: 'test'
+  ...
+# Subtest: literal first-turn user text is never treated as recovery control
+ok 16 - literal first-turn user text is never treated as recovery control
+  ---
+  duration_ms: 0.148875
+  type: 'test'
+  ...
+# Subtest: recovery notes carrying extra fields remain part of the request
+ok 17 - recovery notes carrying extra fields remain part of the request
+  ---
+  duration_ms: 0.115958
+  type: 'test'
+  ...
+# Subtest: native SSE ids and fragmented tool arguments reconstruct exactly
+ok 18 - native SSE ids and fragmented tool arguments reconstruct exactly
+  ---
+  duration_ms: 1.35325
+  type: 'test'
+  ...
+# Subtest: integer USD/NEAR conversions round conservatively at 24-place and provider cap boundaries
+ok 19 - integer USD/NEAR conversions round conservatively at 24-place and provider cap boundaries
+  ---
+  duration_ms: 1.525667
+  type: 'test'
+  ...
+# Subtest: metered P=C+H+W+R, no credit for pending refund, charges never exceed principal
+ok 20 - metered P=C+H+W+R, no credit for pending refund, charges never exceed principal
+  ---
+  duration_ms: 1.58175
+  type: 'test'
+  ...
+# Subtest: payment cap includes converted principal plus native gas; wrong unit/budget/balance fails closed
+ok 21 - payment cap includes converted principal plus native gas; wrong unit/budget/balance fails closed
+  ---
+  duration_ms: 14.606375
+  type: 'test'
+  ...
+# Subtest: native policy enables only merchant transfer and relying-party signature, no contract calls
+ok 22 - native policy enables only merchant transfer and relying-party signature, no contract calls
+  ---
+  duration_ms: 3.275625
+  type: 'test'
+  ...
+# Subtest: native policy conforms to official pinned Policy schema and new-policy rules
+ok 23 - native policy conforms to official pinned Policy schema and new-policy rules
+  ---
+  duration_ms: 79.179208
+  type: 'test'
+  ...
+# Subtest: cross-chain allocation keeps exact source precision/remainder and requires chain delivery
+ok 24 - cross-chain allocation keeps exact source precision/remainder and requires chain delivery
+  ---
+  duration_ms: 0.631167
+  type: 'test'
+  ...
+# Subtest: same native scope chooses cheap/fast by preference; near deadline changes decision, never caps
+ok 25 - same native scope chooses cheap/fast by preference; near deadline changes decision, never caps
+  ---
+  duration_ms: 1.2055
+  type: 'test'
+  ...
+# Subtest: stale/unknown/guarantee-only timing cannot become zero latency; payment cost/time count
+ok 26 - stale/unknown/guarantee-only timing cannot become zero latency; payment cost/time count
+  ---
+  duration_ms: 0.584125
+  type: 'test'
+  ...
+# Subtest: native body fingerprint changes with tool scope; order IDs are full SHA256
+ok 27 - native body fingerprint changes with tool scope; order IDs are full SHA256
+  ---
+  duration_ms: 0.87225
+  type: 'test'
+  ...
+# (node:86104) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: official mppx client/server 402 -> persisted original proof -> receipt, no second transfer
+ok 28 - official mppx client/server 402 -> persisted original proof -> receipt, no second transfer
+  ---
+  duration_ms: 60.130875
+  type: 'test'
+  ...
+# Subtest: official Agent API SDK encodes native transfer/signing routes with original operation key and grant
+ok 29 - official Agent API SDK encodes native transfer/signing routes with original operation key and grant
+  ---
+  duration_ms: 5.887042
+  type: 'test'
+  ...
+# Subtest: durable global consumption survives rollback and lost COMMIT ACK; cannot reassign signed transfer
+ok 30 - durable global consumption survives rollback and lost COMMIT ACK; cannot reassign signed transfer
+  ---
+  duration_ms: 11.669875
+  type: 'test'
+  ...
+# (node:86104) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: concurrent task reservations from independent workers cannot overspend one authorization
+ok 31 - concurrent task reservations from independent workers cannot overspend one authorization
+  ---
+  duration_ms: 512.854334
+  type: 'test'
+  ...
+# Subtest: late payment is consumed for liability reconciliation but method never returns an admissible receipt
+ok 32 - late payment is consumed for liability reconciliation but method never returns an admissible receipt
+  ---
+  duration_ms: 10.4695
+  type: 'test'
+  ...
+# Subtest: two independently valid signed assignments cannot buy two orders with the same movement
+ok 33 - two independently valid signed assignments cannot buy two orders with the same movement
+  ---
+  duration_ms: 7.920166
+  type: 'test'
+  ...
+# (node:86104) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: NEP-413 no-callback Borsh bytes match independently specified wire vector
+ok 34 - NEP-413 no-callback Borsh bytes match independently specified wire vector
+  ---
+  duration_ms: 2.271084
+  type: 'test'
+  ...
+# Subtest: independently verifies final native transfer, full-access key and signed order binding
+ok 35 - independently verifies final native transfer, full-access key and signed order binding
+  ---
+  duration_ms: 18.633875
+  type: 'test'
+  ...
+# Subtest: rejects pending
+ok 36 - rejects pending
+  ---
+  duration_ms: 2.175958
+  type: 'test'
+  ...
+# Subtest: rejects wrong payer
+ok 37 - rejects wrong payer
+  ---
+  duration_ms: 1.189959
+  type: 'test'
+  ...
+# Subtest: rejects wrong merchant
+ok 38 - rejects wrong merchant
+  ---
+  duration_ms: 1.088042
+  type: 'test'
+  ...
+# Subtest: rejects wrong network
+ok 39 - rejects wrong network
+  ---
+  duration_ms: 0.732708
+  type: 'test'
+  ...
+# Subtest: rejects underpayment
+ok 40 - rejects underpayment
+  ---
+  duration_ms: 0.961667
+  type: 'test'
+  ...
+# Subtest: rejects overpayment
+ok 41 - rejects overpayment
+  ---
+  duration_ms: 0.962291
+  type: 'test'
+  ...
+# Subtest: rejects FT / arbitrary call
+ok 42 - rejects FT / arbitrary call
+  ---
+  duration_ms: 0.980292
+  type: 'test'
+  ...
+# Subtest: rejects batched payment
+ok 43 - rejects batched payment
+  ---
+  duration_ms: 1.776167
+  type: 'test'
+  ...
+# Subtest: rejects failed transaction
+ok 44 - rejects failed transaction
+  ---
+  duration_ms: 2.519167
+  type: 'test'
+  ...
+# Subtest: rejects failed merchant receipt
+ok 45 - rejects failed merchant receipt
+  ---
+  duration_ms: 4.361292
+  type: 'test'
+  ...
+# Subtest: rejects missing receipt
+ok 46 - rejects missing receipt
+  ---
+  duration_ms: 2.144625
+  type: 'test'
+  ...
+# Subtest: rejects unrelated successful receipt
+ok 47 - rejects unrelated successful receipt
+  ---
+  duration_ms: 1.611084
+  type: 'test'
+  ...
+# Subtest: rejects fake merchant executor
+ok 48 - rejects fake merchant executor
+  ---
+  duration_ms: 1.374625
+  type: 'test'
+  ...
+# Subtest: rejects receipt cycle
+ok 49 - rejects receipt cycle
+  ---
+  duration_ms: 1.386583
+  type: 'test'
+  ...
+# Subtest: rejects old transfer
+ok 50 - rejects old transfer
+  ---
+  duration_ms: 1.395834
+  type: 'test'
+  ...
+# Subtest: rejects function-call signing key
+ok 51 - rejects function-call signing key
+  ---
+  duration_ms: 1.34375
+  type: 'test'
+  ...
+# Subtest: rejects public hash stolen by other key
+ok 52 - rejects public hash stolen by other key
+  ---
+  duration_ms: 1.327709
+  type: 'test'
+  ...
+# Subtest: rejects same signed proof moved to another order
+ok 53 - rejects same signed proof moved to another order
+  ---
+  duration_ms: 1.708958
+  type: 'test'
+  ...
+# Subtest: rejects tampered original challenge
+ok 54 - rejects tampered original challenge
+  ---
+  duration_ms: 0.717458
+  type: 'test'
+  ...
+# Subtest: late money is verified as a liability, never silently erased or admitted
+ok 55 - late money is verified as a liability, never silently erased or admitted
+  ---
+  duration_ms: 0.818875
+  type: 'test'
+  ...
+# Subtest: sub-millisecond deadline overrun is still late; FINAL cannot carry an intermediate status
+ok 56 - sub-millisecond deadline overrun is still late; FINAL cannot carry an intermediate status
+  ---
+  duration_ms: 1.089333
+  type: 'test'
+  ...
+# Subtest: plain transfer merchant receipt must be the direct root, not an arbitrary descendant
+ok 57 - plain transfer merchant receipt must be the direct root, not an arbitrary descendant
+  ---
+  duration_ms: 0.714708
+  type: 'test'
+  ...
+# Subtest: full receipt graph includes refund receipts; omitted or failed outcomes cannot pass
+ok 58 - full receipt graph includes refund receipts; omitted or failed outcomes cannot pass
+  ---
+  duration_ms: 1.036416
+  type: 'test'
+  ...
+# Subtest: RPC pins FINAL, trusted network and historical key; bounds streamed response
+ok 59 - RPC pins FINAL, trusted network and historical key; bounds streamed response
+  ---
+  duration_ms: 31.78325
+  type: 'test'
+  ...
+# Subtest: refund plan preserves original verified destination, asset, version and operation key
+ok 60 - refund plan preserves original verified destination, asset, version and operation key
+  ---
+  duration_ms: 3.892333
+  type: 'test'
+  ...
+# Subtest: native refund independently verifies merchant-to-original-agent final receipt without buyer grant
+ok 61 - native refund independently verifies merchant-to-original-agent final receipt without buyer grant
+  ---
+  duration_ms: 2.309416
+  type: 'test'
+  ...
+# Subtest: equal merchant transfer cannot be relabelled as an unrelated refund; original unknown holds W
+ok 62 - equal merchant transfer cannot be relabelled as an unrelated refund; original unknown holds W
+  ---
+  duration_ms: 1.049667
+  type: 'test'
+  ...
+1..62
+# tests 62
+# suites 0
+# pass 62
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1922.952958

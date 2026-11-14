@@ -1,0 +1,35 @@
+{
+  "scope": "controlled bootstrap fixture only",
+  "earlierFailure": "original Market no_supply; no submit effect; full original refund",
+  "diagnosis": {
+    "rejectedOffers": [
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26
+    ],
+    "qualificationError": "Throughput(Underperforming)",
+    "cause": "one completed request was measured over actual PG bootstrap duration; a duration over 1000 ms violates the advertised one completed request per 1000 ms"
+  },
+  "correction": "explicit synthetic sample [observed-1ms, observed] with existing synthetic p95=1ms; original kernel assessment unchanged",
+  "regression": "a real PG table lock holds bootstrap for 1.25s in the two-FX happy case; sample must remain1ms and all four original calls must execute",
+  "realPerformanceEvidence": false,
+  "unreproducedP1FirstQuoteExpiry": {
+    "observed": "one sequential closeout run returned task_authorization_expired on the first quote of a fresh cancel/admission race fixture",
+    "cause": "unresolved; that temporary PG cluster had already been cleaned before task/clock diagnostics were added",
+    "change": "failure-only PG/Python clock and task-row diagnostic in quoted(); no deadline extension, retry-until-pass behavior or relaxed authorization",
+    "currentEvidence": "separate complete22-case P1 suite exited0, including the same fixture; all22 records passed"
+  }
+}
