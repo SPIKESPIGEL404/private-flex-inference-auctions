@@ -1,0 +1,79 @@
+{
+  "binary": "private-market-host",
+  "binarySha256": "d8fc0ea2014ad63a6a9b8888eaf86c14a6231ed9ba22433add4da967b6b19e3e",
+  "head": "fbbbbcfa538490f6da3f37d0905fa2956a3a0414",
+  "utc": "2026-11-14T17:09:13.589639+00:00",
+  "checks": [
+    {
+      "name": "init-deploy_rejects_p1",
+      "exitCode": 1,
+      "expected": "deploy initialization cannot enable experimental MPP payment modes",
+      "stderr": "Error: deploy initialization cannot enable experimental MPP payment modes",
+      "passed": true
+    },
+    {
+      "name": "init-deploy_rejects_p2",
+      "exitCode": 1,
+      "expected": "deploy initialization cannot enable experimental MPP payment modes",
+      "stderr": "Error: deploy initialization cannot enable experimental MPP payment modes",
+      "passed": true
+    },
+    {
+      "name": "init-deploy_rejects_mpp_test",
+      "exitCode": 1,
+      "expected": "deploy initialization cannot enable experimental MPP payment modes",
+      "stderr": "Error: deploy initialization cannot enable experimental MPP payment modes",
+      "passed": true
+    },
+    {
+      "name": "init-deploy_rejects_nearintents",
+      "exitCode": 1,
+      "expected": "deploy initialization cannot enable experimental MPP payment modes",
+      "stderr": "Error: deploy initialization cannot enable experimental MPP payment modes",
+      "passed": true
+    },
+    {
+      "name": "init-deploy_rejects_p2_without_p1",
+      "exitCode": 1,
+      "expected": "P2 requires isolated controlled native mode",
+      "stderr": "Error: P2 requires isolated controlled native mode",
+      "passed": true
+    },
+    {
+      "name": "init-deploy_rejects_invalid_p1",
+      "exitCode": 1,
+      "expected": "PRIVATE_MARKET_NEAR_DIRECT_P1 must be absent or controlled",
+      "stderr": "Error: PRIVATE_MARKET_NEAR_DIRECT_P1 must be absent or controlled",
+      "passed": true
+    },
+    {
+      "name": "serve_missing_golden_fails_closed_p1",
+      "exitCode": 1,
+      "expected": "deploy golden catalog missing from image",
+      "stderr": "Error: deploy golden catalog missing from image\n\nCaused by:\n    No such file or directory (os error 2)",
+      "passed": true
+    },
+    {
+      "name": "serve_missing_golden_fails_closed_p2",
+      "exitCode": 1,
+      "expected": "deploy golden catalog missing from image",
+      "stderr": "Error: deploy golden catalog missing from image\n\nCaused by:\n    No such file or directory (os error 2)",
+      "passed": true
+    },
+    {
+      "name": "serve_missing_golden_fails_closed_mpp_test",
+      "exitCode": 1,
+      "expected": "deploy golden catalog missing from image",
+      "stderr": "Error: deploy golden catalog missing from image\n\nCaused by:\n    No such file or directory (os error 2)",
+      "passed": true
+    },
+    {
+      "name": "serve_missing_golden_fails_closed_nearintents",
+      "exitCode": 1,
+      "expected": "deploy golden catalog missing from image",
+      "stderr": "Error: deploy golden catalog missing from image\n\nCaused by:\n    No such file or directory (os error 2)",
+      "passed": true
+    }
+  ],
+  "scope": "init-deploy MPP gate dynamically covered; sealed serve fails closed at earlier missing /etc/market/catalog.json guard; serve MPP-specific branch source-reviewed, not dynamically reached; no external service/credentials"
+}

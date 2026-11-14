@@ -83,11 +83,7 @@ async fn create_with_schedule(
     let p2 = allow_agent_fixture
         && std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled");
     let work = Workload {
-        token_ids: if p2 {
-            (0..512).collect()
-        } else {
-            vec![42, 43]
-        },
+        token_ids: if p2 { (0..512).collect() } else { vec![42, 43] },
     };
     let p2_sellers: Vec<_> = (11..27).map(|id| (id, 7, "controlled")).collect();
     let sellers = if p2 {

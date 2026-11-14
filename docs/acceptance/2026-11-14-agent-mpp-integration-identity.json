@@ -1,0 +1,16 @@
+{
+  "buyer_market_identity": "controlled-pass",
+  "hardware_attestation": false,
+  "real_provider": false,
+  "external_inference_calls": 0,
+  "refusal_cases": 18,
+  "signed_purchase_refusals": 8,
+  "controlled_tls_purchases": 1,
+  "controlled_tls_posts": 2,
+  "idempotent_signed_retry": true,
+  "provider_micro_usd": 35,
+  "platform_micro_usd": 2,
+  "balance_micro_usd": 24963,
+  "binarySha256": "d8fc0ea2014ad63a6a9b8888eaf86c14a6231ed9ba22433add4da967b6b19e3e",
+  "checkedAt": "2026-11-14T17:06:39.267307+00:00"
+}
