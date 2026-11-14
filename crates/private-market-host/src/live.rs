@@ -179,9 +179,12 @@ impl Registration {
         if let Some(bridge) = &self.verified_bridge_url {
             let url = url::Url::parse(bridge).context("invalid verified bridge URL")?;
             ensure!(
-                self.model == "qwen3.8-27b"
+                ((self.model == "qwen3.8-27b"
                     && self.native_model.as_deref() == Some("Qwen/Qwen3.8-27B-FP8")
-                    && self.origin == "https://kelsen-qwen-qwen3-8-27b-fp8.chutes.ai"
+                    && self.origin == "https://kelsen-qwen-qwen3-8-27b-fp8.chutes.ai")
+                    || (self.model == "Qwen/Qwen3.8-27B"
+                        && self.native_model.is_none()
+                        && self.origin == "https://cloud-api.near.ai"))
                     && url.scheme() == "http"
                     && url.host_str() == Some("127.0.0.1")
                     && url.port().is_some_and(|port| port > 0)
@@ -190,7 +193,7 @@ impl Registration {
                     && url.password().is_none()
                     && url.query().is_none()
                     && url.fragment().is_none(),
-                "Chutes requires the pinned model/origin and an in-CVM loopback verification bridge"
+                "verified supply requires its exact pinned model/origin and an IPv4 loopback bridge"
             );
         } else {
             ensure!(
@@ -595,4 +598,46 @@ pub async fn qualify(
         json!({"market":registration.config(),"strategy":{"wait_budget_ms":15000,"max_attempts":1,"default_output_tokens":registration.max_output_tokens,"order_time":order_time},
         "products":[{"protocol":"chat_completions","option":option,"candidates":candidates,"tokenizer_url":registration.tokenizer_url,"tokenizer_ref":registration.tokenizer_ref,"routes":routes}]}),
     )
+}
+
+#[cfg(test)]
+mod comparison_tests {
+    use super::*;
+
+    fn near_registration() -> Registration {
+        serde_json::from_value(json!({
+            "version":1,"market_id":"near-comparison","seller_principal":"project",
+            "project_authorizes_on_demand_terms":true,"project_pays_upstream_costs":true,
+            "origin":"https://cloud-api.near.ai","model":"Qwen/Qwen3.8-27B",
+            "verified_bridge_url":"http://127.0.0.1:8092",
+            "model_revision_ref":"near-catalog/revision-unverified","tokenizer_ref":"reviewed-tokenizer",
+            "tokenizer_url":"http://127.0.0.1:8093/tokenize",
+            "tokenizer_files_sha256":{"tokenizer.json":"a".repeat(64),"tokenizer_config.json":"b".repeat(64)},
+            "token_ids":[42,43],"max_output_tokens":64,"context_window_tokens":32768,
+            "rates":{"input":40000,"cache_input":18000,"output":1350000},
+            "request_sha256":"c".repeat(64),"offer_valid_until_ms":ms()+60000,
+            "upstream_budget_micro_usd":10000,"maximum_upstream_calls":4
+        })).unwrap()
+    }
+
+    #[test]
+    fn near_bridge_requires_exact_model_origin_and_loopback_binding() {
+        assert!(near_registration().validate().is_ok());
+        for url in [
+            "http://localhost:8092",
+            "http://example.com:8092",
+            "http://127.0.0.1:8092/bypass",
+            "http://user@127.0.0.1:8092",
+        ] {
+            let mut registration = near_registration();
+            registration.verified_bridge_url = Some(url.into());
+            assert!(registration.validate().is_err());
+        }
+        let mut registration = near_registration();
+        registration.origin = "https://another-provider.invalid".into();
+        assert!(registration.validate().is_err());
+        let mut registration = near_registration();
+        registration.native_model = Some("Qwen/Qwen3.8-27B-FP8".into());
+        assert!(registration.validate().is_err());
+    }
 }

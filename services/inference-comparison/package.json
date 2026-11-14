@@ -1,0 +1,8 @@
+{
+  "name": "private-market-inference-comparison",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=24.22.1"},
+  "scripts": {"test": "node --test test/*.test.mjs"},
+  "dependencies": {"@nearai/inference-sdk": "0.3.0"}
+}

@@ -19,9 +19,11 @@ class Tokenizer:
         self.tokenizer = PreTrainedTokenizerFast(tokenizer_file=str(files["tokenizer.json"]), chat_template=template,
             **{k: config[k] for k in ("bos_token", "eos_token", "pad_token") if k in config})
         self.reference = plan["tokenizer_ref"]
+        self.public_model = plan.get("public_model", PUBLIC_MODEL)
+        require(self.public_model in (PUBLIC_MODEL, "Qwen/Qwen3.8-27B"), "unsupported tokenizer model")
 
     def tokenize(self, request):
-        require(request.get("model") == PUBLIC_MODEL and isinstance(request.get("messages"), list), "wrong tokenizer model")
+        require(request.get("model") == self.public_model and isinstance(request.get("messages"), list), "wrong tokenizer model")
         require(all(set(m) == {"role", "content"} and m["role"] in ("system", "user", "assistant")
             and isinstance(m["content"], str) for m in request["messages"]), "only qualified text Chat is supported")
         require(not any(request.get(k) is not None for k in ("tools", "tool_choice", "response_format", "chat_template_kwargs")),
@@ -48,7 +50,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             size = int(self.headers["Content-Length"])
             require(self.path == "/tokenize" and 0 < size <= 128 * 1024, "invalid tokenization request")
             body = json.loads(self.rfile.read(size))
-            require(body["model"] == PUBLIC_MODEL and body["protocol"] == "chat_completions"
+            require(body["model"] == self.server.qualifier.public_model and body["protocol"] == "chat_completions"
                 and body["tokenizer_ref"] == self.server.qualifier.reference, "tokenizer identity mismatch")
             raw = canonical({"tokenizer_ref": self.server.qualifier.reference,
                 "token_ids": self.server.qualifier.tokenize(body["request"])})
@@ -58,3 +60,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers(); self.wfile.write(raw)
+
+
+if __name__ == "__main__":
+    import argparse
+    import time
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plan", required=True)
+    parser.add_argument("--port", required=True, type=int)
+    args = parser.parse_args()
+    server = Server(json.loads(Path(args.plan).read_bytes()), ("127.0.0.1", args.port))
+    try:
+        while True: time.sleep(1)
+    except KeyboardInterrupt:
+        server.shutdown(); server.server_close()
