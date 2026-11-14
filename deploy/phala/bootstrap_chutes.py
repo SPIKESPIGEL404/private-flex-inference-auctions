@@ -38,7 +38,7 @@ def main():
     assert digest(raw) == args.seed_sha256, "unapproved deployment seed"
     seed = json.loads(raw)
     root = Path(args.run_directory).resolve()
-    assert root in (Path("/data/chutes-run"),Path("/data/baseline-b-v2")), "explicit isolated runtime root required"
+    assert root in (Path("/data/chutes-run"),Path("/data/baseline-b-v2"),Path("/data/baseline-b-v3")), "explicit isolated runtime root required"
     root.mkdir(mode=0o700, exist_ok=True)
     for name in ("gateway.json", "plan.json", "buyers.public.json"):
         install(root / name, seed["files"][name].encode())
@@ -52,7 +52,7 @@ def main():
     buyer_keys = base64.b64decode(sealed_buyers, validate=True) if sealed_buyers else b''
     if args.credential_source_directory:
         source=Path(args.credential_source_directory)
-        assert source==Path('/data/chutes-run') and root==Path('/data/baseline-b-v2'), 'only the reviewed legacy credential migration is supported'
+        assert source==Path('/data/chutes-run') and root in (Path('/data/baseline-b-v2'),Path('/data/baseline-b-v3')), 'only the reviewed legacy credential migration is supported'
         for name in ['chutes.key','buyer-tokens.json']:
             assert (source/name).is_file() and (source/name).stat().st_mode&0o077==0
         if not key:key=(source/'chutes.key').read_text().strip()

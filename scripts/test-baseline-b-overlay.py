@@ -34,4 +34,13 @@ class BaselineOverlay(unittest.TestCase):
         self.seed['files']['plan.json']=json.dumps({'market_id':'baseline_b_v2_test'});self.seed['files']['private-key']='secret'
         with self.assertRaises(AssertionError):m.prepare(self.before,self.market,self.ui,json.dumps(self.seed).encode(),'2'*40)
 
+    def test_explicit_recovery_namespace_retains_failed_namespace_volume(self):
+        self.seed['files']['gateway.json']=json.dumps({'key_file':'/data/baseline-b-v3/chutes.key'})
+        self.seed['files']['plan.json']=json.dumps({'market_id':'baseline_b_v3_recovery'})
+        after,report=m.prepare(self.before,self.market,self.ui,json.dumps(self.seed).encode(),'2'*40)
+        new=yaml.safe_load(after['docker_compose_file'])
+        self.assertEqual(report['newRuntime'],'/data/baseline-b-v3')
+        self.assertEqual(new['volumes'],yaml.safe_load(self.before['docker_compose_file'])['volumes'])
+        self.assertIn('/data/baseline-b-v3',new['services']['market']['command'])
+
 if __name__=='__main__':unittest.main()

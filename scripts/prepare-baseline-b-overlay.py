@@ -21,11 +21,13 @@ def prepare(before, market, ui, seed, revision):
     bseed=json.loads(seed);plan=json.loads(bseed['files']['plan.json']);config=json.loads(bseed['files']['gateway.json'])
     assert set(bseed['files'])=={'gateway.json','plan.json','buyers.public.json','attestation.json','nginx.conf'}
     assert set(json.loads(bseed['files']['buyers.public.json']))=={'public_keys'}
-    assert config['key_file']=='/data/baseline-b-v2/chutes.key' and plan['market_id'].startswith('baseline_b_v2_')
+    runtime_root=str(Path(config['key_file']).parent)
+    assert runtime_root in ['/data/baseline-b-v2','/data/baseline-b-v3']
+    assert config['key_file']==runtime_root+'/chutes.key' and plan['market_id'].startswith(Path(runtime_root).name.replace('-','_')+'_')
     assert len(json.loads(bseed['files']['buyers.public.json'])['public_keys'])==3
     compose=yaml.safe_load(after['docker_compose_file']);service=compose['services']['market']
     service['image']=market['classicImageId']
-    service['command']=['--seed','/opt/market/chutes-seed.json','--seed-sha256',hashlib.sha256(seed).hexdigest(),'--run-directory','/data/baseline-b-v2','--credential-source-directory','/data/chutes-run']
+    service['command']=['--seed','/opt/market/chutes-seed.json','--seed-sha256',hashlib.sha256(seed).hexdigest(),'--run-directory',runtime_root,'--credential-source-directory','/data/chutes-run']
     # The new image owns the updated runtime. Retain the existing ingress helper,
     # certificate evidence and all persistent volume mounts.
     service['volumes']=[v for v in service['volumes'] if not isinstance(v,str) or v.split(':')[1]!='/opt/market/runtime_chutes.py']
@@ -69,5 +71,5 @@ def prepare(before, market, ui, seed, revision):
     assert owner['AGENT_PREVIEW_OWNER_HASH']==app['environment']['AGENT_PREVIEW_OWNER_HASH']
     return after,{'version':1,'persistentVolumesUnchanged':True,'sealedEnvironmentUnchanged':True,'ingressServicesUnchanged':True,'previewOwnerUnchanged':True,
         'previewNetworkChange':'adds existing default network for read-only market supply observation; private credentials and data volumes remain unshared',
-        'originalRuntimeRetainedAt':'/data/chutes-run','newRuntime':'/data/baseline-b-v2','marketId':plan['market_id'],
+        'originalRuntimeRetainedAt':'/data/chutes-run','newRuntime':runtime_root,'marketId':plan['market_id'],
         'expectedComposeHash':hashlib.sha256(json.dumps(after,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()}
