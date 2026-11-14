@@ -50,8 +50,10 @@ async function refresh(){
   const s=await api('/sessions/'+a.id);if(current!==epoch)return;transcript.textContent=s.transcript;
   const binding=config.plan.agents.find((b:{agentId:string})=>b.agentId===a.agent_id);
   if(binding&&a.fundingReady){const funding=document.createElement('p');funding.textContent=`Native NEAR funding destination: ${binding.payer}. Fund only after the owner-controlled policy is independently confirmed.`;card.append(funding);}
-  button('Run task',async()=>{
+  button(s.task.paused?'Resume task':'Run task',async()=>{
    if(running.has(a.id))throw Error('task_already_running');
+   const latest=await api('/sessions/'+a.id);
+   if(latest.task.paused)await api('/sessions/'+a.id+'/control',{action:'resume',expectedRevision:latest.task.revision,operation:crypto.randomUUID()});
    const r=await createTaskRuntime({url:location.origin,sessionId:a.id,onEvent:()=>{}});running.set(a.id,r);
    try{await r.run();}finally{await r.close();running.delete(a.id);await refresh();}
   },card);

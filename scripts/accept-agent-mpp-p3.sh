@@ -14,6 +14,7 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target/outlayer-p3}"
 cargo build --locked --manifest-path crates/private-market-p3/Cargo.toml
 cargo test --locked --manifest-path crates/private-market-p3/Cargo.toml --test scope-members
 npm run build:p3 --prefix clients/agent-playground
+npm run test:p3 --prefix clients/agent-playground
 "$P1_NODE" --test --test-reporter=tap services/mpp-near-direct/test/*.test.mjs services/mpp-near-direct/p1/test/*.test.mjs services/mpp-near-direct/p2/test/*.test.mjs services/mpp-near-direct/p3/test/*.test.mjs \
  | tee docs/acceptance/2026-11-14-outlayer-p3-tests.tap
 python3 scripts/accept-agent-mpp-p3.py "$CARGO_TARGET_DIR/debug/private-market-host-p3"

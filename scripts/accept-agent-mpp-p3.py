@@ -128,6 +128,26 @@ def happy(binary):
   assert x.m.sql("SELECT count(*) FROM mpp_direct_p3_operations WHERE kind='payment' AND actual_gas_yocto=3000000000000000000")=='4'
   x.restart_proxy();assert x.status()['state']=='complete';assert x.counts()['chainTransfers']==8
   return {'case':'two-fx-native-outlayer-principal-gas-refunds-restart','passed':True,'counts':x.counts()}
+
+def pause_resume(binary):
+ with P3(binary) as x:
+  # Pause after the virtual tool committed but before fx acknowledged it.
+  # Resume must recover that effect and its paid response, not apply it twice.
+  x.fx(1,crash='after_tool')
+  assert x.control(1,'pause')[0]==200
+  s=x.status()
+  assert x.api('sessions/session-1/claim',{'writer':os.urandom(32).hex(),'expectedGeneration':s['generation'],'force':True})[1]['error']['code']=='task_not_running'
+  assert x.api('authorization/revoke',{'role':'owner'})[0]==200
+  assert x.control(1,'resume')[1]['error']['code']=='run_authorization_required'
+  x.grants()
+  assert x.control(1,'resume')[0]==200
+  assert x.fx()['result']['stopReason']=='end_turn'
+  wait_for(lambda:x.counts()['refunds']==2,20)
+  assert x.status()['workspace']['/workspace/result.txt']=='42\n'
+  assert x.status()['workspace']['/workspace/applications.log']=='applied\n'
+  assert x.counts()=={'payments':2,'refunds':2,'executions':2,'tools':1,'chainTransfers':4},x.counts()
+  return {'case':'pause-revoke-reauthorize-resume-original-fx-tool-turn','passed':True,'counts':x.counts()}
+
 if __name__=='__main__':
  a=argparse.ArgumentParser();a.add_argument('binary');a.add_argument('--evidence',default=str(ROOT/'docs/acceptance/2026-11-14-outlayer-p3-matrix.json'));args=a.parse_args()
- checks=[happy(args.binary),signature_failure(args.binary),lost_ack(args.binary),owner_revocation(args.binary),project_revocation(args.binary)];Path(args.evidence).write_text(json.dumps({'scope':'local-original-market-and-outlayer-shaped-doubles','realChain':False,'realProvider':False,'cases':checks},indent=2)+'\n');print(json.dumps({'passed':len(checks),'evidence':args.evidence}))
+ checks=[happy(args.binary),signature_failure(args.binary),lost_ack(args.binary),owner_revocation(args.binary),project_revocation(args.binary),pause_resume(args.binary)];Path(args.evidence).write_text(json.dumps({'scope':'local-original-market-and-outlayer-shaped-doubles','realChain':False,'realProvider':False,'cases':checks},indent=2)+'\n');print(json.dumps({'passed':len(checks),'evidence':args.evidence}))

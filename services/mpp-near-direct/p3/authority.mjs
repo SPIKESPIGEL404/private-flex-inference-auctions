@@ -19,7 +19,16 @@ export class Authority extends TaskAuthority {
   }
   mapNative(body) { return {...body,model:this.config.mode==='controlled'?'m/external':this.config.plan.provider.model}; }
   routeCostNano() { return String(nanoUsdForNear(this.paymentGasReserve(),this.config.rateNanoPerNear)); }
-  async nativeOrigin(order) { return this.services.profiles.origin?this.services.profiles.origin(order.decision.quote.profileId):this.config.upstream; }
+  async fetchNative(order,{token,body}) {
+    const recovery=Boolean(order.admitted_request);
+    const origin=this.services.profiles.origin?await this.services.profiles.origin(order.decision.quote.profileId,{recovery}):this.config.upstream;
+    // Once admitted, GET the original durable stream. Re-submission against a
+    // different catalog must never re-qualify or purchase the request again.
+    const path=recovery?'/market/v1/requests/'+encodeURIComponent(order.admitted_request)+'/events':'/market/v1/chat/completions';
+    return fetch(origin+path,{method:recovery?'GET':'POST',redirect:'error',signal:AbortSignal.timeout(this.config.nativeTimeoutMs??20_000),
+      headers:{authorization:'Bearer '+token,...(recovery?{}:{'content-type':'application/json','idempotency-key':order.dispatch_key})},
+      ...(recovery?{}:{body:JSON.stringify(body)})});
+  }
   async qualifyNative(body) { return this.services.profiles.qualify(body); }
   async paymentRequest(base) { const {gasSponsor,sponsorOperation,...request}=base;return {...request,version:1}; }
   paymentGasReserve() { return this.config.plan.limits.gasReserveYocto; }

@@ -2,6 +2,7 @@
 """Actual request-scoped Rust qualification and loopback seller double; no chain/provider spend."""
 import json,os,sys,time,threading,subprocess,hashlib,argparse,socket
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 from importlib import import_module
@@ -109,6 +110,68 @@ def unknown_calibration(binary):
   assert int(x.m.sql('SELECT reserved_micro FROM mpp_direct_p3_provider_budget'))>0
   x.restart_proxy();assert len(x.m.seller.calls)==1
   return {'case':'calibration-ack-loss-keeps-project-reservation-no-agent-payment-or-repost','passed':True}
+
+@contextmanager
+def heartbeat(x,n,headers):
+ stop=threading.Event()
+ def tick():
+  while not stop.wait(1):
+   try:x.api('sessions/session-'+str(n)+'/heartbeat',{},headers=headers)
+   except Exception:pass
+ worker=threading.Thread(target=tick,daemon=True);worker.start()
+ try:yield
+ finally:stop.set();worker.join(timeout=5)
+
+def profile_replay(binary,unknown=False):
+ with Native(binary) as x:
+  # Execution and its native stream commit, but the buyer loses its response
+  # journal write. Recovery must not depend on retaining this supply catalog.
+  x.m.sql("CREATE FUNCTION test_response_write_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test_response_write_failure'; END $$; CREATE TRIGGER test_response_write_failure BEFORE INSERT ON mpp_direct_p2_responses FOR EACH ROW EXECUTE FUNCTION test_response_write_failure()")
+  h=x.claim()
+  with heartbeat(x,1,h):assert x.native(headers=h)[0]==400
+  assert x.m.sql('SELECT count(*) FROM mpp_direct_orders WHERE financial IS NOT NULL AND admitted_request IS NOT NULL')=='1'
+  assert x.m.sql('SELECT count(*) FROM mpp_direct_p2_responses')=='0'
+  x.m.sql('DROP TRIGGER test_response_write_failure ON mpp_direct_p2_responses')
+  if unknown:
+   x.m.seller.mode='drop-calibration';h2=x.claim(2)
+   with ThreadPoolExecutor(max_workers=1) as pool:
+    pending=pool.submit(lambda:x.native(2,headers=h2))
+    wait_for(lambda:x.m.sql("SELECT count(*) FROM mpp_direct_p3_profiles WHERE state='unknown'")=='1',20)
+    assert x.control(2,'pause')[0]==200
+    assert pending.result(timeout=20)[0]!=200
+  else:
+   h2=x.claim(2)
+   with heartbeat(x,2,h2):assert x.native(2,headers=h2)[0]==200
+  active=x.m.sql('SELECT profile_id FROM mpp_direct_p3_native_slot')
+  provider_calls=len(x.m.seller.calls)
+  payments=x.counts()['payments']
+  x.restart_proxy()
+  h=x.claim(force=True)
+  with heartbeat(x,1,h):recovered=x.native(headers=h)
+  assert recovered[0]==200 and 'verified' in recovered[1],recovered
+  assert x.native(headers=h)[1]==recovered[1]
+  assert x.m.sql('SELECT profile_id FROM mpp_direct_p3_native_slot')==active
+  assert x.counts()['payments']==payments and len(x.m.seller.calls)==provider_calls
+  assert x.m.sql('SELECT count(*) FROM market_inference_hosts')=='1'
+  return {'case':'paid-response-replay-after-'+('unknown-calibration' if unknown else 'profile-switch')+'-and-restart','passed':True,'providerDoubleCalls':provider_calls,'payments':payments}
+
+def profile_retry_slots(binary):
+ with Native(binary) as x:
+  # A legitimate low initial bid polls the same qualified scope more than the
+  # total slot allowance, then accepts without a new calibration or profile.
+  x.m.sql("UPDATE mpp_direct_tasks SET preference='balanced',hard_bid_nano=1000000 WHERE id='task-1'")
+  h=x.claim()
+  with heartbeat(x,1,h),ThreadPoolExecutor(max_workers=1) as pool:
+   pending=pool.submit(lambda:x.native(headers=h))
+   wait_for(lambda:int(x.m.sql('SELECT count(*) FROM mpp_direct_p2_decisions'))>=40,20)
+   assert x.control(1,'preference',preference='fast')[0]==200
+   assert pending.result(timeout=20)[0]==200
+  h2=x.claim(2)
+  with heartbeat(x,2,h2):assert x.native(2,headers=h2)[0]==200
+  assert x.m.sql('SELECT string_agg(slot::text,\',\' ORDER BY slot) FROM mpp_direct_p3_profiles')=='1,2'
+  assert len(x.m.seller.calls)==4
+  return {'case':'qualification-retries-preserve-slots-for-next-agent','passed':True,'minimumRetries':40,'slots':[1,2],'providerDoubleCalls':4}
+
 if __name__=='__main__':
  a=argparse.ArgumentParser();a.add_argument('binary');a.add_argument('--evidence',default=str(ROOT/'docs/acceptance/2026-11-14-outlayer-p3-native.json'));args=a.parse_args()
- checks=[acceptance(args.binary),unknown_calibration(args.binary)];Path(args.evidence).write_text(json.dumps({'realChain':False,'realProvider':False,'scope':'original-native-source-qualification-with-loopback-provider-double','cases':checks},indent=2)+'\n');print(json.dumps({'passed':len(checks),'evidence':args.evidence}))
+ checks=[acceptance(args.binary),unknown_calibration(args.binary),profile_replay(args.binary),profile_replay(args.binary,unknown=True),profile_retry_slots(args.binary)];Path(args.evidence).write_text(json.dumps({'realChain':False,'realProvider':False,'scope':'original-native-source-qualification-with-loopback-provider-double','cases':checks},indent=2)+'\n');print(json.dumps({'passed':len(checks),'evidence':args.evidence}))

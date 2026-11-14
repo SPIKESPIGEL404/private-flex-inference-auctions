@@ -41,10 +41,19 @@ export class NativeProfiles {
   requireThat(/^[a-f0-9]{64}$/.test(callId),'original_native_call_required');
   await mkdir(resolve(this.config.nativeProfilesDirectory),{recursive:true,mode:0o700});
   requireThat(((await stat(this.config.nativeProfilesDirectory)).mode&0o077)===0,'private_profile_directory_required');
-  await this.pool.query("INSERT INTO mpp_direct_p3_profiles(id,body_hash,registration,state,directory,created_ms,call_id) VALUES($1,$2,'{}','queued',$3,$4,$5) ON CONFLICT(id) DO NOTHING",[id,hash(body),directory,Date.now(),callId]);
   const db=await this.pool.connect();let locked=false;
   try{
    locked=(await db.query('SELECT pg_try_advisory_lock(73112632071) AS locked')).rows[0].locked;requireThat(locked,'supply_unavailable');
+   let row=(await db.query('SELECT * FROM mpp_direct_p3_profiles WHERE id=$1',[id])).rows[0];
+   if(!row){
+    // Allocate only a new profile, under the source lock. Identity sequences
+    // advance even on conflicting inserts and rollbacks, so polling must not
+    // determine the bounded offering ID.
+    row=(await db.query(`INSERT INTO mpp_direct_p3_profiles(id,body_hash,registration,state,directory,created_ms,call_id,slot)
+      OVERRIDING SYSTEM VALUE SELECT $1,$2,'{}','queued',$3,$4,$5,coalesce(max(slot),0)+1
+      FROM mpp_direct_p3_profiles HAVING coalesce(max(slot),0)<32 RETURNING *`,[id,hash(body),directory,Date.now(),callId])).rows[0];
+   }
+   requireThat(row&&row.slot<=32,'bounded_profile_slots_exhausted');
    const slot=(await db.query('SELECT profile_id FROM mpp_direct_p3_native_slot WHERE singleton')).rows[0];
    if(slot.profile_id&&slot.profile_id!==id){
     const prior=(await db.query('SELECT * FROM mpp_direct_p3_profiles WHERE id=$1',[slot.profile_id])).rows[0];
@@ -56,8 +65,6 @@ export class NativeProfiles {
     requireThat(prior.state==='qualified'&&!blocked&&(orders||['cancelled','stopped','terminal'].includes(call.state)||Date.now()>=Number(call.deadline_ms)),'supply_unavailable');
    }
    await db.query('UPDATE mpp_direct_p3_native_slot SET profile_id=$1 WHERE singleton',[id]);
-   let row=(await db.query('SELECT * FROM mpp_direct_p3_profiles WHERE id=$1',[id])).rows[0];
-   requireThat(row.slot<=32,'bounded_profile_slots_exhausted');
    if(row.state==='qualified'){await this.startHost(row,state);return row.quote;}
    await this.stopHosts();
    const reg={...root,token_ids:tokens.token_ids,max_output_tokens:body.max_completion_tokens,request_sha256:hash(JSON.stringify(native)),
@@ -143,6 +150,7 @@ export class NativeProfiles {
  async startHost(row,state){
   if(this.children.has(row.id)){const current=this.children.get(row.id);if(current.child.exitCode===null&&current.child.signalCode===null)return current.url;this.children.delete(row.id);}
   requireThat(!this.closing,'native_source_stopping');
+  await this.stopHosts();
   const log=await open(row.directory+'/host.log','a',0o600),child=spawn(this.config.hostBinary,['serve',row.directory],{env:this.environment(state,row.directory),stdio:['pipe','pipe',log.fd]});
   await log.close();
   const url=await new Promise((resolve,reject)=>{let text='';const timer=setTimeout(()=>{child.stdin.end();reject(new Error('native_host_start_unknown'));},75000);
@@ -159,11 +167,21 @@ export class NativeProfiles {
    await this.startHost(current,state);
   }
  }
- async origin(profileId){
-  const current=(await this.pool.query('SELECT p.* FROM mpp_direct_p3_native_slot s JOIN mpp_direct_p3_profiles p ON p.id=s.profile_id WHERE singleton')).rows[0];
-  requireThat(current?.state==='qualified'&&current.id===profileId,'original_native_profile_unavailable');
-  const state=JSON.parse(await readFile(resolve(this.config.nativeStateDirectory,'state.json'),'utf8'));
-  return this.startHost(current,state);
+ async origin(profileId,{recovery=false}={}){
+  const db=await this.pool.connect();let locked=false;
+  try{
+   locked=(await db.query('SELECT pg_try_advisory_lock(73112632071) AS locked')).rows[0].locked;requireThat(locked,'supply_unavailable');
+   let current=(await db.query('SELECT p.* FROM mpp_direct_p3_native_slot s JOIN mpp_direct_p3_profiles p ON p.id=s.profile_id WHERE singleton')).rows[0];
+   // An admitted request is replayed by ID from the original Market journal,
+   // independent of the catalog currently serving new purchases. If a later
+   // calibration is Unknown, its predecessor can host read-only replay without
+   // changing the active supply slot or repeating that calibration.
+   if(recovery&&current?.state!=='qualified')current=(await db.query("SELECT * FROM mpp_direct_p3_profiles WHERE id=$1 AND state='qualified'",[profileId])).rows[0];
+   requireThat(current?.state==='qualified'&&(recovery||current.id===profileId),'original_native_profile_unavailable');
+   const state=JSON.parse(await readFile(resolve(this.config.nativeStateDirectory,'state.json'),'utf8'));
+   requireThat(state.database===this.config.databaseUrl,'original_provider_registration_mismatch');
+   return await this.startHost(current,state);
+  }finally{if(locked)await db.query('SELECT pg_advisory_unlock(73112632071)').catch(()=>{});db.release();}
  }
  async stopHosts(){for(const {child} of this.children.values()){
   await new Promise(r=>{if(child.exitCode!==null||child.signalCode!==null){r();return;}

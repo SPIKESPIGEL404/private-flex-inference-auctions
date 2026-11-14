@@ -164,8 +164,7 @@ export async function start(config, {AuthorityClass=Authority,validate=validateC
       // Market transaction. Lost ACK retries recover that original command.
       const nativeBody={...order.internal_body,bitrouter_purchase:{service_type:'on_demand',provider_cap_micro_usd:Number(order.provider_cap_micro),total_cap_micro_usd:Number(order.service_micro),max_attempts:1}};
       await authority.timing(order.id,'native_admission_requested');
-      const nativeOrigin=authority.nativeOrigin?await authority.nativeOrigin(order):config.upstream;
-      const upstream=await fetch(nativeOrigin+'/market/v1/chat/completions',{method:'POST',redirect:'error',signal:AbortSignal.timeout(config.nativeTimeoutMs??20_000),
+      const upstream=authority.fetchNative?await authority.fetchNative(order,{token,body:nativeBody}):await fetch(config.upstream+'/market/v1/chat/completions',{method:'POST',redirect:'error',signal:AbortSignal.timeout(config.nativeTimeoutMs??20_000),
         headers:{authorization:'Bearer '+token,'content-type':'application/json','idempotency-key':order.dispatch_key},body:JSON.stringify(nativeBody)});
       if(!upstream.ok){await upstream.body?.cancel();const current=await authority.getOrder(order.id,agent.user_id);
         return json(res,current.financial?409:503,{error:{code:current.financial?'original_execution_closed':'original_admission_pending'},orderId:order.id});}

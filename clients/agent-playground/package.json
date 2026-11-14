@@ -7,6 +7,7 @@
     "build": "npm --prefix ../market-playground run build",
     "dev": "npm --prefix ../market-playground run dev",
     "build:p3": "tsc -p tsconfig.p3.json && vite build --config vite.p3.config.ts",
+    "test:p3": "node --experimental-vm-modules --test test/p3.test.mjs",
     "dev:p3": "vite --config vite.p3.config.ts --host 127.0.0.1"
   },
   "dependencies": {
