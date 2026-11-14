@@ -149,8 +149,8 @@ fn delivery_trade(
 }
 
 #[test]
-fn completed_usage_holds_money_until_qualified_publication_and_confirms_provider_earnings(
-) -> DeliveryTest {
+fn completed_usage_holds_money_until_qualified_publication_and_confirms_provider_earnings()
+-> DeliveryTest {
     let (mut h, mut a, id, b) = setup_result();
     let before = h.snapshot().accounts()[&1].clone();
     finish(
@@ -188,8 +188,8 @@ fn completed_usage_holds_money_until_qualified_publication_and_confirms_provider
 }
 
 #[test]
-fn strict_hard_deadline_accepts_before_and_rejects_at_or_after_without_provider_income(
-) -> DeliveryTest {
+fn strict_hard_deadline_accepts_before_and_rejects_at_or_after_without_provider_income()
+-> DeliveryTest {
     for offset in [-1_i64, 0, 1] {
         let (mut h, mut a, id, b) = setup_result();
         finish(
@@ -243,8 +243,8 @@ fn strict_hard_deadline_accepts_before_and_rejects_at_or_after_without_provider_
 }
 
 #[test]
-fn expired_finances_keep_unknown_execution_and_occupancy_without_inventing_a_terminal(
-) -> DeliveryTest {
+fn expired_finances_keep_unknown_execution_and_occupancy_without_inventing_a_terminal()
+-> DeliveryTest {
     let (mut h, _a, id, _b) = setup_result();
     let t = delivery_trade(&h, &id)?;
     h.execute(
@@ -378,12 +378,13 @@ fn buyer_wait_bound_rejects_slower_service_without_a_grant() -> DeliveryTest {
     r.authorization.max_adjudication_wait_ms = 59_999;
     register(&mut h, &r);
     let q = publication(&h, &r, 1, "too-slow");
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             "slow-quote".into(),
             ExchangeCommand::PurchaseQuote(Box::new(q))
         )
-        .is_err());
+        .is_err()
+    );
     assert!(h.snapshot().purchase_trades().is_some_and(|t| t.is_empty()));
     Ok(())
 }
@@ -435,14 +436,15 @@ fn original_qualification_and_completion_time_survive_retries_without_revalidati
         receipt
     );
     assert_eq!(validator.calls.get(), 1);
-    assert!(h
-        .publish_purchase_result(
+    assert!(
+        h.publish_purchase_result(
             "result/conflict".into(),
             binding,
             b"changed".to_vec(),
             &validator
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(validator.calls.get(), 1);
 }
 #[test]
@@ -468,9 +470,10 @@ fn pending_failed_missing_or_invalid_usage_cannot_become_a_delivered_result() {
             .clone();
         let validator = rf::FixtureValidator::new(&auth);
         let before = h.snapshot();
-        assert!(h
-            .publish_purchase_result("bad".into(), binding, rf::body(&auth, usage()), &validator)
-            .is_err());
+        assert!(
+            h.publish_purchase_result("bad".into(), binding, rf::body(&auth, usage()), &validator)
+                .is_err()
+        );
         assert_eq!(h.snapshot(), before);
         assert_eq!(validator.calls.get(), 0);
     }
@@ -500,28 +503,31 @@ fn validator_rejects_wrong_complete_contract_and_size_binding_and_protocol_fail_
             serde_json::to_vec(&body).unwrap()
         },
     ] {
-        assert!(h
-            .publish_purchase_result("bad".into(), binding.clone(), bytes, &validator)
-            .is_err());
+        assert!(
+            h.publish_purchase_result("bad".into(), binding.clone(), bytes, &validator)
+                .is_err()
+        );
         assert_eq!(h.snapshot(), before);
     }
     validator.protocol = "wrong-protocol".into();
     let calls = validator.calls.get();
-    assert!(h
-        .publish_purchase_result(
+    assert!(
+        h.publish_purchase_result(
             "bad".into(),
             binding.clone(),
             rf::body(&auth, usage()),
             &validator
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(validator.calls.get(), calls);
     validator.protocol = auth.request_protocol_ref.clone();
     let mut wrong = binding.clone();
     wrong.backend_incarnation.push('x');
-    assert!(h
-        .publish_purchase_result("bad".into(), wrong, rf::body(&auth, usage()), &validator)
-        .is_err());
+    assert!(
+        h.publish_purchase_result("bad".into(), wrong, rf::body(&auth, usage()), &validator)
+            .is_err()
+    );
     assert_eq!(validator.calls.get(), calls);
     h.publish_purchase_result("good".into(), binding, rf::body(&auth, usage()), &validator)
         .unwrap();
@@ -608,8 +614,8 @@ fn exact_completion_target_is_inclusive_and_replay_rejects_changed_artifact_byte
 }
 
 #[test]
-fn late_acceptance_receipt_after_expiry_preserves_original_deadline_and_released_funds(
-) -> DeliveryTest {
+fn late_acceptance_receipt_after_expiry_preserves_original_deadline_and_released_funds()
+-> DeliveryTest {
     let (mut h, mut a) = setup(false, false);
     let r = registration("late-e-after-d", 1, &["a"], false);
     register(&mut h, &r);

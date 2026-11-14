@@ -104,12 +104,13 @@ fn public_commands_cannot_program_combinations_or_competing_buyers() {
     let mut old = r;
     old.version = 1;
     let mut h = sf::bootstrap(false);
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             old.idempotency_key.clone(),
             ExchangeCommand::RegisterSellerOrder(Box::new(old))
         )
-        .is_err());
+        .is_err()
+    );
 }
 
 #[test]
@@ -117,12 +118,13 @@ fn standalone_proposal_cannot_open_an_ioc_round() {
     let (mut h, _, _) = sf::setup(false, true);
     let p = sf::buyer(&mut h, 1, "a", "buyer", false);
     let before = h.snapshot();
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             p.idempotency_key.clone(),
             ExchangeCommand::ProposePurchase(Box::new(p))
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(h.snapshot(), before);
 }
 
@@ -212,9 +214,11 @@ fn accepted_failure_permanently_consumes_sale_and_purchase() {
     h.receive("failed".into(), a.origin(), report).unwrap();
     sf::drive(&mut h, "retry-drive");
     let s = h.snapshot();
-    assert!(s.sells()[&seller.order.reference]
-        .allocation()
-        .is_consumed());
+    assert!(
+        s.sells()[&seller.order.reference]
+            .allocation()
+            .is_consumed()
+    );
     assert_eq!(s.purchase_trades().unwrap().len(), 1);
     assert_eq!(s.occupancy(AdmissionScopeId(30)), 0);
 }
@@ -237,9 +241,11 @@ fn acceptance_at_exclusive_boundary_cannot_consume_or_reopen_offer() {
         late.observation,
         ExecutionReportState::NotExecutedFence { .. }
     ));
-    assert!(h.snapshot().sells()[&seller.order.reference]
-        .allocation()
-        .is_closed());
+    assert!(
+        h.snapshot().sells()[&seller.order.reference]
+            .allocation()
+            .is_closed()
+    );
 }
 
 #[test]
@@ -271,7 +277,7 @@ fn stale_prepared_drive_publishes_no_sale_money_capacity_or_outbox() {
 
 #[test]
 fn maximum_byte_length_offer_id_keeps_a_bounded_replayable_ioc_identity() {
-    use bitrouter_market::authorization::{OrderRef, OrderSide, MAX_ID_BYTES};
+    use bitrouter_market::authorization::{MAX_ID_BYTES, OrderRef, OrderSide};
     for name in ["x".repeat(MAX_ID_BYTES), "é".repeat(MAX_ID_BYTES / 2)] {
         let (seed, _, _) = sf::setup(false, true);
         let mut h = sf::bootstrap(false);

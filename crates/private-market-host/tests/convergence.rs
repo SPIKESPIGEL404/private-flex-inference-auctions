@@ -220,12 +220,13 @@ fn current_capacity_ledger_retains_unknown_when_reports_omit_it_or_change_genera
         assert_eq!(state.accounts()[&1].held(), MicroUsd(100));
     }
     let before = host.snapshot();
-    assert!(host
-        .execute(
+    assert!(
+        host.execute(
             "old-report".into(),
             ExchangeCommand::ScopeReport(fx::report(30, 1, vec![]))
         )
-        .is_err());
+        .is_err()
+    );
     assert_eq!(host.snapshot(), before);
 }
 

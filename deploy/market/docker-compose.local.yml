@@ -31,6 +31,8 @@ services:
       PRIVATE_MARKET_BUYER_TOKEN_0: ${BUYER_0_TOKEN}
       PRIVATE_MARKET_BUYER_TOKEN_1: ${BUYER_1_TOKEN}
       PRIVATE_MARKET_BUYER_TOKEN_2: ${BUYER_2_TOKEN}
+      # Local dstack only (dstack_http). Host refuses this env under dstack_socket.
+      PRIVATE_MARKET_SELLER_CAPTURE: /var/lib/market/state/seller-capture.jsonl
     volumes:
       - market-data:/var/lib/market
       - tls-data:/run/market-tls

@@ -143,11 +143,12 @@ fn registration_and_g_crashes_keep_all_or_nothing_with_original_queue_and_receip
                 );
                 if fault == "after" {
                     assert_eq!(s.formal_pending(), 1);
-                    assert!(m
-                        .host()
-                        .unwrap()
-                        .formal_command_receipt(1, &input().idempotency_key)
-                        .is_some());
+                    assert!(
+                        m.host()
+                            .unwrap()
+                            .formal_command_receipt(1, &input().idempotency_key)
+                            .is_some()
+                    );
                 }
             } else {
                 assert_eq!(

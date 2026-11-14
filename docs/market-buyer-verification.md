@@ -220,6 +220,11 @@ to the quote-bound E2EE key.
 **Does not:** hide the prompt (it still reaches Market and the provider);
 encrypt responses; replace pinned TLS; or prove hardware by itself.
 
+## No-leak sentinel scan (P2 / P3)
+
+Local dstack sibling acceptance: `bash scripts/accept-market-no-leak.sh`. See
+[market-no-leak.md](market-no-leak.md) for surfaces, allowlists, and limits.
+
 ## Signed Market financial receipts
 
 After a committed purchase, `GET /market/v1/receipts/{request_id}/signed`

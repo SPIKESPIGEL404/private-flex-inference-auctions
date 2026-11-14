@@ -304,7 +304,7 @@ for i in $(seq 1 60); do
   REQUEST_ID="$(docker compose --project-directory "$DEPLOY" \
     -f "$DEPLOY/docker-compose.yml" -f "$DEPLOY/docker-compose.local.yml" \
     --env-file "$WORK/local.env" exec -T postgres \
-    bash -c 'export PGPASSWORD="$(cat /var/lib/market/secrets/postgres_password.pg 2>/dev/null || cat /var/lib/market/secrets/postgres_password)"
+    bash -c 'export PGPASSWORD="$(cat /run/pg-password/postgres_password.pg)"
       psql -U market -d private_market_deploy -h 127.0.0.1 -X -A -t -v ON_ERROR_STOP=1 \
       -c "SELECT coalesce((SELECT s.request_id FROM market_inference_requests s JOIN market_inference_receipts r USING(request_id,revision) WHERE s.idempotency_key='"'"'dstack-local-e2ee-1'"'"' AND r.receipt->>'"'"'settlement'"'"'='"'"'committed'"'"'),'"'"''"'"')"')"
   REQUEST_ID="$(printf '%s' "$REQUEST_ID" | tr -d '[:space:]')"

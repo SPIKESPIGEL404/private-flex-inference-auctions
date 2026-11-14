@@ -24,7 +24,7 @@ mod sf;
 use bitrouter_market::durable::DurableMarketHost;
 use bitrouter_market::manual_market::ManualMarketConfig;
 use bitrouter_market::order::UnixMillis;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::process::{Child, Command, Stdio};
@@ -131,7 +131,9 @@ fn stream(address: SocketAddr) -> TcpStream {
     s
 }
 fn header(method: &str, path: &str, length: usize) -> String {
-    format!("{method} {path} HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {TOKEN}\r\nContent-Type: application/json\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n")
+    format!(
+        "{method} {path} HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {TOKEN}\r\nContent-Type: application/json\r\nContent-Length: {length}\r\nConnection: close\r\n\r\n"
+    )
 }
 fn response(stream: TcpStream, status: u16) -> Value {
     response_codes(stream, &[status]).1
@@ -173,8 +175,8 @@ fn lost_response_restart_and_close_preserve_original_receipt_and_one_manual_orde
     s.write_all(&bytes).unwrap();
     s.shutdown(Shutdown::Both).unwrap();
     drop(s); // discard the response; writer admission may still be in flight.
-             // Different TCP connections can enqueue in either order. A temporary 404
-             // does not prove the earlier POST failed; retain its key and wait for it.
+    // Different TCP connections can enqueue in either order. A temporary 404
+    // does not prove the earlier POST failed; retain its key and wait for it.
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     let first = loop {
         let mut read = stream(server.address);
@@ -318,7 +320,9 @@ fn unsupported_http_framing_and_oversized_bodies_fail_before_any_market_command(
             400,
         ),
     ] {
-        let h = format!("POST {ORDERS} HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {TOKEN}\r\nContent-Type: application/json\r\n{extra}\r\n");
+        let h = format!(
+            "POST {ORDERS} HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer {TOKEN}\r\nContent-Type: application/json\r\n{extra}\r\n"
+        );
         raw(server.address, &h, b"", status);
     }
     assert_eq!(server.call("GET", "/healthz", None, 200)["revision"], 0);

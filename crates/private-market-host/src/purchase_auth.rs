@@ -207,10 +207,7 @@ async fn admit(inner: Arc<Inner>, request: Request<Body>) -> Result<Request<Body
         return Err(Fail::Invalid);
     }
 
-    let token = authorization
-        .strip_prefix("Bearer ")
-        .filter(|value| !value.is_empty() && value.len() <= 512)
-        .ok_or(Fail::Invalid)?;
+    let token = parse_bearer(authorization)?;
     let user = introspect(&inner, token).await?;
     let registered = inner.keys_by_user.get(&user).ok_or(Fail::Invalid)?;
     if registered != key {
@@ -468,6 +465,18 @@ async fn introspect(inner: &Inner, token: &str) -> Result<String, Fail> {
     Ok(sub)
 }
 
+/// Reject missing/empty/whitespace-only bearers before introspection so an
+/// empty `PRIVATE_MARKET_BUYER_TOKEN_*` can never match an empty Authorization.
+fn parse_bearer(authorization: &str) -> Result<&str, Fail> {
+    let token = authorization.strip_prefix("Bearer ").ok_or(Fail::Invalid)?;
+    // Empty or whitespace-only must not reach introspect (and must not match
+    // a missing/empty deploy token).
+    if token.is_empty() || token.chars().all(char::is_whitespace) || token.len() > 512 {
+        return Err(Fail::Invalid);
+    }
+    Ok(token)
+}
+
 fn single_header<'a>(headers: &'a HeaderMap, name: &'static str) -> Result<&'a str, Fail> {
     let mut values = headers.get_all(name).iter();
     let first = values.next().ok_or(Fail::Invalid)?;
@@ -567,4 +576,23 @@ pub(crate) fn encode_secret_key(seed: &[u8; 32], public: &[u8; 32]) -> String {
     secret[..32].copy_from_slice(seed);
     secret[32..].copy_from_slice(public);
     format!("ed25519:{}", bs58::encode(secret).into_string())
+}
+
+#[cfg(test)]
+mod bearer_tests {
+    use super::*;
+
+    #[test]
+    fn bearer_rejects_missing_empty_and_whitespace() {
+        assert!(parse_bearer("Bearer").is_err());
+        assert!(parse_bearer("Bearer ").is_err());
+        assert!(parse_bearer("Bearer   ").is_err());
+        assert!(parse_bearer("Bearer \t").is_err());
+        assert!(parse_bearer("bearer tok").is_err());
+        assert!(parse_bearer("").is_err());
+        match parse_bearer("Bearer brk_ok") {
+            Ok(ok) => assert_eq!(ok, "brk_ok"),
+            Err(_) => panic!("non-empty bearer must parse"),
+        }
+    }
 }

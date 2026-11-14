@@ -123,9 +123,11 @@ fn accepted_failure_never_reopens_a_formal_order_or_releases_pending_money() {
     drive(&mut h, 32);
     let s = h.snapshot();
     assert_eq!(s.purchase_trades().unwrap().len(), 1);
-    assert!(s.purchase_orders().unwrap()[&p.authorization.binding.root]
-        .closure()
-        .is_some());
+    assert!(
+        s.purchase_orders().unwrap()[&p.authorization.binding.root]
+            .closure()
+            .is_some()
+    );
     assert!(s.accounts()[&1].held().0 > 0);
     assert_eq!(
         s.purchase_trades().unwrap()[&id].settlement,
@@ -186,22 +188,24 @@ fn dynamic_catalog_registration_is_append_only_and_retains_existing_responsibili
         let mut bad = input.clone();
         bad.idempotency_key = "replace-scope".into();
         bad.scope.max_unresolved_requests = 5;
-        assert!(h
-            .execute(
+        assert!(
+            h.execute(
                 bad.idempotency_key.clone(),
                 ExchangeCommand::RegisterSupplyScope(Box::new(bad))
             )
-            .is_err());
+            .is_err()
+        );
         let mut alias = input.clone();
         alias.idempotency_key = "alias-resource".into();
         alias.scope.id = AdmissionScopeId(51);
         alias.scope.members[0].offering.offering_id = 22;
-        assert!(h
-            .execute(
+        assert!(
+            h.execute(
                 alias.idempotency_key.clone(),
                 ExchangeCommand::RegisterSupplyScope(Box::new(alias))
             )
-            .is_err());
+            .is_err()
+        );
         // The newly registered provider publishes a real domain offer and independent
         // qualification after the buyer was already placed; only then may it get G.
         use bitrouter_market::{
@@ -449,9 +453,11 @@ fn formal_buyers_compete_for_one_flat_offer_sale() {
     let r = drive(&mut h, 32);
     assert_eq!(r.reviewed.len(), 2);
     assert_eq!(h.snapshot().purchase_trades().unwrap().len(), 1);
-    assert!(h.snapshot().sells()[&seller.order.reference]
-        .allocation()
-        .is_closed());
+    assert!(
+        h.snapshot().sells()[&seller.order.reference]
+            .allocation()
+            .is_closed()
+    );
     let rounds: std::collections::BTreeSet<_> = h
         .snapshot()
         .frozen_grants()
@@ -537,12 +543,14 @@ fn zero_cap_formal_order_cannot_use_a_quote_for_a_paid_authorization() {
     let mut free = p.clone();
     free.authorization.max_charge = MicroUsd(0);
     place(&mut other, &free);
-    assert!(other
-        .execute(
-            "invalid-paid-quote".into(),
-            ExchangeCommand::PurchaseQuote(Box::new(q))
-        )
-        .is_err());
+    assert!(
+        other
+            .execute(
+                "invalid-paid-quote".into(),
+                ExchangeCommand::PurchaseQuote(Box::new(q))
+            )
+            .is_err()
+    );
     drive(&mut other, 32);
     assert!(other.snapshot().purchase_trades().unwrap().is_empty());
     assert_eq!(other.snapshot().accounts()[&1].held(), MicroUsd(0));
@@ -660,12 +668,13 @@ fn denied_provider_and_missing_completion_never_fall_back_to_another_objective()
     };
     place(&mut h, &p);
     let q = pf::publication(&h, &p.clone(), 1, "denied");
-    assert!(h
-        .execute(
+    assert!(
+        h.execute(
             "denied-quote".into(),
             ExchangeCommand::PurchaseQuote(Box::new(q))
         )
-        .is_err());
+        .is_err()
+    );
     drive(&mut h, 32);
     assert!(h.snapshot().purchase_trades().unwrap().is_empty());
 }

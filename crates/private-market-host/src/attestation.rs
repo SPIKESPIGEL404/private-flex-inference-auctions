@@ -276,3 +276,37 @@ pub struct Mounted {
     pub e2ee_secret: x25519_dalek::StaticSecret,
     pub e2ee_public_hex: String,
 }
+
+/// True when attestation is configured for the controlled local dstack HTTP
+/// mock (`dstack_http`), not a production Unix socket.
+pub fn is_controlled_local_dstack() -> Result<bool> {
+    let Some(path) = env::var_os("PRIVATE_MARKET_ATTESTATION_CONFIG") else {
+        return Ok(false);
+    };
+    let config: Config = live::read(Path::new(&path))?;
+    Ok(matches!(
+        (&config.dstack_socket, &config.dstack_http),
+        (None, Some(_))
+    ))
+}
+
+/// Optional path for seller request capture. Honored only under controlled
+/// local dstack (`dstack_http`). Any other mode refuses startup if the env is set.
+pub fn seller_capture_path() -> Result<Option<PathBuf>> {
+    match env::var("PRIVATE_MARKET_SELLER_CAPTURE") {
+        Err(env::VarError::NotPresent) => Ok(None),
+        Ok(raw) => {
+            ensure!(
+                is_controlled_local_dstack()?,
+                "seller capture is not available"
+            );
+            let path = PathBuf::from(&raw);
+            ensure!(
+                !raw.is_empty() && path.is_absolute(),
+                "seller capture is not available"
+            );
+            Ok(Some(path))
+        }
+        Err(_) => anyhow::bail!("seller capture is not available"),
+    }
+}

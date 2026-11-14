@@ -160,8 +160,12 @@ fn deploy_buyer_tokens() -> Result<[String; 3]> {
         required("PRIVATE_MARKET_BUYER_TOKEN_2")?,
     ];
     for token in &tokens {
+        // Reject empty/whitespace so a blank env can never bind as a usable buyer
+        // and can never match an empty Authorization bearer.
         ensure!(
-            (32..=512).contains(&token.len()) && token.starts_with("brk_"),
+            (32..=512).contains(&token.len())
+                && token.starts_with("brk_")
+                && !token.chars().any(char::is_whitespace),
             "deploy buyer token rejected"
         );
     }
@@ -229,15 +233,17 @@ async fn initialize(
     if let Some(path) = deploy_buyers {
         // Deployment path: buyer signing secrets stay on buyer machines.
         // Public keys are public config; bearer tokens arrive as encrypted secrets.
+        // Validate tokens at init but do not persist them in state.json (P2):
+        // serve reloads PRIVATE_MARKET_BUYER_TOKEN_* on every start.
         let public_keys = deploy_public_keys(path)?;
-        let tokens = deploy_buyer_tokens()?;
-        for index in 0..3 {
+        let _tokens = deploy_buyer_tokens()?;
+        for public_key in &public_keys {
             let id = Uuid::new_v4().to_string();
             buyers.push(Buyer {
                 user: Uuid::new_v4().to_string(),
-                token: tokens[index].clone(),
+                token: String::new(),
                 credential_id: id,
-                public_key: public_keys[index].clone(),
+                public_key: public_key.clone(),
             });
         }
     } else {
@@ -392,7 +398,7 @@ async fn qualify_live(dir: &Path, evidence: &Path) -> Result<()> {
 
 async fn serve(dir: &Path) -> Result<()> {
     let (database, redis_url) = targets()?;
-    let state: State =
+    let mut state: State =
         serde_json::from_slice(&fs::read(dir.join("state.json"))?).context("invalid state file")?;
     ensure!(
         state.database == database
@@ -401,6 +407,17 @@ async fn serve(dir: &Path) -> Result<()> {
             && state.cutover == required("REDIS_BALANCE_CUTOVER_TOKEN")?,
         "state does not match the configured isolated services and ownership"
     );
+    if state.deploy_golden {
+        // Deploy never persists bearer tokens on disk; bind from encrypted env.
+        let tokens = deploy_buyer_tokens()?;
+        ensure!(
+            state.buyers.len() == 3,
+            "deploy state requires three buyers"
+        );
+        for (buyer, token) in state.buyers.iter_mut().zip(tokens) {
+            buyer.token = token;
+        }
+    }
     let catalog_path = dir.join("catalog.json");
     ensure!(
         fs::canonicalize(required("INFERENCE_MARKET_CONFIG_PATH")?)?
@@ -467,10 +484,18 @@ async fn serve(dir: &Path) -> Result<()> {
     let mut servers = vec![(authority, authority_router)];
     if !external_fixture {
         let fixture = tokio::net::TcpListener::bind(state.fixture_addr).await?;
+        // Capture is refused unless attestation uses controlled dstack_http.
+        let capture = attestation::seller_capture_path()?;
         servers.push((
             fixture,
-            fixtures::seller(required("PRIVATE_MARKET_SELLER_KEY")?),
+            fixtures::seller(required("PRIVATE_MARKET_SELLER_KEY")?, capture),
         ));
+    } else {
+        // External fixture mode must not silently ignore a capture request.
+        ensure!(
+            attestation::seller_capture_path()?.is_none(),
+            "seller capture is not available"
+        );
     }
     for (listener, router) in servers {
         let mut shutdown = stopped.clone();
@@ -701,6 +726,79 @@ async fn emit_deploy_catalog(out: &Path) -> Result<()> {
         })
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod deploy_tokens {
+    use super::*;
+    use std::sync::Mutex;
+
+    // Env mutation must be serialized across tests in this process.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn unique(prefix: &str) -> String {
+        format!("{prefix}_{}", Uuid::new_v4().simple())
+    }
+
+    fn set_three(a: Option<&str>, b: Option<&str>, c: Option<&str>) {
+        for (name, value) in [
+            ("PRIVATE_MARKET_BUYER_TOKEN_0", a),
+            ("PRIVATE_MARKET_BUYER_TOKEN_1", b),
+            ("PRIVATE_MARKET_BUYER_TOKEN_2", c),
+        ] {
+            match value {
+                // Test-only env mutation; serialized by ENV_LOCK.
+                Some(v) => unsafe { env::set_var(name, v) },
+                None => unsafe { env::remove_var(name) },
+            }
+        }
+    }
+
+    #[test]
+    fn deploy_buyer_tokens_rejects_unset_empty_and_never_yields_blank() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let a = unique("brk_aaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        let b = unique("brk_bbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        let c = unique("brk_cccccccccccccccccccccccccccc");
+        // Pad to ≥32 chars (brk_ + 28 hex from uuid simple is 4+32=36).
+        assert!(a.len() >= 32 && b.len() >= 32 && c.len() >= 32);
+
+        set_three(None, Some(&b), Some(&c));
+        assert!(deploy_buyer_tokens().is_err(), "unset token0 must fail");
+
+        set_three(Some(""), Some(&b), Some(&c));
+        assert!(deploy_buyer_tokens().is_err(), "empty token0 must fail");
+
+        set_three(Some("   "), Some(&b), Some(&c));
+        assert!(
+            deploy_buyer_tokens().is_err(),
+            "whitespace token0 must fail"
+        );
+
+        set_three(Some("brk_short"), Some(&b), Some(&c));
+        assert!(deploy_buyer_tokens().is_err(), "too-short token must fail");
+
+        set_three(Some(&a), Some(&b), Some(&c));
+        let tokens = deploy_buyer_tokens().expect("valid tokens");
+        assert!(tokens.iter().all(|t| !t.is_empty() && t.len() >= 32));
+        assert_ne!(tokens[0], "");
+        set_three(None, None, None);
+    }
+
+    #[test]
+    fn deploy_state_buyers_persist_empty_token_fields() {
+        // Mirrors init-deploy: validated env tokens are not written to state.
+        let buyer = Buyer {
+            user: "u".into(),
+            credential_id: "c".into(),
+            token: String::new(),
+            public_key: "ed25519:11111111111111111111111111111111".into(),
+        };
+        let encoded = serde_json::to_value(&buyer).unwrap();
+        assert_eq!(encoded["token"], "");
+        let round: Buyer = serde_json::from_value(encoded).unwrap();
+        assert!(round.token.is_empty());
+    }
 }
 
 #[cfg(test)]

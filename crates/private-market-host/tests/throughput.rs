@@ -55,20 +55,24 @@ fn fractional_rps_and_tps_are_compared_without_truncation_or_overflow() {
         completed_requests: 1,
         interval_ms: 2_000,
     };
-    assert!(half_rps
-        .meets(ThroughputRate {
-            output_tokens: 250,
-            completed_requests: 1,
-            interval_ms: 4_000,
-        })
-        .unwrap());
-    assert!(!half_rps
-        .meets(ThroughputRate {
-            output_tokens: 250,
-            completed_requests: 1,
-            interval_ms: 1_000,
-        })
-        .unwrap());
+    assert!(
+        half_rps
+            .meets(ThroughputRate {
+                output_tokens: 250,
+                completed_requests: 1,
+                interval_ms: 4_000,
+            })
+            .unwrap()
+    );
+    assert!(
+        !half_rps
+            .meets(ThroughputRate {
+                output_tokens: 250,
+                completed_requests: 1,
+                interval_ms: 1_000,
+            })
+            .unwrap()
+    );
     let maximum = ThroughputRate {
         output_tokens: u64::MAX,
         completed_requests: u64::MAX,

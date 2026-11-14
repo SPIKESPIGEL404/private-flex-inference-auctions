@@ -8,6 +8,12 @@ use axum::{
     routing::post,
 };
 use std::collections::HashMap;
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+/// Bound for accepted chat/tokenize prompt UTF-8 bytes (catalog unchanged).
+const PROMPT_MAX_BYTES: usize = 512;
 
 pub fn authority(buyers: Vec<Buyer>, internal: String) -> Router {
     let tokens: HashMap<_, _> = buyers.into_iter().map(|b| (b.token, json!({"active":true,"sub":b.user,"credential_id":b.credential_id,"kind":"api_key","scope":"inference:invoke"}))).collect();
@@ -37,7 +43,12 @@ pub fn authority(buyers: Vec<Buyer>, internal: String) -> Router {
     )
 }
 
-pub fn seller(credential: String) -> Router {
+struct SellerState {
+    credential: String,
+    capture: Option<Mutex<PathBuf>>,
+}
+
+pub fn seller(credential: String, capture: Option<PathBuf>) -> Router {
     Router::new()
         .route("/v1/chat/completions", post(chat))
         .route(
@@ -48,8 +59,7 @@ pub fn seller(credential: String) -> Router {
                 if body["tokenizer_ref"] != "controlled/tokenizer-v1"
                     || body["model"] != MODEL
                     || body["protocol"] != "chat_completions"
-                    || body["request"]["messages"][0]["content"]
-                        != "Batch A public synthetic prompt"
+                    || !prompt_ok(&body["request"]["messages"][0]["content"])
                 {
                     return StatusCode::BAD_REQUEST.into_response();
                 }
@@ -57,15 +67,54 @@ pub fn seller(credential: String) -> Router {
                     .into_response()
             }),
         )
-        .with_state(credential)
+        .with_state(Arc::new(SellerState {
+            credential,
+            capture: capture.map(Mutex::new),
+        }))
+}
+
+fn prompt_ok(content: &Value) -> bool {
+    match content.as_str() {
+        Some(s) => (1..=PROMPT_MAX_BYTES).contains(&s.len()),
+        None => false,
+    }
+}
+
+fn capture_request(state: &SellerState, headers: &HeaderMap, body: &Value) {
+    let Some(lock) = state.capture.as_ref() else {
+        return;
+    };
+    let Ok(path) = lock.lock() else {
+        return;
+    };
+    let mut header_map = serde_json::Map::new();
+    for (name, value) in headers.iter() {
+        if let Ok(text) = value.to_str() {
+            header_map.insert(name.as_str().to_owned(), json!(text));
+        }
+    }
+    let line = json!({
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": header_map,
+        "body": body,
+    });
+    let Ok(mut file) = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&*path)
+    else {
+        return;
+    };
+    let _ = writeln!(file, "{line}");
 }
 
 async fn chat(
-    AxumState(credential): AxumState<String>,
+    AxumState(state): AxumState<Arc<SellerState>>,
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> axum::response::Response {
-    let expected = format!("Bearer {credential}");
+    let expected = format!("Bearer {}", state.credential);
     if headers.get("authorization").and_then(|v| v.to_str().ok()) != Some(&expected)
         || headers.keys().any(|name| {
             let lower = name.as_str();
@@ -78,7 +127,7 @@ async fn chat(
         || body["stream"] != true
         || body["max_completion_tokens"] != 64
         || body["stream_options"]["include_usage"] != true
-        || body["messages"][0]["content"] != "Batch A public synthetic prompt"
+        || !prompt_ok(&body["messages"][0]["content"])
         || body.as_object().is_none_or(|o| {
             o.keys()
                 .any(|k| k.starts_with("bitrouter_") || k == "background")
@@ -86,6 +135,7 @@ async fn chat(
     {
         return StatusCode::BAD_REQUEST.into_response();
     }
+    capture_request(&state, &headers, &body);
     let chunk = |choices: Value, usage: Value| {
         format!(
             "data: {}\n\n",

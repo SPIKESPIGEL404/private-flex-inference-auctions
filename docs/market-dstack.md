@@ -159,6 +159,7 @@ check. No DNS provider token is stored in the CVM in this mode.
 | Buyer ed25519 public keys | Public `buyers.public.json` (buyer-generated offline) |
 | Buyer bearer tokens | Phala encrypted secrets (the operator who set them knows them) |
 | Bootstrap binding, cutover token, seller key, Postgres password | Generated inside the VM on first boot |
+| Postgres password mount | Dedicated `pg-password` volume only (Postgres does not mount `market-data`, so it cannot read `seller_key`) |
 
 Signing private keys never enter the deployment.
 
