@@ -4,6 +4,7 @@ mod attestation;
 mod catalog;
 mod fixtures;
 mod live;
+mod procurement;
 mod provision;
 
 use anyhow::{Context, Result, ensure};
@@ -98,6 +99,12 @@ async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Res
     if let Some(input) = &registration {
         input.validate()?;
     }
+    let procurement_config = procurement::configuration(registration.is_some())?;
+    let initial_cash = if procurement_config.is_some() {
+        0
+    } else {
+        CASH
+    };
     let (database, redis) = targets()?;
     let binding = required("BITROUTER_PREVIEW_BOOTSTRAP_BINDING")?;
     let cutover = required("REDIS_BALANCE_CUTOVER_TOKEN")?;
@@ -149,13 +156,18 @@ async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Res
             vec![
                 account.clone().into(),
                 buyer.user.clone().into(),
-                CASH.into(),
+                initial_cash.into(),
             ],
         ))
         .await?;
-        tx.execute(sql("INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,idempotency_key,metadata) VALUES($1,$2,'test_credit',$3,$1,'{\"source\":\"batch-a-isolated-test-credit\"}'::jsonb)", vec![entry.into(), account.into(), CASH.into()])).await?;
+        if initial_cash > 0 {
+            tx.execute(sql("INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,idempotency_key,metadata) VALUES($1,$2,'test_credit',$3,$1,'{\"source\":\"batch-a-isolated-test-credit\"}'::jsonb)", vec![entry.into(), account.into(), initial_cash.into()])).await?;
+        }
     }
     tx.commit().await?;
+    if let Some(config) = &procurement_config {
+        procurement::initialize(&db, config).await?;
+    }
     // Reserve an available local fixture address for the catalog. A collision
     // at serve time fails binding before the market can dispatch.
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
@@ -188,7 +200,7 @@ async fn initialize(dir: &Path, registration: Option<live::Registration>) -> Res
         .await?;
     println!(
         "{}",
-        json!({"initialized":true,"buyers":3,"test_credit_micro_usd":CASH,"attested":false})
+        json!({"initialized":true,"buyers":3,"test_credit_micro_usd":initial_cash,"attested":false})
     );
     Ok(())
 }
@@ -255,6 +267,7 @@ async fn serve(dir: &Path) -> Result<()> {
         "catalog must belong to this state directory"
     );
     let is_live = state.registration_sha256.is_some();
+    let procurement_config = procurement::configuration(is_live)?;
     if is_live {
         ensure!(
             state.catalog_sha256.as_deref()
@@ -306,6 +319,26 @@ async fn serve(dir: &Path) -> Result<()> {
         )
         .with_source_realm(ISSUER.into())?,
     );
+    // Validate pinned payment configuration before starting any market worker.
+    // Closing the database on failure also drains its owned background tasks.
+    let procurement_router = match procurement::mount(
+        Router::new(),
+        db.clone(),
+        redis.clone(),
+        resolver.clone(),
+        cash_users.clone(),
+        procurement_config,
+    )
+    .await
+    {
+        Ok(router) => router,
+        Err(error) => {
+            db.shutdown_handle()
+                .close(tokio::time::Instant::now() + Duration::from_secs(5))
+                .await?;
+            return Err(error);
+        }
+    };
     let (stop, stopped) = tokio::sync::watch::channel(false);
     let mut tasks = tokio::task::JoinSet::new();
     let mut servers = vec![(authority, authority_router)];
@@ -366,6 +399,7 @@ async fn serve(dir: &Path) -> Result<()> {
                 }),
             )
             .nest("/market", native);
+    let router = router.merge(procurement_router);
     let (router, attestation_available) = attestation::mount(router).await?;
     let listener = tokio::net::TcpListener::bind(address).await?;
     let url = format!("http://{}", listener.local_addr()?);

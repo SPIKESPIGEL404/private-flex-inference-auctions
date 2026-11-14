@@ -123,8 +123,9 @@ class CommitProxy(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, upstream):
+    def __init__(self, upstream, financial_marker=b"UPDATE public.market_inference_cash SET receipt="):
         self.upstream = upstream
+        self.financial_marker = financial_marker
         self.armed = threading.Event()
         self.fired = threading.Event()
         super().__init__(("127.0.0.1", 0), ProxyHandler)
@@ -184,7 +185,7 @@ class ProxyHandler(socketserver.BaseRequestHandler):
                     query = statements.get(name, b"")
                 if tag == b"Q":
                     query = payload
-                if b"UPDATE public.market_inference_cash SET receipt=" in query:
+                if self.server.financial_marker in query:
                     financial.set()
                 backend.sendall(tag + length + payload)
         except (OSError, EOFError):

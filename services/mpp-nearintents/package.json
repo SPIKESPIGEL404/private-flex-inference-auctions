@@ -1,0 +1,13 @@
+{
+  "name": "private-market-nearintents",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.19.0" },
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": {
+    "@defuse-protocol/nearintents-mpp-sdk": "0.4.1",
+    "mppx": "0.17.0",
+    "pg": "8.23.1",
+    "viem": "2.57.7"
+  }
+}
