@@ -100,7 +100,7 @@ with Market(binary, initialize=False) as m:
         m.start()
         models = json.loads(call_http(m.url + "/market/v1/models")[1])
         assert [item["id"] for item in models["data"]] == [PUBLIC]
-        token = state["buyers"][0]["token"]
+        token = m.env["PRIVATE_MARKET_BUYER_TOKEN_0"]
         keyset = "sha256:" + sha((m.state / "catalog.json").read_bytes())
         def signed(body, key):
             config = {"signing_key_file": str(offline / "buyer-0.key"), "wire_b64": base64.b64encode(canonical(body)).decode(),

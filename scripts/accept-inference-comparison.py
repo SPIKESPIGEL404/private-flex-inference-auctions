@@ -86,6 +86,7 @@ def main(binary):
             for i in range(3):m.env[f'PRIVATE_MARKET_BUYER_TOKEN_{i}']='brk_'+str(uuid.uuid4())+'.'+uuid.uuid4().hex+uuid.uuid4().hex
             run(binary,'init-live-deploy',str(m.state),str(m.root/'profile.json'),str(offline/'public.json'),env=m.env)
             state=json.loads((m.state/'state.json').read_bytes());ended=time.time_ns()//1000000
+            assert state['buyer_tokens_from_env'] and all(b['token']=='' for b in state['buyers'])
             raw=stream(MODELS[arm] if arm=='A' else profile['native_model']);save(m.root/'calibration.sse',raw)
             save(m.root/'measurement.json',{'registration_sha256':state['registration_sha256'],'request_sha256':profile['request_sha256'],
                 'response_file':str(m.root/'calibration.sse'),'response_sha256':hashlib.sha256(raw).hexdigest(),
@@ -93,7 +94,7 @@ def main(binary):
                 'finish_reason':'stop','prompt_tokens':2,'completion_tokens':3,'total_tokens':5})
             run(binary,'qualify-live',str(m.state),str(m.root/'measurement.json'),env=m.env)
             m.env['PRIVATE_MARKET_SIGNED_PURCHASES']='1';m.start()
-            config['arms'][arm]={'baseURL':m.url+'/market/v1','token':state['buyers'][0]['token'],
+            config['arms'][arm]={'baseURL':m.url+'/market/v1','token':m.env['PRIVATE_MARKET_BUYER_TOKEN_0'],
                 'catalogFile':str(m.state/'catalog.json'),'signingKeyFile':str(offline/'buyer-0.key')}
         save(root/'runner.json',config)
         first=json.loads(run('node',CLI,'run',str(root/'runner.json')))

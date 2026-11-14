@@ -6,7 +6,10 @@ prices (C) as distinct arms. This slice implements the A/B **operator harness**
 and the private NEAR SDK bridge. C, autonomous agent wallet payment, task-quality
 evaluation and the public comparison UI are not enabled by this slice.
 
-Both arms buy through the existing signed Market Chat Completions endpoint. The
+Both arms buy through the existing signed Market Chat Completions endpoint.
+Purchase terms use #14's encryption with keys from the verified workload keyset;
+financial receipts are signature-checked and bound to the original idempotency key
+when available. The
 runner cannot replace its production hardware/catalog/TLS verifier. Each arm uses
 its own reviewed, single-product Market catalog; this avoids introducing a new
 cross-provider routing or billing API. There is no direct provider fallback.
@@ -15,7 +18,9 @@ cross-provider routing or billing API. There is no direct provider fallback.
 
 `services/inference-comparison/core.mjs` freezes the exact NEAR public model
 `Qwen/Qwen3.8-27B`, current decimal token rates, cache-read rates, catalog digest,
-observation time and expiry. A scheduled price transition shortens expiry. Tiered
+observation time and expiry. The full catalog hash uses parsed JSON serialization
+(which can retain unrelated fractional metadata); signed rates remain exact integer
+strings. A scheduled price transition shortens expiry. Tiered
 prices are rejected until implemented. All monetary arithmetic uses integers:
 Market rates are **microUSD per million tokens**. USD/token conversion multiplies
 by 10^12 and must be exactly representable.
@@ -178,8 +183,8 @@ hits are observed only if reported. Buyer first-token/completion times include
 Market and verification delays. Because NEAR buffers until signature verification,
 buyer TTFT cannot be relabeled raw provider TTFT. Tariff estimates, authoritative
 buyer charges, provider invoices and native-chain transfers are separate fields;
-missing evidence remains null. Market heads are retained privately for later
-settlement integration; their availability alone is not proof of a charge.
+missing evidence remains null. Market heads and verified signed receipts are retained privately for later
+settlement integration; availability alone is not proof of a final charge.
 
 ## Remaining integration
 

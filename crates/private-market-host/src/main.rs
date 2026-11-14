@@ -53,6 +53,9 @@ struct State {
     cutover: String,
     fixture_addr: SocketAddr,
     buyers: Vec<Buyer>,
+    /// Offline-key deployments reload bearer secrets for both golden and live catalogs.
+    #[serde(default)]
+    buyer_tokens_from_env: bool,
     #[serde(default)]
     registration_sha256: Option<String>,
     #[serde(default)]
@@ -343,6 +346,7 @@ async fn initialize(
         cutover,
         fixture_addr,
         buyers,
+        buyer_tokens_from_env: deploy_buyers.is_some(),
         registration_sha256,
         catalog_sha256: None,
         deploy_golden,
@@ -425,7 +429,7 @@ async fn serve(dir: &Path) -> Result<()> {
             && state.cutover == required("REDIS_BALANCE_CUTOVER_TOKEN")?,
         "state does not match the configured isolated services and ownership"
     );
-    if state.deploy_golden {
+    if state.deploy_golden || state.buyer_tokens_from_env {
         // Deploy never persists bearer tokens on disk; bind from encrypted env.
         let tokens = deploy_buyer_tokens()?;
         ensure!(

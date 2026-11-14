@@ -71,7 +71,12 @@ export class ComparisonRunner {
       };
     }
     try {
-      check(this.now() < plan.deadlineMs, "comparison_deadline_reached");
+      if (this.now() >= plan.deadlineMs)
+        return {
+          armId,
+          state: "not_dispatched_deadline",
+          paidInvokeAttempted: false,
+        };
       // Atomic claim survives both process restart and a concurrent second runner.
       const record = {
         id,
@@ -79,7 +84,7 @@ export class ComparisonRunner {
         planHash: plan.planHash,
         priceVersion: arm.tariff.priceVersion,
         requestHash: plan.requestHash,
-        wireHash: digest(body),
+        plainMarketRequestHash: digest(body),
         idempotencyKey: "cmp-" + id,
         state: "dispatching",
         startedAtMs: this.now(),
@@ -188,6 +193,14 @@ export class ComparisonRunner {
           try {
             marketHead = await executor.head(record.marketRequestId);
           } catch {}
+        let signedReceipt = null;
+        if (record.marketRequestId && executor.receipt)
+          try {
+            signedReceipt = await executor.receipt(
+              record.marketRequestId,
+              record.idempotencyKey,
+            );
+          } catch {}
         const result = {
           ...record,
           state: "complete",
@@ -203,6 +216,7 @@ export class ComparisonRunner {
           tariffEstimateMicro: usageCostMicro(arm.tariff.rates, usage),
           serviceCostMicro: null,
           marketHead,
+          signedReceipt,
           responseSha256: digest(Buffer.concat(chunks)),
           response: Buffer.concat(chunks).toString("base64"),
         };
@@ -243,6 +257,8 @@ export function publicReport(report) {
         key,
         {
           armId: r.armId,
+          marketHardwareVerified: r.identity?.marketVerified === true,
+          upstreamEvidenceVerified: r.identity?.upstreamVerified ?? null,
           state: r.state,
           paidInvokeAttempted: r.paidInvokeAttempted ?? Boolean(r.startedAtMs),
           marketRequestId: r.marketRequestId ?? null,
@@ -260,6 +276,7 @@ export function publicReport(report) {
           serviceCostMicro: r.serviceCostMicro ?? null,
           providerBillMicro: null,
           settlementEvidenceAvailable: Boolean(r.marketHead),
+          signedFinancialReceiptVerified: Boolean(r.signedReceipt),
           replayBlocked:
             r.replayBlocked ??
             ["pending", "dispatching", "unknown"].includes(r.state),

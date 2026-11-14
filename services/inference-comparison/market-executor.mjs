@@ -3,8 +3,12 @@ import {
   freshNonce,
   readSigningKey,
   signPurchase,
-  jcsBytes,
 } from "../../clients/market-buyer/purchase-sign.mjs";
+import { sealPurchaseRequest } from "../../clients/market-buyer/purchase-e2ee.mjs";
+import {
+  parseSignedReceiptJson,
+  verifySignedReceipt,
+} from "../../clients/market-buyer/receipt-verify.mjs";
 import { check, digest } from "./core.mjs";
 export function validateMarketCatalog(raw, policy, arm, deadlineMs) {
   const policyDigest = "sha256:" + digest(raw);
@@ -102,7 +106,9 @@ export async function marketExecutor(config, { arm, deadlineMs }) {
         acceptedCatalogPolicyDigests: policy.acceptedPolicyDigests,
       },
       async dispatch({ body, idempotencyKey, signal }) {
-        const wire = jcsBytes(body),
+        const sealed = sealPurchaseRequest(body, connection.identity.keyset);
+        check(sealed.body.length <= 128 * 1024, "sealed_request_too_large");
+        const wire = sealed.body,
           signed = signPurchase({
             seed: key.seed,
             publicKey: key.publicKey,
@@ -120,6 +126,7 @@ export async function marketExecutor(config, { arm, deadlineMs }) {
             authorization: "Bearer " + token,
             "content-type": "application/json",
             "idempotency-key": idempotencyKey,
+            ...sealed.headers,
             ...signed.headers,
           },
           body: wire,
@@ -137,6 +144,39 @@ export async function marketExecutor(config, { arm, deadlineMs }) {
         );
         check(r.ok, "market_settlement_unavailable");
         return r.json();
+      },
+      async receipt(id, idempotencyKey) {
+        check(/^[a-zA-Z0-9_-]{1,128}$/.test(id), "invalid_market_request_id");
+        const response = await connection.fetch(
+          connection.baseURL + "/receipts/" + id + "/signed",
+          {
+            redirect: "error",
+            headers: { authorization: "Bearer " + token },
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        check(response.ok, "signed_receipt_unavailable");
+        let size = 0;
+        const parts = [];
+        for await (const part of response.body) {
+          size += part.length;
+          check(size <= 256 * 1024, "signed_receipt_too_large");
+          parts.push(part);
+        }
+        const document = parseSignedReceiptJson(
+          Buffer.concat(parts).toString("utf8"),
+        );
+        verifySignedReceipt({
+          document,
+          requestId: id,
+          workloadKeysetDigest: connection.identity.workloadKeysetDigest,
+          verifiedKeyset: connection.identity.keyset,
+        });
+        check(
+          document.idempotency_key === idempotencyKey,
+          "receipt_original_operation_mismatch",
+        );
+        return document;
       },
       close: () => connection.close(),
     };

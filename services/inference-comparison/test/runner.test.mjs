@@ -54,6 +54,7 @@ test("same task and frozen prices use two fixed routes without exposing native o
     const report = publicReport(r);
     assert.equal(report.arms.A.serviceCostMicro, null);
     assert.equal(report.taskSuccess, null);
+    assert.equal(report.arms.A.marketHardwareVerified, true);
     assert.equal(report.arms.A.providerBillMicro, null);
     assert.ok(!JSON.stringify(report).includes('response":"'));
     await runner.run(p, p.planHash);
