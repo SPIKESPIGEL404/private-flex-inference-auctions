@@ -33,11 +33,15 @@ TTL = 604_800_000
 STOP = threading.Event()
 
 
+class CommandFailed(RuntimeError):
+    pass
+
+
 def command(*args, env=None):
     result = subprocess.run(args, env=env, capture_output=True, text=True)
     if result.returncode:
         # Command arguments can contain private fixture tokens or SQL values.
-        raise RuntimeError('preview command failed: ' + Path(args[0]).name)
+        raise CommandFailed('preview command failed: ' + Path(args[0]).name)
     return result.stdout
 
 
@@ -62,7 +66,7 @@ def wait(check, seconds=90):
         try:
             if check():
                 return
-        except (OSError, ValueError, subprocess.SubprocessError):
+        except (OSError, ValueError, CommandFailed, subprocess.SubprocessError, http.client.HTTPException):
             pass
         time.sleep(.2)
     raise RuntimeError('preview readiness timed out')
@@ -72,6 +76,15 @@ class Edge(ThreadingHTTPServer):
     daemon_threads = True
     request_queue_size = 32
     slots = threading.BoundedSemaphore(16)
+
+    def get_request(self):
+        request, address = super().get_request()
+        request.settimeout(getattr(self, 'input_timeout', 15))
+        return request, address
+
+    def handle_error(self, *_):
+        # Public malformed/abandoned requests must not produce stack-trace logs.
+        pass
 
     def process_request(self, request, address):
         if not self.slots.acquire(False):
@@ -95,6 +108,28 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
+    def abort_input(self):
+        self.close_connection = True
+        try:
+            self.connection.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+
+    def handle_one_request(self):
+        # Socket inactivity alone does not bound slow clients that drip bytes.
+        self.header_deadline = threading.Timer(getattr(self.server, 'input_timeout', 15), self.abort_input)
+        self.header_deadline.start()
+        try:
+            super().handle_one_request()
+        finally:
+            self.header_deadline.cancel()
+
+    def parse_request(self):
+        try:
+            return super().parse_request()
+        finally:
+            self.header_deadline.cancel()
+
     def forward(self):
         self.connection.settimeout(15)
         if not self.path.startswith('/') or self.path.startswith('//'):
@@ -117,8 +152,16 @@ class Handler(BaseHTTPRequestHandler):
         headers = {k: v for k, v in self.headers.items() if k.lower() not in
                    ['host', 'connection', 'content-length', 'transfer-encoding']
                    and not k.lower().startswith(('forwarded', 'x-forwarded'))}
-        body = self.rfile.read(int(length)) if int(length) else None
-        connection = http.client.HTTPConnection('127.0.0.1', 28081, timeout=180)
+        body_deadline = threading.Timer(getattr(self.server, 'input_timeout', 15), self.abort_input)
+        body_deadline.start()
+        try:
+            body = self.rfile.read(int(length)) if int(length) else None
+        finally:
+            body_deadline.cancel()
+        if body is not None and len(body) != int(length):
+            self.close_connection = True
+            return
+        connection = http.client.HTTPConnection('127.0.0.1', getattr(self.server, 'upstream_port', 28081), timeout=180)
         try:
             connection.request(self.command, self.path, body=body, headers=headers)
             response = connection.getresponse()
@@ -196,6 +239,7 @@ def main():
                'BITROUTER_PREVIEW_BOOTSTRAP_BINDING': config['binding'], 'REDIS_BALANCE_CUTOVER_TOKEN': config['cutover'],
                'PRIVATE_MARKET_SELLER_KEY': config['seller'], 'PRIVATE_MARKET_LISTEN': '127.0.0.1:28084',
                'PRIVATE_MARKET_NEAR_DIRECT_P1': 'controlled', 'PRIVATE_MARKET_AGENT_P2': 'controlled',
+               'PRIVATE_MARKET_EXTERNAL_FIXTURE': '1',
                'PRIVATE_MARKET_P2_PREVIEW_TTL_MS': str(TTL), 'INFERENCE_MARKET_CONFIG_PATH': str(state / 'catalog.json'),
                'DATABASE_MIN_CONNECTIONS': '1', 'DATABASE_MAX_CONNECTIONS': '12'}
         initial = not (state / 'state.json').exists()

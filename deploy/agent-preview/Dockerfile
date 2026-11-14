@@ -5,13 +5,16 @@ ARG BUILDER_IMAGE=rust@sha256:7c4ae649a84014c467d79319bbf17ce2632ae8b8be123ac2fb
 ARG NODE_IMAGE=node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 FROM ${BUILDER_IMAGE} AS rustbuild
 WORKDIR /src
+# Cached builders can carry an old /vendor source replacement. This image uses
+# the current lockfile and staged git cache; crates.io remains available.
+RUN rm -f /src/.cargo/config.toml /src/.cargo/config /usr/local/cargo/config.toml /usr/local/cargo/config
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates git && rm -rf /var/lib/apt/lists/*
 COPY deploy/market/.build-cargo/git /usr/local/cargo/git
 COPY .market-p2-upstream ./.market-p2-upstream
 COPY crates/private-market-p2 ./crates/private-market-p2
 COPY crates/private-market-host/src ./crates/private-market-host/src
 COPY crates/private-market-host/upstream ./crates/private-market-host/upstream
-ENV CARGO_NET_GIT_FETCH_WITH_CLI=true CARGO_BUILD_JOBS=2
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true CARGO_BUILD_JOBS=2 CARGO_NET_OFFLINE=false
 RUN cargo build --locked --release --manifest-path crates/private-market-p2/Cargo.toml --bin private-market-host-p2 --target-dir /src/target
 
 FROM ${NODE_IMAGE} AS assets
