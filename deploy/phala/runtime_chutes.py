@@ -26,6 +26,16 @@ from tokenizer import Server
 STOP = threading.Event()
 
 
+def database_name(market_id):
+    # Market identifiers need not obey PostgreSQL's or the host's database
+    # naming contract. Keep new databases isolated and within the 63-byte limit.
+    return "private_market_" + sha(market_id.encode())[:32]
+
+
+def validate_database_name(name):
+    assert re.fullmatch(r"private_market_[A-Za-z0-9_]+", name) and len(name.encode()) <= 63, "database name violates the host contract; preserve and investigate"
+
+
 def port():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0)); return sock.getsockname()[1]
@@ -93,7 +103,8 @@ def main():
         assert plan["upstream_budget_micro_usd"] == 18446744073709551615
         assert plan["maximum_upstream_calls"] == 4 and plan["finite_offers"] == 3
         settings = {"pg_port": port(), "redis_port": port(), "tokenizer_port": port(), "bridge_port": port(),
-            "database": plan["market_id"], "binding": uuid.uuid4().hex, "cutover": uuid.uuid4().hex}
+            "database": database_name(plan["market_id"]), "binding": uuid.uuid4().hex, "cutover": uuid.uuid4().hex}
+        validate_database_name(settings["database"])
         save(root / "runtime.json", settings)
     else:
         assert (state / "catalog.json").exists() or args.resume_calibration_attempt, "first run needs explicit qualification approval"
@@ -101,6 +112,7 @@ def main():
             assert not (state / "catalog.json").exists(), "never recalibrate a qualified ledger"
             assert (root / "calibration-intent.json").exists(), "no original calibration to resume"
         settings = json.loads((root / "runtime.json").read_bytes())
+        validate_database_name(settings["database"])
     user = os.environ.get("USER", "market")
     env = {k: v for k, v in os.environ.items() if not k.startswith(("RAILWAY_", "BITROUTER_", "DATABASE_", "REDIS_", "PRIVATE_MARKET_", "INFERENCE_MARKET_"))}
     env.update(DATABASE_URL=f"postgres://{user}@127.0.0.1:{settings['pg_port']}/{settings['database']}",
