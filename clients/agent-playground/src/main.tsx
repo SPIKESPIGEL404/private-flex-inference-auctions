@@ -1,5 +1,15 @@
 import {createRoot} from 'react-dom/client';
-import App from './App';
-import '@wterm/dom/css';
-import './style.css';
-createRoot(document.getElementById('root')!).render(<App/>);
+
+async function mount() {
+  const proposal = ['/proposal', '/proposal/'].includes(location.pathname);
+  if (proposal) {
+    document.documentElement.lang = 'en';
+    document.title = 'Model fidelity in autonomous procurement · Private Market';
+    const {default: Proposal} = await import('../../proposal/Proposal');
+    createRoot(document.getElementById('root')!).render(<Proposal />);
+  } else {
+    const [{default: App}] = await Promise.all([import('./App'), import('@wterm/dom/css'), import('./style.css')]);
+    createRoot(document.getElementById('root')!).render(<App />);
+  }
+}
+void mount();
