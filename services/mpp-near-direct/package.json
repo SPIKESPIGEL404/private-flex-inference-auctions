@@ -15,6 +15,7 @@
     "just-bash": "3.6.0",
     "libfx": "0.0.16",
     "mppx": "0.17.0",
+    "near-api-js": "7.5.3",
     "pg": "8.23.1"
   },
   "devDependencies": {
