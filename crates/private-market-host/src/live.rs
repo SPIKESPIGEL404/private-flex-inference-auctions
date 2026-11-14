@@ -34,6 +34,10 @@ pub struct Registration {
     pub project_pays_upstream_costs: bool,
     pub origin: String,
     pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_bridge_url: Option<String>,
     pub model_revision_ref: String,
     pub tokenizer_ref: String,
     pub tokenizer_url: String,
@@ -102,7 +106,8 @@ fn verify_stream(registration: &Registration, measurement: &Measurement, raw: &[
         let frame: Value =
             serde_json::from_str(line).context("invalid native calibration frame")?;
         ensure!(
-            frame["model"] == registration.model && frame["object"] == "chat.completion.chunk",
+            frame["model"] == registration.native_model()
+                && frame["object"] == "chat.completion.chunk",
             "calibration model/protocol changed"
         );
         if let Some(value) = frame.get("usage").filter(|value| !value.is_null()) {
@@ -145,6 +150,14 @@ fn verify_stream(registration: &Registration, measurement: &Measurement, raw: &[
 }
 
 impl Registration {
+    pub fn native_model(&self) -> &str {
+        self.native_model.as_deref().unwrap_or(&self.model)
+    }
+
+    fn route_origin(&self) -> &str {
+        self.verified_bridge_url.as_deref().unwrap_or(&self.origin)
+    }
+
     pub fn validate(&self) -> Result<()> {
         let origin = url::Url::parse(&self.origin).context("invalid registered HTTPS origin")?;
         let local = url::Url::parse(&self.tokenizer_url).context("invalid local tokenizer URL")?;
@@ -163,6 +176,31 @@ impl Registration {
                 && origin.fragment().is_none(),
             "registered native seller must use HTTPS without credentials or URL options"
         );
+        if let Some(bridge) = &self.verified_bridge_url {
+            let url = url::Url::parse(bridge).context("invalid verified bridge URL")?;
+            ensure!(
+                ((self.model == "qwen3.8-27b"
+                    && self.native_model.as_deref() == Some("Qwen/Qwen3.8-27B-FP8")
+                    && self.origin == "https://kelsen-qwen-qwen3-8-27b-fp8.chutes.ai")
+                    || (self.model == "Qwen/Qwen3.8-27B"
+                        && self.native_model.is_none()
+                        && self.origin == "https://cloud-api.near.ai"))
+                    && url.scheme() == "http"
+                    && url.host_str() == Some("127.0.0.1")
+                    && url.port().is_some_and(|port| port > 0)
+                    && url.path() == "/"
+                    && url.username().is_empty()
+                    && url.password().is_none()
+                    && url.query().is_none()
+                    && url.fragment().is_none(),
+                "verified supply requires its exact pinned model/origin and an IPv4 loopback bridge"
+            );
+        } else {
+            ensure!(
+                self.native_model.is_none(),
+                "native model mapping requires the verified Chutes bridge"
+            );
+        }
         ensure!(
             local.scheme() == "http"
                 && local.host_str() == Some("127.0.0.1")
@@ -392,7 +430,7 @@ pub async fn qualify(
             && measurement.ended_at_ms <= ms()
             && ms() - measurement.ended_at_ms <= 300_000
             && measurement.ended_at_ms - measurement.started_at_ms <= 90_000
-            && measurement.response_model == registration.model
+            && measurement.response_model == registration.native_model()
             && matches!(measurement.finish_reason.as_str(), "stop" | "length")
             && measurement.prompt_tokens == registration.token_ids.len() as u64
             && measurement.completion_tokens > 0
@@ -550,7 +588,7 @@ pub async fn qualify(
         });
     }
     let routes: Vec<_> = (11..=13).map(|id| json!({"backend":registration.backend(),"incarnation":registration.model_revision_ref,"offering_id":id,
-        "native_model":registration.model,"base_url":registration.origin,"credential_env":"PRIVATE_MARKET_SELLER_KEY"})).collect();
+        "native_model":registration.native_model(),"base_url":registration.route_origin(),"credential_env":"PRIVATE_MARKET_SELLER_KEY"})).collect();
     let order_time = registration
         .bootstrap(UnixMillis(ms()))
         .purchase_policy
@@ -560,4 +598,46 @@ pub async fn qualify(
         json!({"market":registration.config(),"strategy":{"wait_budget_ms":15000,"max_attempts":1,"default_output_tokens":registration.max_output_tokens,"order_time":order_time},
         "products":[{"protocol":"chat_completions","option":option,"candidates":candidates,"tokenizer_url":registration.tokenizer_url,"tokenizer_ref":registration.tokenizer_ref,"routes":routes}]}),
     )
+}
+
+#[cfg(test)]
+mod comparison_tests {
+    use super::*;
+
+    fn near_registration() -> Registration {
+        serde_json::from_value(json!({
+            "version":1,"market_id":"near-comparison","seller_principal":"project",
+            "project_authorizes_on_demand_terms":true,"project_pays_upstream_costs":true,
+            "origin":"https://cloud-api.near.ai","model":"Qwen/Qwen3.8-27B",
+            "verified_bridge_url":"http://127.0.0.1:8092",
+            "model_revision_ref":"near-catalog/revision-unverified","tokenizer_ref":"reviewed-tokenizer",
+            "tokenizer_url":"http://127.0.0.1:8093/tokenize",
+            "tokenizer_files_sha256":{"tokenizer.json":"a".repeat(64),"tokenizer_config.json":"b".repeat(64)},
+            "token_ids":[42,43],"max_output_tokens":64,"context_window_tokens":32768,
+            "rates":{"input":40000,"cache_input":18000,"output":1350000},
+            "request_sha256":"c".repeat(64),"offer_valid_until_ms":ms()+60000,
+            "upstream_budget_micro_usd":10000,"maximum_upstream_calls":4
+        })).unwrap()
+    }
+
+    #[test]
+    fn near_bridge_requires_exact_model_origin_and_loopback_binding() {
+        assert!(near_registration().validate().is_ok());
+        for url in [
+            "http://localhost:8092",
+            "http://example.com:8092",
+            "http://127.0.0.1:8092/bypass",
+            "http://user@127.0.0.1:8092",
+        ] {
+            let mut registration = near_registration();
+            registration.verified_bridge_url = Some(url.into());
+            assert!(registration.validate().is_err());
+        }
+        let mut registration = near_registration();
+        registration.origin = "https://another-provider.invalid".into();
+        assert!(registration.validate().is_err());
+        let mut registration = near_registration();
+        registration.native_model = Some("Qwen/Qwen3.8-27B-FP8".into());
+        assert!(registration.validate().is_err());
+    }
 }

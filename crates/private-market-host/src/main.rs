@@ -9,6 +9,7 @@ mod live;
 mod procurement;
 mod provision;
 mod purchase_auth;
+mod single_model;
 
 use anyhow::{Context, Result, ensure};
 use axum::{Router, routing::get};
@@ -52,6 +53,9 @@ struct State {
     cutover: String,
     fixture_addr: SocketAddr,
     buyers: Vec<Buyer>,
+    /// Offline-key deployments reload bearer secrets for both golden and live catalogs.
+    #[serde(default)]
+    buyer_tokens_from_env: bool,
     #[serde(default)]
     registration_sha256: Option<String>,
     #[serde(default)]
@@ -294,7 +298,7 @@ async fn initialize(
     if let Some(config) = &procurement_config {
         procurement::initialize(&db, config).await?;
     }
-    let deploy = deploy_buyers.is_some();
+    let deploy = deploy_buyers.is_some() && registration.is_none();
     let mut registration_sha256 = None;
     let (fixture_addr, deploy_golden) = if deploy {
         // Measured deploy fixture: fixed loopback port (not operator env).
@@ -342,6 +346,7 @@ async fn initialize(
         cutover,
         fixture_addr,
         buyers,
+        buyer_tokens_from_env: deploy_buyers.is_some(),
         registration_sha256,
         catalog_sha256: None,
         deploy_golden,
@@ -424,7 +429,7 @@ async fn serve(dir: &Path) -> Result<()> {
             && state.cutover == required("REDIS_BALANCE_CUTOVER_TOKEN")?,
         "state does not match the configured isolated services and ownership"
     );
-    if state.deploy_golden {
+    if state.deploy_golden || state.buyer_tokens_from_env {
         // Deploy never persists bearer tokens on disk; bind from encrypted env.
         let tokens = deploy_buyer_tokens()?;
         ensure!(
@@ -446,6 +451,12 @@ async fn serve(dir: &Path) -> Result<()> {
     }
     // Hash before any Market load. Launch reads the same path on its own.
     let policy_digest = catalog_policy_digest(&catalog_path)?;
+    let single_model_enabled = single_model::configured(&catalog_path)?;
+    let receipt_catalog: Value = live::read(&catalog_path)?;
+    let receipt_market_id = receipt_catalog["market"]["market_id"]
+        .as_str()
+        .context("catalog market identity missing")?
+        .to_owned();
     let is_live = state.registration_sha256.is_some();
     let direct_p1 = direct_p1_enabled(is_live)?;
     let procurement_config = procurement::configuration(is_live)?;
@@ -581,7 +592,7 @@ async fn serve(dir: &Path) -> Result<()> {
         "catalog identity changed during startup"
     );
     // The catalog qualifies Chat only; other native protocols have no product.
-    let native = market.router();
+    let native = single_model::mount(market.router(), single_model_enabled);
     let mode = if is_live {
         "live-provider"
     } else {
@@ -614,7 +625,7 @@ async fn serve(dir: &Path) -> Result<()> {
                 router,
                 db.clone(),
                 resolver.clone(),
-                catalog::EXCHANGE,
+                receipt_market_id,
                 ISSUER,
                 mounted.keyset_digest.clone(),
                 mounted.receipt_key.clone(),
@@ -691,7 +702,7 @@ async fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
     ensure!(
         args.len() >= 3,
-        "usage: private-market-host <init|init-deploy|serve|emit-deploy-catalog|init-live|qualify-live|validate-live> <state-or-profile> [input]"
+        "usage: private-market-host <init|init-deploy|serve|emit-deploy-catalog|init-live|init-live-deploy|qualify-live|validate-live> <state-or-profile> [input]"
     );
     match (args[1].as_str(), args.len()) {
         ("quote-native-p1" | "quote-native-p2", 3) => {
@@ -768,6 +779,14 @@ async fn main() -> Result<()> {
                 Path::new(&args[2]),
                 Some(live::read(Path::new(&args[3]))?),
                 None,
+            )
+            .await
+        }
+        ("init-live-deploy", 5) => {
+            initialize(
+                Path::new(&args[2]),
+                Some(live::read(Path::new(&args[3]))?),
+                Some(Path::new(&args[4])),
             )
             .await
         }

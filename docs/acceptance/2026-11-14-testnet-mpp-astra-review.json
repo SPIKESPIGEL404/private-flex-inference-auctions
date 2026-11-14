@@ -1,0 +1,66 @@
+{
+  "verdict": "SCOPED_INITIAL_TESTNET_NATIVE_TRANSFERS_AND_MPP_BINDINGS_ACCEPTED",
+  "reviewer": "GPT-6-astra independent read-only",
+  "source": "local-testnet-evidence/mpp-testnet-initial-evidence.json",
+  "checkedAtUtc": "2026-11-14T22:41:20.038Z",
+  "rpc": "https://rpc.testnet.near.org",
+  "persistentCacheUsed": false,
+  "rows": [
+    {
+      "role": "agent-1",
+      "paymentTx": "5qqEHsfYDsgBTi7uD99cqgA1yXZ1xuDX5LdMFXyQMPLD",
+      "refundTx": "5HPeebMvhHwPpMu3eYbjxtBZuLsptGKHtWySwa7cXRZZ",
+      "paymentYocto": "1000000000000000000000",
+      "refundYocto": "600000000000000000000",
+      "paymentGasYocto": "834989537500000000000",
+      "refundGasYocto": "44636512500000000000",
+      "signatureValid": true,
+      "bodyHashBound": true,
+      "final": true,
+      "completeReceiptGraphs": true
+    },
+    {
+      "role": "agent-2",
+      "paymentTx": "95Qd5RxTdHkx56ffbEruoRiuXf5KBWWViSKuDqBF3N2u",
+      "refundTx": "2rFuTCX3ZAEy9nXxvTwU6vYRH9LJLZn1QzbEiMwswyBD",
+      "paymentYocto": "1000000000000000000000",
+      "refundYocto": "600000000000000000000",
+      "paymentGasYocto": "834989537500000000000",
+      "refundGasYocto": "44636512500000000000",
+      "signatureValid": true,
+      "bodyHashBound": true,
+      "final": true,
+      "completeReceiptGraphs": true
+    }
+  ],
+  "limitations": [
+    "MPP signature and claimed challenge/body binding verified; original HTTP/402 occurrence and challenge server provenance remain primary evidence.",
+    "HTTP cached response replay differs from repeated method verification; primary repeated verification can reuse immutable FINAL RPC cache.",
+    "No real inference, Market credit-ledger integration, browser signer or mainnet settlement acceptance.",
+    "Cleanup case is independently scoped; this initial report does not accept it.",
+    "Reviewer read only the explicitly authorized evidence file and did not access keys or broadcast."
+  ],
+  "independentComponentChecks": {
+    "nativeSenderTests": "8/8 including separate Node process disk recovery; earlier independent run",
+    "settlementAndRpcTests": "6/6 independently executed",
+    "additionalMockRpcChecks": {
+      "finalCached": true,
+      "nonFinalNotCached": true,
+      "sendAttempts": 1,
+      "maximumReadAttempts": 3
+    },
+    "cleanupMutualExclusion": "delivered/abandoned CAS and one immutable per-order refund plan; source and local counterexamples passed",
+    "abandonedAdmission": "projectionReady rejects abandoned or cleaned orders"
+  },
+  "publicRpcAvailabilityNote": "Archival Fastnear requests transiently failed; final complete independent verification used rpc.testnet.near.org with at most three read attempts per call and no persistent cache.",
+  "reviewedSourceFileSha256": {
+    "services/mpp-near-direct/p3/native-sender.mjs": "d7a589e172c8949b4a9ee8f14a71a1d40f9803783844035b2bf1a148e286671c",
+    "services/mpp-near-direct/p3/native-verification.mjs": "7db813c45b74fc39c39663302bc1309b829b272fe40289a91a5d2589f194ee91",
+    "services/mpp-near-direct/p3/rpc-provider.mjs": "8806c91b72ad22bb5a83ad351ddffb4c1123199b01cf425ce09517794bf8deb8",
+    "services/mpp-near-direct/p3/testnet-settlement.mjs": "9d3b004f8b56dfc034826bcb6dd7b8e729db8ae3f9bf7726b7842c325db92498",
+    "services/mpp-near-direct/p3/testnet-mpp.mjs": "e385d16cc7469218c609eb9d160cec01f9bf974f164bb927c01fee9487d60a73",
+    "services/mpp-near-direct/p3/testnet-reconcile.mjs": "81fabd11ba237be547a550dd889c3fa67142ade69169bdf1297573676af669c2",
+    "services/mpp-near-direct/method.mjs": "8ff37900a2cfb6aeb19b6c841f6a6be091681f0e5cdf61bea2e57e72116d1348"
+  },
+  "evidenceSha256": "fd976884b3875069c6dc62e7822b514c9205b5624b2eb4c75ebc71a341ef2c5c"
+}

@@ -176,3 +176,10 @@ dialog textarea { resize: vertical; min-height: 108px; }
 .main-navigation a:not(.source-link) { display: block; }
 @media (max-width: 600px) { .main-navigation { gap: 14px; } }
 @media (max-width: 420px) { .main-navigation { padding-right: 0; } }
+.supply-availability { flex: none; padding: 8px 16px; border-bottom: 1px solid var(--border); background: #080808; color: #aaa; font-size: 10px; line-height: 1.8; }
+.supply-availability summary { cursor: pointer; }
+.supply-availability summary:focus-visible { outline: 1px solid #aaa; outline-offset: 3px; }
+.supply-availability-name { color: #ddd; margin-right: 18px; }
+.supply-availability p { max-width: 820px; margin: 7px 0 2px; color: #999; }
+@media (max-width: 700px) { .supply-availability { padding: 8px 12px; }.supply-availability-name { display: block; margin: 0; } }
+.supply-readiness { margin-right: 18px; color: #ccc; }

@@ -81,7 +81,7 @@ export async function verifyPayment({ credential, expectedChallenge, rpc }) {
   return verifyNativeTransfer({ rpc, p, r, challengeId: c.id });
 }
 
-async function verifyNativeTransfer({ rpc, p, r, challengeId }) {
+export async function verifyNativeTransfer({ rpc, p, r, challengeId }) {
   const tx = await rpc.transaction(p.txHash, r.payer);
   requireThat(tx.final_execution_status === 'FINAL', 'payment_pending_unknown');
   requireThat(tx.transaction?.hash === p.txHash && tx.transaction.signer_id === r.payer

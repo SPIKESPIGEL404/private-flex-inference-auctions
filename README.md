@@ -36,6 +36,10 @@ These are proposed product requirements. Current hardware, transport and control
 
 ## Current paths: NEAR API and a GPU TEE comparison
 
+The [fixed-supply comparison harness](docs/inference-comparison.md) freezes A/B plans and preserves original request evidence. This implementation slice is operator-run; dynamic pricing and agent-paid live inference remain separate acceptance work.
+
+B now includes [signed settlement and expiring supply readiness](docs/acceptance/2026-11-14-baseline-b-settlement.md). Native wallet payments and provider GPU-time invoices retain their separate evidence boundaries.
+
 NEAR currently provides its **existing inference API** for this collaboration. Separately, we have deployed a model in a GPU TEE as a controlled comparison. The two paths help expose procurement and verification requirements; NEAR-native market allocation belongs to the next collaboration stage.
 
 | Path | What it demonstrates | Evidence boundary |
@@ -303,3 +307,12 @@ The new Market does not read the scheduler journal, spool or execution plans.
 The [earlier security design](docs/designs/2026-11-03-security-design.md) is preserved as historical context. Only the controls listed under "Verify the Market before buying" are current claims.
 
 [MIT](LICENSE).
+
+## Single-model Chutes gateway
+
+[The Chutes integration](docs/chutes-gateway.md) exposes only `qwen3.8-27b` through
+a local TDX/GPU verifier and encrypted provider transport. The main-based port
+retains signed purchases and catalog-policy pinning, and uses offline buyer
+verifying keys in deployment. Its controlled acceptance and the separately
+scoped historical live evidence are documented in the run guide. Supply and
+funding remain the finite test-credit prototype.

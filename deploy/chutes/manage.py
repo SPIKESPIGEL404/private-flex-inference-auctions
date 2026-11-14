@@ -24,13 +24,20 @@ def call(key, path, body=None, method="GET"):
         return error.code, json.loads(error.read())
 
 
-def prepare():
-    source = Path(__file__).with_name("chute.py")
+def prepare(definition="scheduler"):
+    assert definition in ("scheduler", "market")
+    source = Path(__file__).with_name("chute.py" if definition == "scheduler" else "market_chute.py")
     app = runpy.run_path(str(source))["chute"].chute
     assert app.uid == CHUTE_ID and app.max_instances == 1 and app.tee
     assert app.node_selector.include == ["pro_6000"]
     assert app.standard_template == "vllm" and app.lock_modules is True
-    assert {c.public_api_path for c in app.cords} == {"/scheduler/profile", "/scheduler/tokenize", "/scheduler/completions", "/scheduler/state", "/scheduler/seal", "/metrics"}
+    paths = {c.public_api_path for c in app.cords}
+    if definition == "scheduler":
+        assert paths == {"/scheduler/profile", "/scheduler/tokenize", "/scheduler/completions", "/scheduler/state", "/scheduler/seal", "/metrics"}
+    else:
+        assert "/v1/chat/completions" in paths and not any(p.startswith("/scheduler/") for p in paths)
+        metrics = [c for c in app.cords if c.public_api_path == "/metrics"]
+        assert len(metrics) == 1 and metrics[0]._public_api_method == "GET"
     body = {
         "name": app.name, "tagline": app.tagline, "readme": app.readme, "logo_id": None,
         "image": app.image, "public": False, "standard_template": app.standard_template,
@@ -51,6 +58,7 @@ def main():
     parser.add_argument("--key-file", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--definition", choices=("scheduler", "market"), default="scheduler")
     args = parser.parse_args()
     key = args.key_file.expanduser().read_text().strip()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -58,9 +66,9 @@ def main():
     if status != 200 or current.get("public") or current.get("user", {}).get("username", "kelsen") != "kelsen":
         raise SystemExit("Existing private replica verification failed")
     status, prices = call(key, "/pricing")
-    if status != 200 or prices["gpu_price_estimates"]["pro_6000"]["usd"]["hour"] > 2.25:
+    if status != 200 or (args.definition == "scheduler" and prices["gpu_price_estimates"]["pro_6000"]["usd"]["hour"] > 2.25):
         raise SystemExit("Current GPU estimate exceeds the existing $2.25/hour ceiling")
-    body = prepare()
+    body = prepare(args.definition)
     (args.output / "request.json").write_text(json.dumps(body, indent=2) + "\n")
     before = {k: current.get(k) for k in ("chute_id", "version", "image", "revision", "max_instances", "node_selector", "cords", "instances")}
     (args.output / "before.json").write_text(json.dumps(before, indent=2) + "\n")
