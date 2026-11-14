@@ -147,7 +147,7 @@ try {
         qualificationStillRequired: true,
       }),
     );
-  } else if (command === "run" && args.length === 4) {
+  } else if (["run", "recover"].includes(command) && args.length === 4) {
     const [configFile, planFile, reviewedHash, outputFile] = args,
       config = await privateConfig(configFile),
       plan = await read(planFile);
@@ -156,7 +156,7 @@ try {
     let runner;
     try {
       runner = new ComparisonRunner(config);
-      const report = publicReport(await runner.run(plan, reviewedHash));
+      const report = publicReport(await runner[command](plan, reviewedHash));
       await output.writeFile(JSON.stringify(report, null, 2) + "\n");
       console.log(
         JSON.stringify({

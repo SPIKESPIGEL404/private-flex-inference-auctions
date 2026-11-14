@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "runId": "auction-8ad1b412bbd1",
+  "status": "prepared-for-review",
+  "network": "testnet",
+  "rpcUrl": "https://rpc.testnet.near.org",
+  "actors": [
+    {
+      "role": "owner",
+      "accountId": "auction-8ad1b412bbd1.testnet",
+      "publicKey": "ed25519:Gqos1s3aM5hKy77Roazjevvui8nRApu8YKQwr8xoZW1p"
+    },
+    {
+      "role": "agent-a",
+      "accountId": "50e13522163a3aeffeb1f6757b136ffbd08a00da0f6a19b6779711cf5d7c20be",
+      "publicKey": "ed25519:6SinrK8hsjRzf7Aez6cHNugthJmUaWM4nsVKLRcZ6dVo"
+    },
+    {
+      "role": "agent-b",
+      "accountId": "7f46d46f1c178df6065df5e6c22ec3536b7835bdea915bce3ec7fb3c5c71417b",
+      "publicKey": "ed25519:9ZqRMSGTAR4oWqV7TaY5PBmMEnvmzDsziDJQFmUjMbvJ"
+    },
+    {
+      "role": "merchant",
+      "accountId": "c86939da31e7790477dec457f84982fa54e620bc138bd59840084c2673a9c9cc",
+      "publicKey": "ed25519:EVKbuxA8FwSQGRAYboo7ZyEfZteMYMafmHuK5UEe5uxw"
+    }
+  ],
+  "walletPolicy": {
+    "network": "testnet",
+    "realm": "auction-testnet.local",
+    "recipients": [
+      "50e13522163a3aeffeb1f6757b136ffbd08a00da0f6a19b6779711cf5d7c20be",
+      "7f46d46f1c178df6065df5e6c22ec3536b7835bdea915bce3ec7fb3c5c71417b",
+      "c86939da31e7790477dec457f84982fa54e620bc138bd59840084c2673a9c9cc"
+    ],
+    "accounts": [
+      {
+        "payer": "auction-8ad1b412bbd1.testnet",
+        "publicKey": "ed25519:Gqos1s3aM5hKy77Roazjevvui8nRApu8YKQwr8xoZW1p",
+        "maximumExposureYocto": "62000000000000000000000",
+        "maxOperations": 3
+      },
+      {
+        "payer": "50e13522163a3aeffeb1f6757b136ffbd08a00da0f6a19b6779711cf5d7c20be",
+        "publicKey": "ed25519:6SinrK8hsjRzf7Aez6cHNugthJmUaWM4nsVKLRcZ6dVo",
+        "maximumExposureYocto": "5000000000000000000000",
+        "maxOperations": 2
+      },
+      {
+        "payer": "7f46d46f1c178df6065df5e6c22ec3536b7835bdea915bce3ec7fb3c5c71417b",
+        "publicKey": "ed25519:9ZqRMSGTAR4oWqV7TaY5PBmMEnvmzDsziDJQFmUjMbvJ",
+        "maximumExposureYocto": "5000000000000000000000",
+        "maxOperations": 2
+      },
+      {
+        "payer": "c86939da31e7790477dec457f84982fa54e620bc138bd59840084c2673a9c9cc",
+        "publicKey": "ed25519:EVKbuxA8FwSQGRAYboo7ZyEfZteMYMafmHuK5UEe5uxw",
+        "maximumExposureYocto": "10000000000000000000000",
+        "maxOperations": 4
+      }
+    ],
+    "refundGasReserveYocto": "500000000000000000000"
+  },
+  "walletPolicyHash": "8de447b62b7d7490bd923ff3d436772eaa4b4dae77d3b6be7e18a053cdf49122",
+  "limits": {
+    "maxFaucetRequests": 1,
+    "agentCount": 2,
+    "modelCallsPerAgent": 2,
+    "maxUpstreamCalls": 4,
+    "maxInputTokensPerCall": 4000,
+    "maxOutputTokensPerCall": 512,
+    "providerBudgetMicroUsd": "10000",
+    "initialFundingPerAgentYocto": "20000000000000000000000",
+    "merchantGasFundingYocto": "20000000000000000000000",
+    "totalFundingPrincipalYocto": "60000000000000000000000",
+    "ownerFundingGasReserveYocto": "2000000000000000000000",
+    "paymentPrincipalPerAgentYocto": "4000000000000000000000",
+    "paymentGasReservePerCallYocto": "500000000000000000000"
+  },
+  "approvals": {
+    "accountCreation": false,
+    "funding": false,
+    "payments": false,
+    "paidInference": false,
+    "deployment": false
+  },
+  "evidenceRequired": [
+    "original funding transfers",
+    "four original native payment transactions and actual gas",
+    "four native inference request/response bindings",
+    "independent JSON artifacts",
+    "original settlements and refunds",
+    "all assigned tasks including interruptions"
+  ],
+  "limitations": [
+    "Testnet tokens do not establish mainnet monetary economics.",
+    "Gas reserves are software authorization inputs; a native Transfer has no caller-specified gas field.",
+    "The real-chain service and provider qualification must pass preflight before broadcast can be enabled."
+  ],
+  "planHash": "e43978a640ceb4301d9f6e7b53e4bc7b5eb103273124f20c38404c0a9c4009c4"
+}

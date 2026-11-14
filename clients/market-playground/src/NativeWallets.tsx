@@ -1,14 +1,25 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Modal } from "./WorkspaceDialogs";
+import { nanoUsd } from "./task-api";
 import { nearAmount, NativeWalletController } from "./native-wallet";
 export function NativeWallets({
   controller,
   ids,
   onClose,
+  network = "mainnet",
+  authorizations,
 }: {
   controller: NativeWalletController;
   ids: string[];
   onClose: () => void;
+  network?: "mainnet" | "testnet";
+  authorizations?: Array<{
+    agent_id: string;
+    payer: string;
+    agent_cap_nano: string;
+    agent_reserved_nano: string;
+    agent_spent_nano: string;
+  }>;
 }) {
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot),
     [password, setPassword] = useState(""),
@@ -16,8 +27,34 @@ export function NativeWallets({
     [hash, setHash] = useState(""),
     [confirmed, setConfirmed] = useState(false);
   useEffect(() => {
-    void controller.balances();
-  }, [controller, state.agents.length]);
+    if (!authorizations) void controller.balances();
+  }, [controller, state.agents.length, authorizations]);
+  if (authorizations)
+    return (
+      <Modal title={"NEAR wallets · " + network} onClose={onClose}>
+        <p className="dialog-note">
+          Connected owner:{" "}
+          <strong>{state.owner?.account_id ?? "disconnected"}</strong>
+        </p>
+        <p className="dialog-note">
+          Native funding is not enabled for this controlled build. Existing
+          order commitments and pending refunds remain reserved.
+        </p>
+        {[...new Map(authorizations.map((a) => [a.agent_id, a])).values()].map(
+          (a) => (
+            <section className="native-agent" key={a.agent_id}>
+              <h3>{a.agent_id}</h3>
+              <p className="native-address">{a.payer}</p>
+              <p>
+                authorized {nanoUsd(a.agent_cap_nano)} · spent{" "}
+                {nanoUsd(a.agent_spent_nano)} · held{" "}
+                {nanoUsd(a.agent_reserved_nano)}
+              </p>
+            </section>
+          ),
+        )}
+      </Modal>
+    );
   return (
     <Modal
       title="ordinary NEAR wallets · mainnet"

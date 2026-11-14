@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-14",
+  "base": "e2641db6f764af061059abe16a56794d3a021dac",
+  "branch": "codex/single-seller-auction-agent",
+  "browser": {
+    "scope": "controlled-main-workspace-real-chromium-wasm",
+    "mainRoute": "/",
+    "standalonePageRemoved": true,
+    "completeTasks": 3,
+    "originalModelCalls": 6,
+    "originalOrders": 6,
+    "independentArtifacts": [
+      42,
+      19,
+      19
+    ],
+    "hiddenTaskCompleted": true,
+    "workspaceRetained": true,
+    "ownerLogin": "owned fixture cookie; NEP-413 separately verified in PG tests",
+    "browserStorageAttempts": 0,
+    "legacyTaskApiCalls": 0,
+    "financialOnlyGrantBodies": true,
+    "refreshAutoPurchases": 0,
+    "historicalOrdersAfterRefresh": 6,
+    "mobile": {
+      "width": 390,
+      "documentWidth": 390
+    },
+    "realChainPayments": false,
+    "realInference": false
+  },
+  "tests": {
+    "playground": 10,
+    "buyerGateway": 17,
+    "taskAndAuctionUnit": 24,
+    "owningPostgres": 14,
+    "total": 65
+  },
+  "build": "tsc -b && vite build: pass",
+  "sourceSha256": {
+    "clients/market-playground/src/App.tsx": "3f5daa3b80ce2c96ce172c2997c24bdbc851c56d70a01b4314d723cdc7626a84",
+    "clients/market-playground/src/TaskPane.tsx": "c2e557c9dbcaa04524097d54202773214f4fc86fbb5c5354e4418fc1f866704c",
+    "clients/market-playground/src/TaskActivity.tsx": "019c91b19ad829bf21567ef4830734902aa98562d4e1c3658b4d668e127ada93",
+    "clients/market-playground/src/WorkspaceDialogs.tsx": "5036c0a58fc53815357ce616e0f73407d7e04d8a255c12c73a0ed29422224f3c",
+    "clients/market-playground/src/memory-tasks.ts": "28a7b2ac6559dadcfbdd8583731e58f8cee28862eb2b2d7b31c65e3e81c59b14",
+    "clients/market-playground/src/auction-policy.ts": "463bcde74fe03c65a1e5c9de3714205f425c96b6f7fa449f9cdb7af3cd0ca150",
+    "clients/market-playground/src/native-wallet.ts": "852bb86c5fcd53baa30af4d2990ebc7068d7e23ee06828df24eb857cf82e4c54",
+    "clients/market-playground/src/NativeWallets.tsx": "99704672774d2f877d7930a68652fc91e62033ba84212109a9d915d0c7181353",
+    "clients/market-playground/src/main.tsx": "6e18612d98ad334b0f7901e08d6e0d89a18e6b6170c97a0847e97df367ebce4e",
+    "clients/market-playground/src/style.css": "6f980b8831a2b9dd065b4ee3fa75ea11e357cb94f110d9dcfe80ca9e7ae9c8aa",
+    "clients/market-playground/src/task-api.ts": "99bff3809097956df3eb70ba5d7ec8841a3e056a2ef9976e4a105c6d53407e8e",
+    "clients/market-playground/vite.config.ts": "8e1d33683f49b1b449e96f52b5ae653f300c0ed19fe1b4d3dd099279b6f53c47",
+    "clients/buyer-gateway/src/auth.mjs": "3f882fe5ee9e145939ca7ca675ac101ded8be81dd601ece6be0b2ce5e5bf3da0",
+    "services/mpp-near-direct/client/task.mjs": "9f54a810bb1d4b6ac67b187691b4988a5e541bf726d7e53bdac735d7ee7ffd00",
+    "services/mpp-near-direct/auction/server.mjs": "99dfbf309b11a2d38b32acdf2e41c99dc1a4b6f9e29511fceee644bab134d2e0",
+    "services/mpp-near-direct/auction/market.mjs": "84cb2668c5ccf7a941fa190352d2b4e348e4b4a488c27a9c12489dc32c4522b1",
+    "services/mpp-near-direct/auction/owner-auth.mjs": "96493e5f0d3ec4be72a1848c4a43a548787ee157f320ca55407471d6a36cee55",
+    "scripts/accept-main-workspace.browser.mjs": "2f949506791638967bfa0e0e33fe6800af7e77891f8fb70b966c570e78a026a5"
+  },
+  "screenshots": {
+    "output/playwright/main-workspace-orders.png": "c7138e1554f97f74bb089fbff4fc078d48b67e49e5c21da6ce812a51f4778fde",
+    "output/playwright/main-workspace-mobile.png": "451bcf209084f3f0e33a6514c228b9e3182c079be3f70704ddc477f68086a782"
+  },
+  "qualification": {
+    "externalChainTransactions": 0,
+    "externalInferenceRequests": 0,
+    "realWalletExtensionTested": false,
+    "deployed": false
+  }
+}

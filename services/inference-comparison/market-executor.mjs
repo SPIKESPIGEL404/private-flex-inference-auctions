@@ -75,7 +75,10 @@ export function validateMarketCatalog(raw, policy, arm, deadlineMs) {
   return policyDigest;
 }
 // Buyer credentials are loaded only after the normal hardware/catalog/TLS verifier.
-export async function marketExecutor(config, { arm, deadlineMs }) {
+export async function marketExecutor(
+  config,
+  { arm, deadlineMs, readOnly = false },
+) {
   const { connectMarket, readPolicy } = await import(
     "../../clients/market-buyer/connection.mjs"
   );
@@ -106,6 +109,7 @@ export async function marketExecutor(config, { arm, deadlineMs }) {
         acceptedCatalogPolicyDigests: policy.acceptedPolicyDigests,
       },
       async dispatch({ body, idempotencyKey, signal }) {
+        check(!readOnly, "read_only_executor");
         const sealed = sealPurchaseRequest(body, connection.identity.keyset);
         check(sealed.body.length <= 128 * 1024, "sealed_request_too_large");
         const wire = sealed.body,

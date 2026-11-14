@@ -5,7 +5,12 @@ import { marketExecutor } from "./market-executor.mjs";
 export class ComparisonRunner {
   constructor(
     config,
-    { store, executor = marketExecutor, now = Date.now } = {},
+    {
+      store,
+      executor = marketExecutor,
+      now = Date.now,
+      monotonic = () => performance.now(),
+    } = {},
   ) {
     this.config = config;
     this.store =
@@ -13,15 +18,34 @@ export class ComparisonRunner {
       new Store(config.storePath, Buffer.from(config.storageKey, "hex"));
     this.executor = executor;
     this.now = now;
+    this.monotonic = monotonic;
   }
   async run(input, expectedPlanHash) {
     check(input.planHash === expectedPlanHash, "reviewed_plan_hash_required");
     const plan = validateComparison(input, this.now());
+    // Save the assigned denominator before any connection or paid action.
+    if (!this.store.get("comparison-plan", plan.planHash, plan.ownerAccount))
+      this.store.put("comparison-plan", plan.planHash, plan.ownerAccount, plan);
+    const assigned = plan.executionOrder.filter(
+      (armId) =>
+        !this.store.get(
+          "comparison-arm",
+          digest([plan.ownerAccount, plan.planHash, armId]),
+          plan.ownerAccount,
+        ),
+    );
+    check(
+      this.now() + assigned.length * plan.taskDurationMs <= plan.deadlineMs,
+      "insufficient_authorization_window",
+    );
     const results = {};
     for (const armId of plan.executionOrder)
       results[armId] = await this.runArm(plan, armId);
+    // Financial lookup cannot consume the other arm's execution budget.
+    for (const armId of plan.executionOrder)
+      results[armId] = await this.enrich(plan, results[armId]);
     return {
-      version: 1,
+      version: 2,
       planHash: plan.planHash,
       requestHash: plan.requestHash,
       mode: plan.mode,
@@ -34,9 +58,56 @@ export class ComparisonRunner {
       id = digest([plan.ownerAccount, plan.planHash, armId]),
       old = this.store.get("comparison-arm", id, plan.ownerAccount);
     if (old)
-      return old.state === "complete"
-        ? old
-        : { ...old, state: "unknown", replayBlocked: true };
+      return old.state === "dispatching"
+        ? {
+            ...old,
+            state: "unknown",
+            responseState: "unknown",
+            replayBlocked: true,
+          }
+        : old;
+    const startedAtMs = this.now(),
+      startedMono = this.monotonic();
+    const deadlineMs = startedAtMs + plan.taskDurationMs;
+    const record = {
+      id,
+      armId,
+      planHash: plan.planHash,
+      priceVersion: arm.tariff.priceVersion,
+      requestHash: plan.requestHash,
+      idempotencyKey: "cmp-" + id,
+      state: "dispatching",
+      responseState: "dispatching",
+      paymentState: "unknown",
+      settlementState: "unknown",
+      taskOutcome: "not_evaluated",
+      startedAtMs,
+      deadlineMs,
+      paidInvokeAttempted: false,
+    };
+    const claimed = this.store.transaction(() => {
+      if (this.store.get("comparison-arm", id, plan.ownerAccount)) return false;
+      this.store.put("comparison-arm", id, plan.ownerAccount, record);
+      return true;
+    });
+    if (!claimed)
+      return {
+        ...this.store.get("comparison-arm", id, plan.ownerAccount),
+        replayBlocked: true,
+      };
+    const save = (value) => {
+      this.store.put("comparison-arm", id, plan.ownerAccount, value);
+      return value;
+    };
+    const stop = (state, reason) =>
+      save({
+        ...record,
+        state,
+        responseState: state,
+        reason,
+        endedAtMs: this.now(),
+        elapsedMs: this.monotonic() - startedMono,
+      });
     const body = {
       ...plan.request,
       model: arm.model,
@@ -51,64 +122,37 @@ export class ComparisonRunner {
       },
       bitrouter_delivery: { auto_fallback: "off" },
     };
-    if (this.now() >= plan.deadlineMs)
-      return {
-        armId,
-        state: "not_dispatched_deadline",
-        paidInvokeAttempted: false,
-      };
+    record.plainMarketRequestHash = digest(body);
+    if (deadlineMs > plan.deadlineMs)
+      return stop(
+        "not_dispatched_deadline",
+        "insufficient_authorization_window",
+      );
     let executor;
     try {
       executor = await this.executor(this.config.arms[armId], {
         arm,
-        deadlineMs: plan.deadlineMs,
+        deadlineMs,
       });
+      record.identity = executor.identity;
+      record.verifiedAtMs = this.now();
     } catch {
-      return {
-        armId,
-        state: "verification_failed",
-        paidInvokeAttempted: false,
-      };
+      return stop("verification_failed", "connection_verification_failed");
     }
     try {
-      if (this.now() >= plan.deadlineMs)
-        return {
-          armId,
-          state: "not_dispatched_deadline",
-          paidInvokeAttempted: false,
-        };
-      // Atomic claim survives both process restart and a concurrent second runner.
-      const record = {
-        id,
-        armId,
-        planHash: plan.planHash,
-        priceVersion: arm.tariff.priceVersion,
-        requestHash: plan.requestHash,
-        plainMarketRequestHash: digest(body),
-        idempotencyKey: "cmp-" + id,
-        state: "dispatching",
-        startedAtMs: this.now(),
-        identity: executor.identity,
-      };
-      const claimed = this.store.transaction(() => {
-        if (this.store.get("comparison-arm", id, plan.ownerAccount))
-          return false;
-        this.store.put("comparison-arm", id, plan.ownerAccount, record);
-        return true;
-      });
-      if (!claimed)
-        return {
-          ...this.store.get("comparison-arm", id, plan.ownerAccount),
-          state: "unknown",
-          replayBlocked: true,
-        };
+      if (this.now() >= deadlineMs)
+        return stop(
+          "not_dispatched_deadline",
+          "verification_exceeded_task_budget",
+        );
+      record.paidInvokeAttempted = true;
+      record.dispatchedAtMs = this.now();
+      save(record);
       try {
         const response = await executor.dispatch({
           body,
           idempotencyKey: record.idempotencyKey,
-          signal: AbortSignal.timeout(
-            Math.max(1, plan.deadlineMs - this.now()),
-          ),
+          signal: AbortSignal.timeout(Math.max(1, deadlineMs - this.now())),
         });
         record.marketRequestId = response.headers.get("x-bitrouter-request-id");
         record.httpStatus = response.status;
@@ -118,6 +162,8 @@ export class ComparisonRunner {
           const refused = {
             ...record,
             state: response.status === 202 ? "pending" : "unknown",
+            responseState: response.status === 202 ? "pending" : "unknown",
+            reason: "http_" + response.status,
             endedAtMs: this.now(),
             serviceCostMicro: null,
           };
@@ -131,6 +177,7 @@ export class ComparisonRunner {
         let n = 0,
           firstByteAtMs = null,
           firstTokenAtMs = null,
+          firstContentMs = null,
           pending = "",
           done = false,
           responseId,
@@ -167,7 +214,10 @@ export class ComparisonRunner {
               usage = frame.usage;
             }
             for (const choice of frame.choices ?? []) {
-              if (choice.delta?.content) firstTokenAtMs ??= this.now();
+              if (choice.delta?.content) {
+                firstTokenAtMs ??= this.now();
+                firstContentMs ??= this.monotonic() - startedMono;
+              }
               if (choice.finish_reason) finishCount++;
             }
           }
@@ -188,22 +238,13 @@ export class ComparisonRunner {
               usage.prompt_tokens + usage.completion_tokens,
           "invalid_native_terminal",
         );
-        let marketHead = null;
-        if (record.marketRequestId)
-          try {
-            marketHead = await executor.head(record.marketRequestId);
-          } catch {}
-        let signedReceipt = null;
-        if (record.marketRequestId && executor.receipt)
-          try {
-            signedReceipt = await executor.receipt(
-              record.marketRequestId,
-              record.idempotencyKey,
-            );
-          } catch {}
         const result = {
           ...record,
           state: "complete",
+          responseState: "available",
+          usableResultAtMs: this.now(),
+          completionMs: this.monotonic() - startedMono,
+          firstContentMs,
           endedAtMs: this.now(),
           firstByteAtMs,
           firstTokenAtMs,
@@ -215,8 +256,8 @@ export class ComparisonRunner {
               : "provider_reported",
           tariffEstimateMicro: usageCostMicro(arm.tariff.rates, usage),
           serviceCostMicro: null,
-          marketHead,
-          signedReceipt,
+          marketHead: null,
+          signedReceipt: null,
           responseSha256: digest(Buffer.concat(chunks)),
           response: Buffer.concat(chunks).toString("base64"),
         };
@@ -226,6 +267,8 @@ export class ComparisonRunner {
         const unknown = {
           ...record,
           state: "unknown",
+          responseState: "unknown",
+          reason: "dispatch_or_terminal_validation_unknown",
           endedAtMs: this.now(),
           serviceCostMicro: null,
           replayBlocked: true,
@@ -236,6 +279,75 @@ export class ComparisonRunner {
     } finally {
       await executor.close().catch(() => {});
     }
+  }
+  // This path never dispatches. Expired experiment authorization can still be reconciled.
+  async enrich(plan, record) {
+    if (!record.marketRequestId) return record;
+    let executor;
+    let value = { ...record };
+    try {
+      executor = await this.executor(this.config.arms[record.armId], {
+        arm: plan.arms[record.armId],
+        deadlineMs: plan.deadlineMs,
+        readOnly: true,
+      });
+      try {
+        value.marketHead = await executor.head(record.marketRequestId);
+      } catch {
+        value.financialLookupError = "head_unavailable";
+      }
+      if (executor.receipt) {
+        try {
+          value.signedReceipt = await executor.receipt(
+            record.marketRequestId,
+            record.idempotencyKey,
+          );
+        } catch {
+          value.financialLookupError = "receipt_unavailable";
+        }
+      }
+      value.financialObservedAtMs = this.now();
+      // A verified signature/head is evidence, not proof of final settlement.
+      value.settlementState = "unknown";
+    } catch {
+      value.financialLookupError = "connection_unavailable";
+    } finally {
+      await executor?.close().catch(() => {});
+    }
+    this.store.put("comparison-arm", value.id, plan.ownerAccount, value);
+    return value;
+  }
+  async recover(input, expectedPlanHash) {
+    const { planHash, ...body } = input;
+    check(
+      planHash === expectedPlanHash && digest(body) === planHash,
+      "reviewed_plan_hash_required",
+    );
+    const results = {};
+    for (const armId of input.executionOrder) {
+      const id = digest([input.ownerAccount, planHash, armId]);
+      const saved = this.store.get("comparison-arm", id, input.ownerAccount);
+      results[armId] = saved
+        ? await this.enrich(
+            input,
+            saved.state === "dispatching"
+              ? {
+                  ...saved,
+                  state: "unknown",
+                  responseState: "unknown",
+                  replayBlocked: true,
+                }
+              : saved,
+          )
+        : { armId, state: "not_started", paidInvokeAttempted: false };
+    }
+    return {
+      version: 2,
+      planHash,
+      requestHash: input.requestHash,
+      mode: input.mode,
+      arms: results,
+    };
   }
   close() {
     this.store.close();
@@ -260,16 +372,23 @@ export function publicReport(report) {
           marketHardwareVerified: r.identity?.marketVerified === true,
           upstreamEvidenceVerified: r.identity?.upstreamVerified ?? null,
           state: r.state,
+          responseState: r.responseState ?? r.state,
+          paymentState: r.paymentState ?? "unknown",
+          settlementState: r.settlementState ?? "unknown",
+          taskOutcome: r.taskOutcome ?? "not_evaluated",
+          reason: r.reason ?? null,
+          financialLookupError: r.financialLookupError ?? null,
+          startedAtMs: r.startedAtMs ?? null,
+          deadlineMs: r.deadlineMs ?? null,
+          usableResultAtMs: r.usableResultAtMs ?? null,
           paidInvokeAttempted: r.paidInvokeAttempted ?? Boolean(r.startedAtMs),
           marketRequestId: r.marketRequestId ?? null,
           httpStatus: r.httpStatus ?? null,
           priceVersion: r.priceVersion ?? null,
           usage: r.usage ?? null,
           cacheObservation: r.cacheObservation ?? null,
-          buyerFirstTokenMs:
-            r.firstTokenAtMs == null ? null : r.firstTokenAtMs - r.startedAtMs,
-          buyerCompletionMs:
-            r.state === "complete" ? r.endedAtMs - r.startedAtMs : null,
+          buyerFirstTokenMs: r.firstContentMs ?? null,
+          buyerCompletionMs: r.completionMs ?? null,
           latencyScope:
             "buyer-observed-includes-market-and-provider-verification",
           tariffEstimateMicro: r.tariffEstimateMicro ?? null,
