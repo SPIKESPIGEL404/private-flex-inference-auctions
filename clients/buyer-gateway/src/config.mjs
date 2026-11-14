@@ -19,6 +19,9 @@ export function configFromEnv(env = process.env) {
   check(Number.isInteger(port) && port > 0 && port <= 65535, 'invalid_port');
   if (env.BUYER_MERCHANT_ACCOUNT) check(accountPattern.test(env.BUYER_MERCHANT_ACCOUNT), 'invalid_merchant_account');
   if (env.BUYER_OWNER_TERMS_URL) check(new URL(env.BUYER_OWNER_TERMS_URL).protocol === 'https:', 'invalid_owner_terms_url');
+  const policyPath = env.MARKET_VERIFY_POLICY
+    ? resolve(env.MARKET_VERIFY_POLICY)
+    : null;
   return { origin, port, host: env.HOST ?? '127.0.0.1', storageKey: Buffer.from(env.BUYER_STORAGE_KEY, 'hex'),
     dbPath: resolve(env.BUYER_DATABASE ?? '.state/buyer.sqlite'), rpcUrl, apiUrl,
     apiKey: env.NEAR_INTENTS_AGENT_API_KEY ?? '', apiConfigured: !!env.NEAR_INTENTS_AGENT_API_KEY,
@@ -26,5 +29,6 @@ export function configFromEnv(env = process.env) {
     ownerTermsUrl: env.BUYER_OWNER_TERMS_URL ?? null, outlayerTermsUrl: 'https://app.outlayer.ai/terms', acceptanceVersion: 'agent-wallet-setup-v1',
     symbol: tokenContract === 'usdt.tether-token.near' ? 'USDT' : 'USDC',
     fundingEnabled: env.BUYER_WALLET_FUNDING_ENABLED === '1',
-    staticDir: resolve(env.BUYER_STATIC_DIR ?? '../market-playground/dist') };
+    staticDir: resolve(env.BUYER_STATIC_DIR ?? '../market-playground/dist'),
+    marketVerifyPolicy: policyPath };
 }

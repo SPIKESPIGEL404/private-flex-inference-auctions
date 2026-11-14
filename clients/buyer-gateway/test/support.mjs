@@ -15,7 +15,8 @@ export function ownerKeys(account = 'alice.near') {
 export const configuration = overrides => ({ origin: 'http://127.0.0.1:4173', apiConfigured: true,
   assetId: 'nep141:usdt.tether-token.near', tokenContract: 'usdt.tether-token.near', symbol: 'USDT',
   merchantAccount: 'market.near', fundingEnabled: true, staticDir: '/nonexistent',
-  ownerTermsUrl: 'https://example.org/controlled-owner-terms', outlayerTermsUrl: 'https://app.outlayer.ai/terms', acceptanceVersion: 'agent-wallet-setup-v1', ...overrides });
+  ownerTermsUrl: 'https://example.org/controlled-owner-terms', outlayerTermsUrl: 'https://app.outlayer.ai/terms', acceptanceVersion: 'agent-wallet-setup-v1',
+  marketVerifyPolicy: null, ...overrides });
 
 // Real pinned SDK over a controlled HTTP boundary. No mainnet or paid calls.
 export class AgentFixture {
