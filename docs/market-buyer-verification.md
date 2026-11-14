@@ -75,8 +75,14 @@ npm ci --ignore-scripts --prefix clients/market-buyer
 node clients/market-buyer/cli.mjs verify --policy /private/market-policy.json
 node clients/market-buyer/cli.mjs buy --policy /private/market-policy.json \
   --credential-file /private/buyer-token \
+  --signing-key-file /private/buyer-ed25519 \
   --request-file /private/purchase.json --idempotency-key buyer-order-1
 ```
+
+The signing key file is the NEAR `ed25519:` secret for the buyer's registered
+public key. Like the credential file, it is read only after Market verification
+succeeds.
+
 
 Policy schema (replace all explanatory values with reviewed real values):
 
@@ -90,7 +96,8 @@ Policy schema (replace all explanatory values with reviewed real values):
     "rtmr0": "REVIEWED_96_HEX",
     "rtmr1": "REVIEWED_96_HEX",
     "rtmr2": "REVIEWED_96_HEX"
-  }]
+  }],
+  "acceptedPolicyDigests": ["sha256:REVIEWED_CATALOG_FILE_SHA256_64_LOWERCASE_HEX"]
 }
 ```
 
@@ -125,11 +132,62 @@ controlled TLS purchase uses the real host, native seller, PG and Redis ledger.
 
 Negative scenarios cover changed keyset, expired keyset, wrong nonce, unaccepted
 compose, unaccepted boot profile, different live SPKI, production rejection of
-fake hardware, and server startup rejection of a wrong quote slot. Assertions
-require zero sensitive POSTs/submit effects before the successful purchase.
+fake hardware, server startup rejection of a wrong quote slot, and an unaccepted
+catalog digest. Assertions require zero sensitive POSTs/submit effects before the
+successful purchase. A later catalog-byte change reseals a new keyset subject and
+digest. A change between the first hash and Market load refuses startup.
 The client unit tests additionally reject empty allowlists, HTTP/unexpected
 endpoints, debug TDX attributes, unsupported quote shapes and altered boot fields.
+
+## Catalog policy binding
+
+On serve, the host hashes the raw `catalog.json` bytes and seals
+`subject` as `market-policy:sha256:<hex>` inside the workload keyset. The pinned
+`WorkloadKeyset` has no extension field, so this subject is the value included
+in the JCS keyset digest and therefore in `report_data`. The hash is
+`bitrouter_market::persistence_codec::digest`, which is plain SHA-256 of those
+file bytes; a buyer can compute the same `sha256:` digest independently. After
+`launch::start_configured` loads that path, the host reads and hashes the file
+again and refuses to listen if it differs from the digest that will be sealed.
+The buyer policy's `acceptedPolicyDigests` must contain that digest. The check
+runs on every identity acquisition, including renewal.
+
+This covers the catalog file only, at process start. It does not prove the
+catalog's trading rules, any other file, code measurements, or a later on-disk
+edit before the next process. A generic ACI verifier does not enforce this
+subject. It is not hardware acceptance, and health output stays `attested: false`.
+A catalog change creates a new attested identity only when a new process seals it.
+
+```bash
+bash scripts/accept-market-identity.sh
+```
+
+The controlled run rejects a wrong digest with no sensitive POST, shows that a
+changed catalog changes the sealed subject and keyset digest, and shows that a
+change between the first hash and Market load fails startup. Node tests reject
+a missing or malformed `acceptedPolicyDigests` list.
 
 This is bounded local integration evidence. A future hardware run must verify
 the actual deployed source/configuration, production boot profile, TLS custody,
 database/storage boundaries and lifecycle freshness before batch D can pass.
+
+## Signed purchases and replay protection
+
+When the attestation endpoint is enabled, `POST /market/v1/chat/completions`
+also requires an ed25519 purchase signature. The buyer signs the JCS form of a
+fixed statement that binds method, path, body digest, idempotency key, nonce,
+timestamp and the current workload keyset digest. The host verifies that
+signature on the exact wire body before the Market router runs, resolves the
+bearer token through the same introspection authority Market already uses, and
+requires `X-Buyer-Key` to be the public key registered for that user. Timestamps
+outside a 300-second window, timestamps earlier than process start, reused
+`(buyer key, nonce)` pairs, and keyset mismatches are refused. Buyer signing
+headers are stripped before Market handling so they cannot reach the provider.
+There is no flag that disables this check while attestation is configured.
+
+This means a stolen bearer token alone cannot purchase. It does not hide
+purchase caps or other request fields on the wire, and a stolen signing key
+together with the token can still spend. Legitimate retries keep working by
+signing a new nonce with the same idempotency key; Market returns the original
+request without a second purchase. Health output stays `attested: false`. This
+is not hardware acceptance.

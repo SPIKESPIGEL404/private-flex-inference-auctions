@@ -1,6 +1,7 @@
 /target/
 **/target/
 .market-runs/
+.accept-work/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
@@ -18,3 +19,11 @@ __pycache__/
 output/
 clients/agent-playground/dist/
 *.tsbuildinfo
+deploy/market/.build-cargo/
+deploy/market/buyers.public.json
+deploy/market/rendered/
+deploy/market/.env
+deploy/market/*.secret.env
+# Buyer signing secrets stay on buyer machines only.
+**/buyer-*.secret
+**/buyer-*.seed

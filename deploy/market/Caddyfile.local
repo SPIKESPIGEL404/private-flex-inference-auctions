@@ -1,0 +1,9 @@
+{
+  auto_https off
+  admin off
+}
+
+https://127.0.0.1:443 {
+  tls /run/market-tls/leaf.pem /run/market-tls/leaf.key
+  reverse_proxy 127.0.0.1:8080
+}

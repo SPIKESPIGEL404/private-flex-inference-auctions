@@ -1,0 +1,1011 @@
+{
+  "market": {
+    "market_id": "private-market-batch-a",
+    "issuer": "private-market-batch-a",
+    "seller_payables": {
+      "7": "seller-fixture"
+    },
+    "offer_service_types": {
+      "controlled-chat": {
+        "11": "on_demand",
+        "12": "on_demand",
+        "13": "on_demand"
+      }
+    }
+  },
+  "strategy": {
+    "wait_budget_ms": 15000,
+    "max_attempts": 1,
+    "default_output_tokens": 64,
+    "order_time": {
+      "rules_ref": "bitrouter-market/purchase-tif-v1",
+      "immediate_decision_window_ms": 10000,
+      "immediate_total_window_ms": 120000,
+      "grant_acceptance_window_ms": 10000
+    }
+  },
+  "products": [
+    {
+      "protocol": "chat_completions",
+      "option": {
+        "id": 1,
+        "model": {
+          "reference": {
+            "market_id": "controlled-chat",
+            "revision": 1
+          },
+          "model_ref": "m/external",
+          "request_protocol_ref": "chat_completions",
+          "throughput_profile_ref": "public-api/synthetic-text-v1",
+          "request_limits": {
+            "context_window_tokens": 262144,
+            "max_output_tokens": 64
+          },
+          "metering": {
+            "output_metering_ref": "flex_total_generated_tokens_v1",
+            "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+          }
+        },
+        "request": {
+          "request_ref": "template",
+          "request_digest": "template",
+          "size": {
+            "input_tokens": 2,
+            "max_output_tokens": 64
+          }
+        },
+        "providers": [
+          7
+        ]
+      },
+      "candidates": [
+        {
+          "candidate": {
+            "context": {
+              "root": {
+                "root": {
+                  "exchange_id": "private-market-batch-a",
+                  "side": "Buy",
+                  "owner_id": 999,
+                  "order_id": "template"
+                },
+                "authorization_version": 1
+              },
+              "option_id": 1,
+              "spec": {
+                "reference": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "model_ref": "m/external",
+                "request_protocol_ref": "chat_completions",
+                "throughput_profile_ref": "public-api/synthetic-text-v1",
+                "request_limits": {
+                  "context_window_tokens": 262144,
+                  "max_output_tokens": 64
+                },
+                "metering": {
+                  "output_metering_ref": "flex_total_generated_tokens_v1",
+                  "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                }
+              },
+              "tokens": {
+                "spec": {
+                  "reference": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "request_protocol_ref": "chat_completions",
+                  "throughput_profile_ref": "public-api/synthetic-text-v1",
+                  "request_limits": {
+                    "context_window_tokens": 262144,
+                    "max_output_tokens": 64
+                  },
+                  "metering": {
+                    "output_metering_ref": "flex_total_generated_tokens_v1",
+                    "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                  }
+                },
+                "request_digest": "template",
+                "request_size": {
+                  "input_tokens": 2,
+                  "max_output_tokens": 64
+                },
+                "token_ids": [
+                  42,
+                  43
+                ]
+              },
+              "profile": {
+                "reference": "public-api/synthetic-text-v1",
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "request_size": {
+                  "input_tokens": 2,
+                  "max_output_tokens": 64
+                },
+                "output_estimate": {
+                  "billable_output_tokens": 2,
+                  "visible_output_tokens": 2
+                },
+                "cache_condition_ref": "upstream-managed-cache/actual-usage-observed",
+                "min_window_ms": 1,
+                "min_sample_requests": 1,
+                "max_p95_e2e_ms": 90000,
+                "max_failure_bps": 1
+              },
+              "throughput_filter": {
+                "minimum": {
+                  "output_tokens": 0,
+                  "completed_requests": 0,
+                  "interval_ms": 1000
+                }
+              },
+              "output_estimate": {
+                "billable_output_tokens": 2,
+                "visible_output_tokens": 2
+              },
+              "compared_at": 1700000000001
+            },
+            "input": {
+              "offer_id": 11,
+              "offering": {
+                "id": 11,
+                "provider_id": 7,
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "request_protocol_ref": "chat_completions",
+                "agent_config_ref": "public-api/delegation-v1",
+                "rates": {
+                  "input": 1000000,
+                  "cache_input": 1000000,
+                  "output": 11000000
+                },
+                "throughput": {
+                  "profile_ref": "public-api/synthetic-text-v1",
+                  "rate": {
+                    "output_tokens": 1,
+                    "completed_requests": 1,
+                    "interval_ms": 1000
+                  }
+                },
+                "generation": 1,
+                "update_seq": 1,
+                "observed_at": 1700000000000,
+                "valid_until": 4102444800000,
+                "readiness": "Ready"
+              },
+              "scope": {
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "model_ref": "m/external",
+                "agent_config_ref": "public-api/delegation-v1",
+                "backend_ref": "controlled-native-11",
+                "cache_domain_ref": "controlled-cache"
+              },
+              "cache": {
+                "spec": {
+                  "reference": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "request_protocol_ref": "chat_completions",
+                  "throughput_profile_ref": "public-api/synthetic-text-v1",
+                  "request_limits": {
+                    "context_window_tokens": 262144,
+                    "max_output_tokens": 64
+                  },
+                  "metering": {
+                    "output_metering_ref": "flex_total_generated_tokens_v1",
+                    "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                  }
+                },
+                "scope": {
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "agent_config_ref": "public-api/delegation-v1",
+                  "backend_ref": "controlled-native-11",
+                  "cache_domain_ref": "controlled-cache"
+                },
+                "version": {
+                  "generation": 1,
+                  "update_seq": 0
+                },
+                "updated_at": 1700000000001,
+                "observation": null,
+                "tree": {
+                  "edge": [],
+                  "children": []
+                }
+              },
+              "load": {
+                "reference": "load-11",
+                "version": 1,
+                "source_ref": "controlled-exclusive-slot",
+                "agent_config_ref": "public-api/delegation-v1",
+                "backend_ref": "controlled-native-11",
+                "market_requests": 0,
+                "observed_at": 1700000000001,
+                "valid_until": 4102444800000
+              },
+              "prediction": null,
+              "throughput_observation": {
+                "offering": {
+                  "id": 11,
+                  "provider_id": 7,
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "request_protocol_ref": "chat_completions",
+                  "agent_config_ref": "public-api/delegation-v1",
+                  "rates": {
+                    "input": 1000000,
+                    "cache_input": 1000000,
+                    "output": 11000000
+                  },
+                  "throughput": {
+                    "profile_ref": "public-api/synthetic-text-v1",
+                    "rate": {
+                      "output_tokens": 1,
+                      "completed_requests": 1,
+                      "interval_ms": 1000
+                    }
+                  },
+                  "generation": 1,
+                  "update_seq": 1,
+                  "observed_at": 1700000000000,
+                  "valid_until": 4102444800000,
+                  "readiness": "Ready"
+                },
+                "profile": {
+                  "reference": "public-api/synthetic-text-v1",
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "request_size": {
+                    "input_tokens": 2,
+                    "max_output_tokens": 64
+                  },
+                  "output_estimate": {
+                    "billable_output_tokens": 2,
+                    "visible_output_tokens": 2
+                  },
+                  "cache_condition_ref": "upstream-managed-cache/actual-usage-observed",
+                  "min_window_ms": 1,
+                  "min_sample_requests": 1,
+                  "max_p95_e2e_ms": 90000,
+                  "max_failure_bps": 1
+                },
+                "started_at": 1700000000000,
+                "ended_at": 1700000000001,
+                "valid_until": 4102444800000,
+                "demand_sufficient": true,
+                "completed_requests": 1,
+                "failed_requests": 0,
+                "billable_output_tokens": 48,
+                "p95_e2e_ms": 1
+              },
+              "market_requests_after_admission": 1
+            },
+            "source_generation": 1,
+            "seller_option": {
+              "order": {
+                "exchange_id": "private-market-batch-a",
+                "side": "Sell",
+                "owner_id": 7,
+                "order_id": "seller-11"
+              },
+              "option_id": 1
+            },
+            "load_report": {
+              "scope_id": 30,
+              "authority_id": 7,
+              "version": {
+                "generation": 1,
+                "sequence": 1
+              },
+              "observed_at": 1700000000001,
+              "valid_until": 4102444800000
+            },
+            "service": {
+              "version": 1,
+              "rules_ref": "bitrouter-market/delivery-service-v2",
+              "schedule": {
+                "reference": "service/11",
+                "sha256": "1b0fe3f59215ca9e246a429b84513c0d4d0a1fc15ca83f036645f685fcf6cbb8"
+              },
+              "schedule_revision": 1,
+              "market_spec_ref": {
+                "market_id": "controlled-chat",
+                "revision": 1
+              },
+              "model_ref": "m/external",
+              "request_protocol_ref": "chat_completions",
+              "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1",
+              "output_metering_ref": "flex_total_generated_tokens_v1",
+              "rates": {
+                "input": 1000000,
+                "cache_input": 1000000,
+                "output": 11000000
+              },
+              "bin": {
+                "bin_id": "bounded-text",
+                "input_tokens": {
+                  "min_inclusive": 0,
+                  "max_inclusive": 262144
+                },
+                "max_billable_output_tokens": {
+                  "min_inclusive": 1,
+                  "max_inclusive": 64
+                },
+                "delivery": {
+                  "kind": "performance_target",
+                  "first_response_within_ms": 60000,
+                  "complete_within_ms": 90000
+                },
+                "hard_delivery_within_ms": 180000
+              }
+            }
+          },
+          "output_meter": "flex_total_generated_tokens_v1",
+          "output_limit": 64,
+          "schema_profile": "flex_strict_schema_v1",
+          "client_tools": true
+        },
+        {
+          "candidate": {
+            "context": {
+              "root": {
+                "root": {
+                  "exchange_id": "private-market-batch-a",
+                  "side": "Buy",
+                  "owner_id": 999,
+                  "order_id": "template"
+                },
+                "authorization_version": 1
+              },
+              "option_id": 1,
+              "spec": {
+                "reference": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "model_ref": "m/external",
+                "request_protocol_ref": "chat_completions",
+                "throughput_profile_ref": "public-api/synthetic-text-v1",
+                "request_limits": {
+                  "context_window_tokens": 262144,
+                  "max_output_tokens": 64
+                },
+                "metering": {
+                  "output_metering_ref": "flex_total_generated_tokens_v1",
+                  "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                }
+              },
+              "tokens": {
+                "spec": {
+                  "reference": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "request_protocol_ref": "chat_completions",
+                  "throughput_profile_ref": "public-api/synthetic-text-v1",
+                  "request_limits": {
+                    "context_window_tokens": 262144,
+                    "max_output_tokens": 64
+                  },
+                  "metering": {
+                    "output_metering_ref": "flex_total_generated_tokens_v1",
+                    "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                  }
+                },
+                "request_digest": "template",
+                "request_size": {
+                  "input_tokens": 2,
+                  "max_output_tokens": 64
+                },
+                "token_ids": [
+                  42,
+                  43
+                ]
+              },
+              "profile": {
+                "reference": "public-api/synthetic-text-v1",
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "request_size": {
+                  "input_tokens": 2,
+                  "max_output_tokens": 64
+                },
+                "output_estimate": {
+                  "billable_output_tokens": 2,
+                  "visible_output_tokens": 2
+                },
+                "cache_condition_ref": "upstream-managed-cache/actual-usage-observed",
+                "min_window_ms": 1,
+                "min_sample_requests": 1,
+                "max_p95_e2e_ms": 90000,
+                "max_failure_bps": 1
+              },
+              "throughput_filter": {
+                "minimum": {
+                  "output_tokens": 0,
+                  "completed_requests": 0,
+                  "interval_ms": 1000
+                }
+              },
+              "output_estimate": {
+                "billable_output_tokens": 2,
+                "visible_output_tokens": 2
+              },
+              "compared_at": 1700000000001
+            },
+            "input": {
+              "offer_id": 12,
+              "offering": {
+                "id": 12,
+                "provider_id": 7,
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "request_protocol_ref": "chat_completions",
+                "agent_config_ref": "public-api/delegation-v1",
+                "rates": {
+                  "input": 1000000,
+                  "cache_input": 1000000,
+                  "output": 11000000
+                },
+                "throughput": {
+                  "profile_ref": "public-api/synthetic-text-v1",
+                  "rate": {
+                    "output_tokens": 1,
+                    "completed_requests": 1,
+                    "interval_ms": 1000
+                  }
+                },
+                "generation": 1,
+                "update_seq": 1,
+                "observed_at": 1700000000000,
+                "valid_until": 4102444800000,
+                "readiness": "Ready"
+              },
+              "scope": {
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "model_ref": "m/external",
+                "agent_config_ref": "public-api/delegation-v1",
+                "backend_ref": "controlled-native-11",
+                "cache_domain_ref": "controlled-cache"
+              },
+              "cache": {
+                "spec": {
+                  "reference": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "request_protocol_ref": "chat_completions",
+                  "throughput_profile_ref": "public-api/synthetic-text-v1",
+                  "request_limits": {
+                    "context_window_tokens": 262144,
+                    "max_output_tokens": 64
+                  },
+                  "metering": {
+                    "output_metering_ref": "flex_total_generated_tokens_v1",
+                    "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                  }
+                },
+                "scope": {
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "agent_config_ref": "public-api/delegation-v1",
+                  "backend_ref": "controlled-native-11",
+                  "cache_domain_ref": "controlled-cache"
+                },
+                "version": {
+                  "generation": 1,
+                  "update_seq": 0
+                },
+                "updated_at": 1700000000001,
+                "observation": null,
+                "tree": {
+                  "edge": [],
+                  "children": []
+                }
+              },
+              "load": {
+                "reference": "load-12",
+                "version": 1,
+                "source_ref": "controlled-exclusive-slot",
+                "agent_config_ref": "public-api/delegation-v1",
+                "backend_ref": "controlled-native-11",
+                "market_requests": 0,
+                "observed_at": 1700000000001,
+                "valid_until": 4102444800000
+              },
+              "prediction": null,
+              "throughput_observation": {
+                "offering": {
+                  "id": 12,
+                  "provider_id": 7,
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "request_protocol_ref": "chat_completions",
+                  "agent_config_ref": "public-api/delegation-v1",
+                  "rates": {
+                    "input": 1000000,
+                    "cache_input": 1000000,
+                    "output": 11000000
+                  },
+                  "throughput": {
+                    "profile_ref": "public-api/synthetic-text-v1",
+                    "rate": {
+                      "output_tokens": 1,
+                      "completed_requests": 1,
+                      "interval_ms": 1000
+                    }
+                  },
+                  "generation": 1,
+                  "update_seq": 1,
+                  "observed_at": 1700000000000,
+                  "valid_until": 4102444800000,
+                  "readiness": "Ready"
+                },
+                "profile": {
+                  "reference": "public-api/synthetic-text-v1",
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "request_size": {
+                    "input_tokens": 2,
+                    "max_output_tokens": 64
+                  },
+                  "output_estimate": {
+                    "billable_output_tokens": 2,
+                    "visible_output_tokens": 2
+                  },
+                  "cache_condition_ref": "upstream-managed-cache/actual-usage-observed",
+                  "min_window_ms": 1,
+                  "min_sample_requests": 1,
+                  "max_p95_e2e_ms": 90000,
+                  "max_failure_bps": 1
+                },
+                "started_at": 1700000000000,
+                "ended_at": 1700000000001,
+                "valid_until": 4102444800000,
+                "demand_sufficient": true,
+                "completed_requests": 1,
+                "failed_requests": 0,
+                "billable_output_tokens": 48,
+                "p95_e2e_ms": 1
+              },
+              "market_requests_after_admission": 1
+            },
+            "source_generation": 1,
+            "seller_option": {
+              "order": {
+                "exchange_id": "private-market-batch-a",
+                "side": "Sell",
+                "owner_id": 7,
+                "order_id": "seller-12"
+              },
+              "option_id": 1
+            },
+            "load_report": {
+              "scope_id": 30,
+              "authority_id": 7,
+              "version": {
+                "generation": 1,
+                "sequence": 1
+              },
+              "observed_at": 1700000000001,
+              "valid_until": 4102444800000
+            },
+            "service": {
+              "version": 1,
+              "rules_ref": "bitrouter-market/delivery-service-v2",
+              "schedule": {
+                "reference": "service/12",
+                "sha256": "37aee9b3fe0a36904b15992720e374ba0a7c1184f4297be1a703c2fc27518a9c"
+              },
+              "schedule_revision": 1,
+              "market_spec_ref": {
+                "market_id": "controlled-chat",
+                "revision": 1
+              },
+              "model_ref": "m/external",
+              "request_protocol_ref": "chat_completions",
+              "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1",
+              "output_metering_ref": "flex_total_generated_tokens_v1",
+              "rates": {
+                "input": 1000000,
+                "cache_input": 1000000,
+                "output": 11000000
+              },
+              "bin": {
+                "bin_id": "bounded-text",
+                "input_tokens": {
+                  "min_inclusive": 0,
+                  "max_inclusive": 262144
+                },
+                "max_billable_output_tokens": {
+                  "min_inclusive": 1,
+                  "max_inclusive": 64
+                },
+                "delivery": {
+                  "kind": "performance_target",
+                  "first_response_within_ms": 60000,
+                  "complete_within_ms": 90000
+                },
+                "hard_delivery_within_ms": 180000
+              }
+            }
+          },
+          "output_meter": "flex_total_generated_tokens_v1",
+          "output_limit": 64,
+          "schema_profile": "flex_strict_schema_v1",
+          "client_tools": true
+        },
+        {
+          "candidate": {
+            "context": {
+              "root": {
+                "root": {
+                  "exchange_id": "private-market-batch-a",
+                  "side": "Buy",
+                  "owner_id": 999,
+                  "order_id": "template"
+                },
+                "authorization_version": 1
+              },
+              "option_id": 1,
+              "spec": {
+                "reference": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "model_ref": "m/external",
+                "request_protocol_ref": "chat_completions",
+                "throughput_profile_ref": "public-api/synthetic-text-v1",
+                "request_limits": {
+                  "context_window_tokens": 262144,
+                  "max_output_tokens": 64
+                },
+                "metering": {
+                  "output_metering_ref": "flex_total_generated_tokens_v1",
+                  "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                }
+              },
+              "tokens": {
+                "spec": {
+                  "reference": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "request_protocol_ref": "chat_completions",
+                  "throughput_profile_ref": "public-api/synthetic-text-v1",
+                  "request_limits": {
+                    "context_window_tokens": 262144,
+                    "max_output_tokens": 64
+                  },
+                  "metering": {
+                    "output_metering_ref": "flex_total_generated_tokens_v1",
+                    "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                  }
+                },
+                "request_digest": "template",
+                "request_size": {
+                  "input_tokens": 2,
+                  "max_output_tokens": 64
+                },
+                "token_ids": [
+                  42,
+                  43
+                ]
+              },
+              "profile": {
+                "reference": "public-api/synthetic-text-v1",
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "request_size": {
+                  "input_tokens": 2,
+                  "max_output_tokens": 64
+                },
+                "output_estimate": {
+                  "billable_output_tokens": 2,
+                  "visible_output_tokens": 2
+                },
+                "cache_condition_ref": "upstream-managed-cache/actual-usage-observed",
+                "min_window_ms": 1,
+                "min_sample_requests": 1,
+                "max_p95_e2e_ms": 90000,
+                "max_failure_bps": 1
+              },
+              "throughput_filter": {
+                "minimum": {
+                  "output_tokens": 0,
+                  "completed_requests": 0,
+                  "interval_ms": 1000
+                }
+              },
+              "output_estimate": {
+                "billable_output_tokens": 2,
+                "visible_output_tokens": 2
+              },
+              "compared_at": 1700000000001
+            },
+            "input": {
+              "offer_id": 13,
+              "offering": {
+                "id": 13,
+                "provider_id": 7,
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "request_protocol_ref": "chat_completions",
+                "agent_config_ref": "public-api/delegation-v1",
+                "rates": {
+                  "input": 1000000,
+                  "cache_input": 1000000,
+                  "output": 11000000
+                },
+                "throughput": {
+                  "profile_ref": "public-api/synthetic-text-v1",
+                  "rate": {
+                    "output_tokens": 1,
+                    "completed_requests": 1,
+                    "interval_ms": 1000
+                  }
+                },
+                "generation": 1,
+                "update_seq": 1,
+                "observed_at": 1700000000000,
+                "valid_until": 4102444800000,
+                "readiness": "Ready"
+              },
+              "scope": {
+                "market_spec_ref": {
+                  "market_id": "controlled-chat",
+                  "revision": 1
+                },
+                "model_ref": "m/external",
+                "agent_config_ref": "public-api/delegation-v1",
+                "backend_ref": "controlled-native-11",
+                "cache_domain_ref": "controlled-cache"
+              },
+              "cache": {
+                "spec": {
+                  "reference": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "request_protocol_ref": "chat_completions",
+                  "throughput_profile_ref": "public-api/synthetic-text-v1",
+                  "request_limits": {
+                    "context_window_tokens": 262144,
+                    "max_output_tokens": 64
+                  },
+                  "metering": {
+                    "output_metering_ref": "flex_total_generated_tokens_v1",
+                    "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1"
+                  }
+                },
+                "scope": {
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "model_ref": "m/external",
+                  "agent_config_ref": "public-api/delegation-v1",
+                  "backend_ref": "controlled-native-11",
+                  "cache_domain_ref": "controlled-cache"
+                },
+                "version": {
+                  "generation": 1,
+                  "update_seq": 0
+                },
+                "updated_at": 1700000000001,
+                "observation": null,
+                "tree": {
+                  "edge": [],
+                  "children": []
+                }
+              },
+              "load": {
+                "reference": "load-13",
+                "version": 1,
+                "source_ref": "controlled-exclusive-slot",
+                "agent_config_ref": "public-api/delegation-v1",
+                "backend_ref": "controlled-native-11",
+                "market_requests": 0,
+                "observed_at": 1700000000001,
+                "valid_until": 4102444800000
+              },
+              "prediction": null,
+              "throughput_observation": {
+                "offering": {
+                  "id": 13,
+                  "provider_id": 7,
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "request_protocol_ref": "chat_completions",
+                  "agent_config_ref": "public-api/delegation-v1",
+                  "rates": {
+                    "input": 1000000,
+                    "cache_input": 1000000,
+                    "output": 11000000
+                  },
+                  "throughput": {
+                    "profile_ref": "public-api/synthetic-text-v1",
+                    "rate": {
+                      "output_tokens": 1,
+                      "completed_requests": 1,
+                      "interval_ms": 1000
+                    }
+                  },
+                  "generation": 1,
+                  "update_seq": 1,
+                  "observed_at": 1700000000000,
+                  "valid_until": 4102444800000,
+                  "readiness": "Ready"
+                },
+                "profile": {
+                  "reference": "public-api/synthetic-text-v1",
+                  "market_spec_ref": {
+                    "market_id": "controlled-chat",
+                    "revision": 1
+                  },
+                  "request_size": {
+                    "input_tokens": 2,
+                    "max_output_tokens": 64
+                  },
+                  "output_estimate": {
+                    "billable_output_tokens": 2,
+                    "visible_output_tokens": 2
+                  },
+                  "cache_condition_ref": "upstream-managed-cache/actual-usage-observed",
+                  "min_window_ms": 1,
+                  "min_sample_requests": 1,
+                  "max_p95_e2e_ms": 90000,
+                  "max_failure_bps": 1
+                },
+                "started_at": 1700000000000,
+                "ended_at": 1700000000001,
+                "valid_until": 4102444800000,
+                "demand_sufficient": true,
+                "completed_requests": 1,
+                "failed_requests": 0,
+                "billable_output_tokens": 48,
+                "p95_e2e_ms": 1
+              },
+              "market_requests_after_admission": 1
+            },
+            "source_generation": 1,
+            "seller_option": {
+              "order": {
+                "exchange_id": "private-market-batch-a",
+                "side": "Sell",
+                "owner_id": 7,
+                "order_id": "seller-13"
+              },
+              "option_id": 1
+            },
+            "load_report": {
+              "scope_id": 30,
+              "authority_id": 7,
+              "version": {
+                "generation": 1,
+                "sequence": 1
+              },
+              "observed_at": 1700000000001,
+              "valid_until": 4102444800000
+            },
+            "service": {
+              "version": 1,
+              "rules_ref": "bitrouter-market/delivery-service-v2",
+              "schedule": {
+                "reference": "service/13",
+                "sha256": "2eb767609e54333636240db28190d7b9ff55711fefba07a1d469c465f2a666a9"
+              },
+              "schedule_revision": 1,
+              "market_spec_ref": {
+                "market_id": "controlled-chat",
+                "revision": 1
+              },
+              "model_ref": "m/external",
+              "request_protocol_ref": "chat_completions",
+              "numerical_rules_ref": "bitrouter-market/token-sum-ceil-micro-usd-v1",
+              "output_metering_ref": "flex_total_generated_tokens_v1",
+              "rates": {
+                "input": 1000000,
+                "cache_input": 1000000,
+                "output": 11000000
+              },
+              "bin": {
+                "bin_id": "bounded-text",
+                "input_tokens": {
+                  "min_inclusive": 0,
+                  "max_inclusive": 262144
+                },
+                "max_billable_output_tokens": {
+                  "min_inclusive": 1,
+                  "max_inclusive": 64
+                },
+                "delivery": {
+                  "kind": "performance_target",
+                  "first_response_within_ms": 60000,
+                  "complete_within_ms": 90000
+                },
+                "hard_delivery_within_ms": 180000
+              }
+            }
+          },
+          "output_meter": "flex_total_generated_tokens_v1",
+          "output_limit": 64,
+          "schema_profile": "flex_strict_schema_v1",
+          "client_tools": true
+        }
+      ],
+      "tokenizer_url": "http://127.0.0.1:18080/tokenize",
+      "tokenizer_ref": "controlled/tokenizer-v1",
+      "routes": [
+        {
+          "backend": "controlled-native-11",
+          "incarnation": "delegation-v1",
+          "offering_id": 11,
+          "native_model": "native-a",
+          "base_url": "http://127.0.0.1:18080",
+          "credential_env": "PRIVATE_MARKET_SELLER_KEY"
+        },
+        {
+          "backend": "controlled-native-11",
+          "incarnation": "delegation-v1",
+          "offering_id": 12,
+          "native_model": "native-a",
+          "base_url": "http://127.0.0.1:18080",
+          "credential_env": "PRIVATE_MARKET_SELLER_KEY"
+        },
+        {
+          "backend": "controlled-native-11",
+          "incarnation": "delegation-v1",
+          "offering_id": 13,
+          "native_model": "native-a",
+          "base_url": "http://127.0.0.1:18080",
+          "credential_env": "PRIVATE_MARKET_SELLER_KEY"
+        }
+      ]
+    }
+  ]
+}

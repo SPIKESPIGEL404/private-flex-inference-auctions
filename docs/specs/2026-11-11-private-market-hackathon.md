@@ -136,7 +136,7 @@ Attestation 用于验证认可的程序和部署配置，不是拍卖算法正�
 
 平台选择前不冻结 quote 格式、测量值或具体密码套件。验证失败时拒绝敏感提交；本地开发模式必须明确显示未验证，不计入私密部署验收。
 
-用户随后同意先复用 Private AI Gateway 的 ACI 能力完成“买方 → Market”验证，并选择不部署进行本地验收。当前实现固定 ACI 协议源码，提供绑定 nonce／keyset／证书 SPKI 的 dstack 证明接口，Node 客户端要求显式认可的 compose 和启动测量值、非 debug TDX 及当前 TCB，真实连接通过后才读取凭证与采购体。受控测试使用独立的模拟 RPC；生产客户端必须拒绝模拟硬件证明。这不构成真实 TEE 硬件验收、TLS 私钥保管证明或 D 完成声明，具体见 [买方验证说明](../market-buyer-verification.md)。
+用户随后同意先复用 Private AI Gateway 的 ACI 能力完成“买方 → Market”验证，并选择不部署进行本地验收。当前实现固定 ACI 协议源码，提供绑定 nonce／keyset／证书 SPKI 的 dstack 证明接口，Node 客户端要求显式认可的 compose、启动测量值、目录文件摘要、非 debug TDX 及当前 TCB，真实连接通过后才读取凭证与采购体。目录摘要只覆盖 `catalog.json` 字节，不证明规则正确或硬件验收。受控测试使用独立的模拟 RPC；生产客户端必须拒绝模拟硬件证明。这不构成真实 TEE 硬件验收、TLS 私钥保管证明或 D 完成声明，具体见 [买方验证说明](../market-buyer-verification.md)。
 
 ### 6.2 数据和恢复
 
