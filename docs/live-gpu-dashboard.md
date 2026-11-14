@@ -1,9 +1,11 @@
 # Live GPU dashboard
 
-`/gpu` shows actual engine telemetry for the private `qwen3.8-27b` Chute.
-The existing playground's provider pane defaults to **Live engine**, with an
-explicit **Simulated preview** selector. An unavailable live source never falls
-back to fixtures. The dedicated page loads without wallet/terminal WASM.
+The main page puts **Money below the header**, agent terminals in the middle,
+and actual GPU engine telemetry at the bottom. The GPU panel can collapse or
+expand without replacing terminal sessions. `/gpu` remains a standalone view
+for the private `qwen3.8-27b` Chute and loads without wallet/terminal WASM.
+Unavailable live sources never fall back to fixtures. The historical economics
+fixture components remain in source but are not exposed in the main dashboard.
 
 ```text
 private Chute GET /metrics -> Prometheus -> buyer-gateway -> same-origin SSE -> UI
@@ -32,7 +34,8 @@ docker compose -p private-market-gpu-telemetry -f deploy/telemetry/compose.yaml 
 node scripts/serve-gpu-dashboard.mjs
 ```
 
-Open **http://127.0.0.1:4188/gpu**. `--port 4189` selects another local port;
+Open **http://127.0.0.1:4188/** for the integrated dashboard, or `/gpu` for engine
+diagnostics. `--port 4189` selects another local port;
 `--prometheus http://127.0.0.1:19092` selects another approved Prometheus origin.
 The launcher binds only loopback, explicitly enables public aggregate telemetry
 on that local origin, and leaves wallet funding/procurement unavailable. Its
@@ -88,10 +91,28 @@ Samples are ordinary telemetry, not signed TEE execution receipts. Revenue,
 margin, SLO goodput and measured baseline uplift require other evidence and are
 not presented by Live engine.
 
+## Money sources
+
+Agent Available is the exact six-decimal sum of observed balances for the
+current owner's active buyer wallets in the latest matching allocation. The
+gateway attaches `balanceObservedAt` only after a successful balance read.
+Default/unobserved zeros, mismatched owners/keys/assets, incomplete observations
+and snapshots older than two minutes show `—`. An observed zero displays zero.
+`refresh balances` uses the existing read-only allocation refresh endpoint.
+Wallet snapshots are refreshed explicitly; this is not a live settlement feed.
+
+Task limits are configured USD authorization limits, independent of token
+balances. Planned principal and balance differences never establish spend.
+Spent, Held, seller Revenue, GPU cost, Refunds and Net earnings stay `—` because
+their authoritative settlement/billing feeds are not connected. GPU uptime is
+not used to estimate provider bills. Development preview mode withholds actual
+wallet amounts. Smaller screens can scroll the money cards horizontally.
+
 ## Checks
 
 ```sh
 npm test --prefix clients/buyer-gateway
+npm test --prefix clients/market-playground
 node clients/buyer-gateway/test/prometheus-rules.mjs
 npm run build --prefix clients/market-playground
 ```
@@ -107,3 +128,5 @@ node clients/buyer-gateway/test/telemetry-browser-fixture.mjs
 
 Those values are UI fixtures, not GPU performance evidence. See the separate
 [live acceptance record](acceptance/2026-11-14-live-gpu-dashboard.md).
+The subsequent [Money/GPU layout acceptance](acceptance/2026-11-14-money-gpu-layout.md)
+records the integrated layout and wallet observation checks.

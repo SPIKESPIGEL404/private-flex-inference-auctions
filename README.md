@@ -37,11 +37,12 @@ or real funds were changed by this implementation batch.
 ## Live GPU dashboard
 
 The optional [GPU dashboard](docs/live-gpu-dashboard.md) connects the private
-Chutes vLLM metrics to the existing provider pane and a standalone `/gpu` page.
+Chutes vLLM metrics to the main page's bottom GPU pane and a standalone `/gpu` page.
 It shows live queues, token throughput, KV cache and latency windows through
 server-side Prometheus collection. The Chutes key never enters the browser.
-The simulated economics preview stays explicit; real Market revenue and agent
-traffic integration are separate work.
+Below the main header, Money summarizes observed agent wallet balances and
+configured task limits separately. Seller revenue/costs/refunds remain `—` until
+settlement/billing sources are connected. Agent traffic integration is separate work.
 
 ## Verify the Market before buying
 

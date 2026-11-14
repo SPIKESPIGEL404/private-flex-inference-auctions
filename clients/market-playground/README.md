@@ -45,9 +45,9 @@ No mainnet funding or real-wallet end-to-end acceptance is claimed. The current
 funding path uses a NEAR six-decimal stablecoin; native NEAR conversion is future
 work. See the gateway's recovery limits and [acceptance record](../../docs/acceptance/2026-11-14-agent-wallet-onboarding.md).
 
-The provider statistics pane offers a live engine feed and an explicitly scripted
-comparison in wallet mode as well. Wallet balances/purchases stay separate;
-only Live engine reads actual engine telemetry through the host.
+The main page shows Money below the header, buyer terminals in the middle,
+and live GPU metrics at the bottom. Wallet balances and configured task limits
+have separate sources; unconnected settlement/billing amounts remain `—`.
 
 ## Original development preview
 
@@ -70,39 +70,30 @@ only Live engine reads actual engine telemetry through the host.
 - Responsive tiling, native modal focus handling,
   precise integer microUSD parsing/display, and reduced-motion support.
 
-## Provider statistics
+## Money and GPU overview
 
-The default **Live engine** source uses the hosted buyer gateway and Prometheus
-to display actual queues, throughput, KV cache and latency windows. `/gpu` opens
-the standalone view without wallet/terminal WASM. See the [live setup and data
-contract](../../docs/live-gpu-dashboard.md). Missing/stale samples never turn
-into fixtures, and missing window observations display `—`. This feed includes
-all engine traffic and does not imply that these buyer terminals invoked it.
+Money combines Agent funds and Seller economics. Available uses exact observed
+wallet balances, bound to the current owner/key/asset and active buyers. Missing,
+partial or >2-minute-old snapshots show `—`; refresh balances performs the
+existing status read. Task limits are configured USD limits, not wallet funds.
+Spent, Held, Revenue, GPU cost, Refunds and Net earnings remain `—` pending
+authoritative settlement/billing feeds. Development preview mode hides actual
+wallet amounts. No balance difference or GPU uptime is converted into spend.
 
-Select **Simulated preview** explicitly for the original comparison below.
+The bottom GPU pane uses the buyer gateway and Prometheus for actual queues,
+throughput, KV cache and latency windows. `/gpu` opens the standalone view
+without wallet/terminal WASM. See the [setup and data contract](../../docs/live-gpu-dashboard.md).
+Missing/stale samples never turn into fixtures, and unobserved windows display
+`—`. The feed includes all engine traffic and does not imply these terminals
+invoked it. Collapse or expand either panel without resetting buyer terminals.
 
-The simulated statistics preview illustrates a single-GPU vLLM / Qwen3.8-27B seller on
-RTX PRO 6000. Toggle it from the header or its pane label; terminal sessions stay
-mounted and retile into the available space. Its open state, view and experiment
-mode are retained for this browser session.
+Historical simulated economics components remain in `src/ProviderStatistics.tsx`
+and `src/statistics.ts`, but the main dashboard no longer renders them. These
+scripted values are not used as money or GPU measurements.
 
-Three primary readouts show seller revenue/GPU-hour, estimated margin/GPU-hour
-and SLO goodput/GPU. Switch among earnings, cache, latency and trust views, or
-select baseline, matching, priority and combined modes. The sixty-second chart
-updates once per second and can be paused independently of buyer terminals.
-
-**Every Simulated preview value is a scripted fixture, including its baseline and
-uplift.** That feed is independent of terminal activity. It connects to no provider
-telemetry, wallet settlement, hardware counters or remote attestation. The
-assumed GPU cost is explicitly shown; missing trust evidence stays unavailable.
-Priority-only fixtures intentionally include a goodput regression, and modes
-without priority service show its fulfillment rate as not applicable.
-
-`src/statistics.ts` owns only preview data. `src/LiveProviderStatistics.tsx` and
-`src/provider-telemetry.ts` render the actual engine feed separately. Both use
-native SVG. The live backend aggregates histogram buckets before computing
-quantiles and guards process/counter resets. Live economics still requires
-settlement/cost provenance and actual experiment comparisons.
+`src/money.ts` owns wallet aggregation and exact formatting; its focused checks
+run with Node >=24 through `npm test`. The live backend aggregates histogram
+buckets before computing quantiles and guards process/counter resets.
 
 `Ctrl B`, then an arrow switches panes; `Ctrl B Z` zooms/restores the selected
 pane. `Ctrl B %` adds a pane and `Ctrl B X` parks the last pane.

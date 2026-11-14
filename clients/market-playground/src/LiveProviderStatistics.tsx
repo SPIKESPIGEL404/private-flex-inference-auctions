@@ -56,8 +56,9 @@ function EngineChart({ snapshot, metric }: { snapshot: EngineSnapshot; metric: L
   </svg></div>;
 }
 
-export function LiveProviderStatistics({ open = true, onOpenChange, accessScope = '', standalone = false }: {
+export function LiveProviderStatistics({ open = true, onOpenChange, accessScope = '', standalone = false, compact = false, onSizeChange }: {
   open?: boolean; onOpenChange?: (open: boolean) => void; accessScope?: string; standalone?: boolean;
+  compact?: boolean; onSizeChange?: () => void;
 }) {
   const live = useProviderTelemetry(accessScope);
   const [frozen, setFrozen] = useState<EngineSnapshot | null>(null);
@@ -71,14 +72,15 @@ export function LiveProviderStatistics({ open = true, onOpenChange, accessScope 
       : live.state === 'starting' ? 'Connecting to the engine feed…' : null;
   const age = frozen && data.sampledAt !== null ? `snapshot at ${new Date(data.sampledAt).toLocaleTimeString()}`
     : data.ageMs === null ? 'no sample yet' : `${Math.floor(data.ageMs / 1000)}s since sample`;
-  return <section className={`provider-stats live-stats ${open ? 'stats-expanded' : 'stats-collapsed'} ${standalone ? 'standalone-stats' : ''}`} aria-label="Live engine statistics">
+  return <section className={`provider-stats live-stats ${open ? 'stats-expanded' : 'stats-collapsed'} ${standalone ? 'standalone-stats' : ''} ${compact ? 'compact-engine' : ''}`} aria-label="Live engine statistics">
     <div className="stats-heading">
       <button className="stats-heading-toggle" aria-expanded={open} aria-controls={panelId} onClick={() => onOpenChange?.(!open)} disabled={!onOpenChange}>
         <span className="stats-pane-label">[gpu]</span><span>qwen3.8-27b</span>
       </button>
       <span className={`stats-source engine-state engine-state-${live.state}`} role="status">{stateLabel}</span>
       <span className="engine-age">{age}</span>
-      {open ? <div className="stats-controls"><button onClick={() => setFrozen(frozen ? null : live)}>{frozen ? 'resume live view' : 'pause view'}</button></div> : null}
+      {!open ? <span className="engine-collapsed-summary">run {format('running', data.metrics.running)} · wait {format('waiting', data.metrics.waiting)} · output {format('outputTokensPerSecond', data.metrics.outputTokensPerSecond)} tok/s</span> : null}
+      {open ? <div className="stats-controls">{onSizeChange ? <button onClick={onSizeChange}>{compact ? 'expand panel' : 'compact panel'}</button> : null}<button onClick={() => setFrozen(frozen ? null : live)}>{frozen ? 'resume live view' : 'pause view'}</button></div> : null}
     </div>
     <div id={panelId} className="stats-expanded-content" hidden={!open}>
       {note && !frozen ? <div className="engine-notice">{note}</div> : null}

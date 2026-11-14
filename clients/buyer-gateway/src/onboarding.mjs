@@ -59,7 +59,8 @@ export class Onboarding {
         : !buyer.policyReady ? 'policy_pending' : !ready ? 'funding_pending' : 'ready';
       const operation = !buyer.active ? buyer.create : !buyer.grantActive ? buyer.grant : null;
       return { id, number: buyer.number, agentId: buyer.agentId ?? null, wallet: buyer.wallet ?? null, phase,
-        availableRaw: buyer.availableRaw ?? '0', grantExpiresAt: buyer.grantExpiresAt ?? null,
+        availableRaw: buyer.availableRaw ?? '0', balanceObservedAt: buyer.balanceObservedAt ?? null,
+        grantExpiresAt: buyer.grantExpiresAt ?? null,
         operationStatus: operation?.status?.status ?? (operation?.generated ? 'PENDING_SIGNATURE' : null),
         failureCode: operation?.status?.failure_code ?? null,
         deposit: deposit?.result ? { correlationId: deposit.result.correlation_id, status: deposit.result.status,
@@ -141,6 +142,7 @@ export class Onboarding {
         const balance = balances.find(b => b.asset_id === this.config.assetId);
         check(!balance || /^\d+$/.test(balance.available_raw), 'invalid_balance', 502);
         buyer.availableRaw = balance?.available_raw ?? '0';
+        buyer.balanceObservedAt = new Date(this.now()).toISOString();
       }
       // Persist each observation; a later agent's failed read cannot lose progress.
       this.saveBuyer(buyer);

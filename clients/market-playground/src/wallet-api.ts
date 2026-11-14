@@ -10,6 +10,7 @@ export interface GatewayConfig {
 export interface WalletBuyer {
   id: string; number: number; agentId: string | null; wallet: string | null;
   phase: 'create_pending' | 'grant_pending' | 'policy_pending' | 'funding_pending' | 'ready'; availableRaw: string;
+  balanceObservedAt?: string | null;
   grantExpiresAt: string | null; operationStatus: string | null; failureCode: string | null;
   deposit: { correlationId: string; status: string; address: string | null; memo: string | null;
     minAmount: string | null; expiresAt: string | null; refundTo: string | null; failureCode: string | null } | null;
