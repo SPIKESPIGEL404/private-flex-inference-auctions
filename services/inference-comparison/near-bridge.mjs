@@ -42,7 +42,8 @@ export function inspectStream(raw) {
     usage,
     done = false,
     finish = 0,
-    text = false;
+    text = false,
+    terminalUsage = false;
   for (const line of raw.toString("utf8").split(/\r?\n/)) {
     if (!line.startsWith("data:")) continue;
     const data = line.slice(5).trim();
@@ -58,18 +59,25 @@ export function inspectStream(raw) {
     );
     check(id === undefined || id === f.id, "response_id_changed");
     id = f.id;
-    if (f.usage) {
-      check(usage === undefined, "multiple_final_usage");
-      usage = f.usage;
-    }
     for (const c of f.choices ?? []) {
       if (c.delta?.content) text = true;
       if (c.delta?.tool_calls?.length) text = true;
       if (c.finish_reason) finish++;
     }
+    if (f.usage) {
+      const next = f.usage;
+      check(Number.isSafeInteger(next.prompt_tokens) && next.prompt_tokens >= 0
+        && Number.isSafeInteger(next.completion_tokens) && next.completion_tokens >= 0
+        && next.total_tokens === next.prompt_tokens + next.completion_tokens, "invalid_native_usage");
+      // vLLM can emit cumulative usage on more than the final frame. Charge
+      // the terminal snapshot once, never the sum of intermediate snapshots.
+      check(!usage || (next.prompt_tokens >= usage.prompt_tokens && next.completion_tokens >= usage.completion_tokens), "usage_regressed");
+      usage = next;
+      if (finish === 1) terminalUsage = true;
+    }
   }
   check(
-    done && id && text && finish === 1 && usage,
+    done && id && text && finish === 1 && usage && terminalUsage,
     "native_terminal_required",
   );
   check(

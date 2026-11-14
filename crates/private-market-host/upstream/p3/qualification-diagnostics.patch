@@ -1,0 +1,25 @@
+--- a/src/market/pg/matching.rs
++++ b/src/market/pg/matching.rs
+@@ -188,0 +189 @@
++            if std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref() == Ok("controlled") { eprintln!("native terms rejected"); }
+@@ -195 +196 @@
+-        let Ok(quote) = qualify_total_cap_with_price_guarantee(
++        let qualified_quote = qualify_total_cap_with_price_guarantee(
+@@ -201,2 +202,9 @@
+-        ) else {
+-            continue;
++        );
++        let quote = match qualified_quote {
++            Ok(quote) => quote,
++            Err(error) => {
++                if std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref() == Ok("controlled") {
++                    eprintln!("native qualification rejected: {error:?}");
++                }
++                continue;
++            }
+@@ -228 +236 @@
+-                ) => {}
++                ) => { if std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref() == Ok("controlled") { eprintln!("native quote eligibility rejected"); } }
+@@ -233 +241 @@
+-                ) => {}
++                ) => { if std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref() == Ok("controlled") { eprintln!("native quote eligibility rejected"); } }

@@ -6,6 +6,26 @@ import {hash,requireThat,nearForNanoUsd,nanoUsdForNear,paymentExposure,chooseQuo
 import {SPONSORED,principalRequest} from '../p1/sponsored.mjs';
 import {TOOL} from './tool-schema.mjs';
 export class Authority extends PrincipalAuthority {
+  async qualifyNative(internal){
+    try{return JSON.parse(execFileSync(this.config.hostBinary,['quote-native-p2','-'], {input:JSON.stringify(internal),encoding:'utf8',env:{...process.env,PRIVATE_MARKET_NEAR_DIRECT_P1:'controlled',PRIVATE_MARKET_AGENT_P2:'controlled'},timeout:15000,maxBuffer:1024*1024}));}
+    catch{throw new Error('native_scope_not_qualified');}
+  }
+  async paymentRequest(base){return {...base,version:2};}
+  async checkGas(db,agent,project){
+    const b=await this.rpc.call('query',{request_type:'view_account',finality:'final',account_id:this.config.gasSponsor});
+    requireThat(BigInt(b.amount)-BigInt(b.locked)-BigInt(b.storage_usage)*BigInt(this.config.storagePriceYocto)>=BigInt(project.reserved_yocto)+BigInt(this.config.gasEstimateYocto),'project_gas_unfunded');
+  }
+  async hasPaymentSlot(){return true;}
+  async forecast(db){return (await db.query('SELECT * FROM mpp_direct_p2_market WHERE singleton FOR SHARE')).rows[0];}
+  async spendingAvailable(agent,task,available,db) { return available; }
+  paymentGasReserve() { return '0'; }
+  gasFloor() { return '0'; }
+  async reservePaymentGas(db,{id,sponsorOperation,agent}) {
+    await db.query("INSERT INTO mpp_direct_sponsor_operations(id,order_id,kind,fee_payer,estimate_yocto,state) VALUES($1,$2,'payment',$3,$4,'authorized')",[sponsorOperation,id,this.config.gasSponsor,this.config.gasEstimateYocto]);
+    await db.query('UPDATE mpp_direct_project_budget SET reserved_yocto=reserved_yocto+$1 WHERE id=1',[this.config.gasEstimateYocto]);
+  }
+  mapNative(body) { return body; }
+  routeCostNano() { return '0'; }
   async ensureCall(agent,taskId,key,raw,context){
     return this.transaction(agent.user_id,async db=>{
       const live=(await db.query('SELECT * FROM mpp_direct_p2_sessions WHERE task_id=$1 AND user_id=$2 FOR SHARE',[taskId,agent.user_id])).rows[0];
@@ -31,7 +51,7 @@ export class Authority extends PrincipalAuthority {
     });
   }
   async decide(db,{call,task,quote,available,supply,nowMs,expires}){
-    const market=(await db.query('SELECT * FROM mpp_direct_p2_market WHERE singleton FOR SHARE')).rows[0];
+    const market=await this.forecast(db,quote);
     const max=BigInt(quote.total_micro)*1000n;
     let decision;
     if(nowMs>=Number(call.deadline_ms)||nowMs-Number(call.started_ms)>=Number(call.max_wait_ms))decision={action:'stop',reason:'original_deadline_or_wait_limit'};
@@ -47,7 +67,7 @@ export class Authority extends PrincipalAuthority {
       decision=chooseQuote({nowMs,startedAtMs:Number(call.started_ms),deadlineMs:Number(call.deadline_ms),maxWaitMs:Number(call.max_wait_ms),preference:call.preference,
         availableNano:String(available),hardBidNano:call.bid_nano,paymentMs:this.config.paymentEstimateMs,admissionMs:50,deliveryMs:50,
         quotes:supply&&market.available?[{id:'controlled-native',observedAtMs:Number(market.observed_ms),expiresAtMs:expires,usableMs:Number(market.usable_ms),scopeMatches:true,
-          estimateKind:'p95',serviceMaximumNano:String(max),expectedServiceNano:String(BigInt(quote.input_tokens+550+quote.platform_micro)*1000n),routeMaximumNano:'0',riskNano:'0'}]:[]});
+          estimateKind:'p95',serviceMaximumNano:String(max),expectedServiceNano:String(BigInt(quote.expected_service_micro??(quote.input_tokens+550+quote.platform_micro))*1000n),routeMaximumNano:this.routeCostNano(),riskNano:'0'}]:[]});
       if(decision.action==='wait')decision.reason=!supply||!market.available?'supply_unavailable':available<max?'unsettled_or_budget_reserve':call.manual?'manual_bid_wait':decision.reason;
     }
     const snapshot={policy:'cost-speed-p2-v1',nowMs,startedAtMs:Number(call.started_ms),deadlineMs:Number(call.deadline_ms),preference:call.preference,
@@ -61,7 +81,7 @@ export class Authority extends PrincipalAuthority {
     if(!o.admitted_request){
       const c=(await this.pool.query('SELECT c.*,t.paused,s.state AS session_state FROM mpp_direct_p2_calls c JOIN mpp_direct_tasks t ON t.id=c.task_id JOIN mpp_direct_p2_sessions s ON s.id=c.session_id WHERE c.id=$1',[o.call_id])).rows[0];
       if(c&&(c.state==='cancelled'||c.paused||['paused','error','complete'].includes(c.session_state))){
-        const response=await fetch(this.config.walletFixtureUrl+'/wallet/cancel',{method:'POST',headers:{'content-type':'application/json','x-fixture-key':this.config.buyerWalletKey},body:JSON.stringify({orderRef:o.id}),signal:AbortSignal.timeout(2500)});
+        const response=await (this.paymentRoute.services?.fetch??fetch)(this.config.walletFixtureUrl+'/wallet/cancel',{method:'POST',headers:{'content-type':'application/json','x-fixture-key':this.config.buyerWalletKey},body:JSON.stringify({orderRef:o.id}),signal:AbortSignal.timeout(2500)});
         requireThat(response.ok,'original_wallet_outcome_unknown');await super.cancel(o,await response.json());
         return this.getOrder(o.id,o.user_id);
       }
@@ -76,11 +96,11 @@ export class Authority extends PrincipalAuthority {
     requireThat(body.stream === undefined || typeof body.stream === 'boolean', 'invalid_stream');
     if(body.stream_options!==undefined)requireThat(body.stream_options!==null&&typeof body.stream_options==='object'&&!Array.isArray(body.stream_options)
       &&Object.keys(body.stream_options).every(k=>k==='include_usage')&&(body.stream_options.include_usage===undefined||typeof body.stream_options.include_usage==='boolean'),'unsupported_stream_options');
-    requireThat(body.model==='m/external'&&(body.max_completion_tokens??body.max_tokens)===64,'unsupported_output_scope');
+    requireThat(body.model==='m/external'&&(body.max_completion_tokens??body.max_tokens)===(this.config.maxOutputTokens??64),'unsupported_output_scope');
     if(body.tools)requireThat(Array.isArray(body.tools)&&body.tools.length<=1&&body.tools.every(t=>t.type==='function'&&t.function?.name==='bash'&&hash(t.function.parameters)===hash(TOOL.inputSchema)),'unsupported_tool_scope');
     const call=await this.ensureCall(agent,taskId,key,rawBody,context);
     if(['cancelled','stopped'].includes(call.state))throw new Error('call_closed');
-    const internal = { ...body,max_completion_tokens:64,user:'p2-'+call.id,stream:true,background:true,stream_options:{ include_usage:true },bitrouter_delivery:{ auto_fallback:'off' } };
+    const internal = this.mapNative({ ...body,max_completion_tokens:this.config.maxOutputTokens??64,user:'p2-'+call.id,stream:true,background:true,stream_options:{ include_usage:true },bitrouter_delivery:{ auto_fallback:'off' } });
     delete internal.max_tokens;
     const prior=call.order_id?(await this.getOrder(call.order_id,agent.user_id)):null;
     if(prior){requireThat(prior.body_hash===hash(rawBody)&&prior.task_id===taskId,'logical_call_conflict');
@@ -95,8 +115,7 @@ export class Authority extends PrincipalAuthority {
         return this.prepare(agent,taskId,key,rawBody,context);
       }
       return prior;}
-    let quote;try{quote=JSON.parse(execFileSync(this.config.hostBinary,['quote-native-p2','-'], { input:JSON.stringify(internal),encoding:'utf8',
-      env:{...process.env,PRIVATE_MARKET_NEAR_DIRECT_P1:'controlled',PRIVATE_MARKET_AGENT_P2:'controlled'},timeout:15_000,maxBuffer:1024*1024 }));}catch{throw new Error('native_scope_not_qualified');}
+    const quote=await this.qualifyNative(internal);
     return this.transaction(agent.user_id, async db => {
       const nowMs = Number((await db.query('SELECT floor(extract(epoch FROM clock_timestamp())*1000)::bigint AS now')).rows[0].now);
       let current=(await db.query('SELECT * FROM mpp_direct_p2_calls WHERE id=$1 FOR UPDATE',[call.id])).rows[0];
@@ -107,48 +126,45 @@ export class Authority extends PrincipalAuthority {
       requireThat(task?.active && !task.paused && Number(task.deadline_ms)>nowMs, 'task_authorization_expired');
       const cap = (await db.query('SELECT * FROM mpp_direct_capacity WHERE id=1 FOR UPDATE')).rows[0];
       if (cap.lease_order && Number(cap.lease_until_ms)<=nowMs) await db.query('UPDATE mpp_direct_capacity SET lease_order=NULL,lease_until_ms=NULL WHERE id=1');
-      const supply=cap.admissions<cap.max_admissions&&(!cap.lease_order||Number(cap.lease_until_ms)<=nowMs);
+      const supply=cap.admissions<cap.max_admissions&&(!cap.lease_order||Number(cap.lease_until_ms)<=nowMs)&&await this.hasPaymentSlot(agent,db);
       const serviceNano = BigInt(quote.total_micro)*1000n, p = String(nearForNanoUsd(String(serviceNano),this.config.rateNanoPerNear));
       const expires = Math.min(nowMs+this.config.paymentWindowMs, Number(task.deadline_ms)-this.config.estimatedTerminalMs-2000);
       requireThat(expires>nowMs+this.config.paymentEstimateMs, 'insufficient_payment_window');
       const id = hash(randomUUID()), nativeId = randomUUID(), dispatchKey = 'near-native-'+id;
       let termsHash = hash({quote,internalHash:hash(JSON.stringify(internal)),task:task.id,taskRevision:task.revision,rate:this.config.rateNanoPerNear,expires,
-        bidRevision:current.revision,callId:current.id,policyVersion:'cost-speed-p2-v1',forecastMs:this.config.estimatedTerminalMs,forecastSource:'controlled-fixture',gasSponsor:this.config.gasSponsor});
+        bidRevision:current.revision,callId:current.id,policyVersion:'cost-speed-p2-v1',forecastMs:this.config.estimatedTerminalMs,forecastSource:quote.forecast?.source??'controlled-fixture',gasSponsor:this.config.gasSponsor??null});
       const sponsorOperation=hash(['project-gas-payment',id]);
-      const request = {version:2,network:this.config.network,currency:'NEAR',decimals:24,amount:p,recipient:this.config.merchant,payer:agent.payer,
+      const request = await this.paymentRequest({network:this.config.network,currency:'NEAR',decimals:24,amount:p,recipient:this.config.merchant,payer:agent.payer,
         refundTo:agent.payer,bindingVersion:agent.binding_version,orderRef:id,termsHash,nativeRequestHash:hash(rawBody),
         nonce:randomBytes(32).toString('base64'),issuedAtMs:nowMs,expiresAtMs:expires,signingRecipient:this.config.realm,
-        gasSponsor:this.config.gasSponsor,sponsorOperation};
+        gasSponsor:this.config.gasSponsor,sponsorOperation});
       const ownAvailable=BigInt(task.budget_nano)-BigInt(task.reserved_nano)-BigInt(task.spent_nano);
       const parent=(await db.query('SELECT * FROM mpp_direct_p2_agent_limits WHERE user_id=$1 FOR UPDATE',[agent.user_id])).rows[0];
       const parentAvailable=BigInt(parent.budget_nano)-BigInt(parent.reserved_nano)-BigInt(parent.spent_nano);
-      const available=ownAvailable<parentAvailable?ownAvailable:parentAvailable;
+      const available=await this.spendingAvailable(agent,task,ownAvailable<parentAvailable?ownAvailable:parentAvailable,db);
       const chosen=await this.decide(db,{call:current,task,quote,available,supply,nowMs,expires});
       if(chosen.waiting)return chosen;current=chosen.call;
       termsHash=hash([termsHash,String(current.revision),hash(JSON.stringify(chosen.snapshot))]);request.termsHash=termsHash;
       const nativeBalance = await this.nativeBalance(agent,nowMs,db);
-      const exposure = paymentExposure({request:principalRequest(request),gasCapYocto:'0',nanoUsdPerNear:this.config.rateNanoPerNear,
+      const exposure = paymentExposure({request:this.paymentRoute.principalRequest(request),gasCapYocto:this.paymentGasReserve(),nanoUsdPerNear:this.config.rateNanoPerNear,
         bidNano:current.bid_nano,serviceCapNano:task.hard_bid_nano,callCapNano:task.call_cap_nano,taskRemainingNano:String(available),
-        nativeBalance,nowMs,gasFloorYocto:'0'});
+        nativeBalance,nowMs,gasFloorYocto:this.gasFloor()});
       const project=(await db.query('SELECT * FROM mpp_direct_project_budget WHERE id=1 FOR UPDATE')).rows[0];
-      requireThat(project?.active&&BigInt(project.reserved_yocto)+BigInt(project.spent_yocto)+BigInt(this.config.gasEstimateYocto)<=BigInt(project.budget_yocto),'project_sponsorship_unavailable');
-      const sponsorBalance=await this.rpc.call('query',{request_type:'view_account',finality:'final',account_id:this.config.gasSponsor});
-      requireThat(BigInt(sponsorBalance.amount)-BigInt(sponsorBalance.locked)-BigInt(sponsorBalance.storage_usage)*BigInt(this.config.storagePriceYocto)
-        >=BigInt(project.reserved_yocto)+BigInt(this.config.gasEstimateYocto),'project_gas_unfunded');
+      if(this.paymentGasReserve()==='0')requireThat(project?.active&&BigInt(project.reserved_yocto)+BigInt(project.spent_yocto)+BigInt(this.config.gasEstimateYocto)<=BigInt(project.budget_yocto),'project_sponsorship_unavailable');
+      await this.checkGas(db,agent,project);
       const decision=chosen.decision;
-      const challenge = Challenge.from({secretKey:this.config.secret,realm:this.config.realm,method:SPONSORED,intent:'charge',request,
+      const challenge = Challenge.from({secretKey:this.config.secret,realm:this.config.realm,method:this.paymentRoute.method,intent:'charge',request,
         expires:new Date(expires).toISOString(),header:'Payment-Authorization'});
       const header = Challenge.serialize(challenge);
-      await db.query(`UPDATE mpp_direct_tasks SET reserved_nano=reserved_nano+$2 WHERE id=$1`,[taskId,exposure.reserveNano]);
+      await db.query(`UPDATE mpp_direct_tasks SET reserved_nano=reserved_nano+$2 WHERE id=$1`,[taskId,String(nanoUsdForNear(p,this.config.rateNanoPerNear))]);
       await db.query(`INSERT INTO mpp_direct_orders(id,user_id,task_id,logical_key,body_hash,original_body,internal_body,native_id,dispatch_key,terms_hash,challenge,challenge_header,
         task_revision,binding_version,expires_ms,admission_before_ms,provider_cap_micro,service_micro,rate_nano_per_near,reserve_nano,project_estimate_yocto,p,created_ms,sponsor_operation,expected_purchase,decision,call_id,bid_revision)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
       [id,agent.user_id,taskId,'p2-order-'+current.id+'-'+current.revision,hash(rawBody),rawBody,internal,nativeId,dispatchKey,termsHash,challenge,header,task.revision,agent.binding_version,
-        expires,quote.provider_micro,quote.total_micro,this.config.rateNanoPerNear,exposure.reserveNano,this.config.gasEstimateYocto,p,nowMs,sponsorOperation,quote.expected_purchase,
+        expires,quote.provider_micro,quote.total_micro,this.config.rateNanoPerNear,String(nanoUsdForNear(p,this.config.rateNanoPerNear)),this.config.gasEstimateYocto,p,nowMs,sponsorOperation,quote.expected_purchase,
         {result:decision,quote,forecast:chosen.snapshot.forecast,buyerRouteFeeNano:'0',projectEstimateYocto:this.config.gasEstimateYocto},current.id,current.revision]);
       await db.query("INSERT INTO mpp_direct_timing(order_id,stage) VALUES($1,'quote_prepared')",[id]);
-      await db.query('INSERT INTO mpp_direct_sponsor_operations(id,order_id,kind,fee_payer,estimate_yocto,state) VALUES($1,$2,\'payment\',$3,$4,\'authorized\')',[sponsorOperation,id,this.config.gasSponsor,this.config.gasEstimateYocto]);
-      await db.query('UPDATE mpp_direct_project_budget SET reserved_yocto=reserved_yocto+$1 WHERE id=1',[this.config.gasEstimateYocto]);
+      await this.reservePaymentGas(db,{id,sponsorOperation,agent,taskId,challenge});
       await db.query('UPDATE mpp_direct_capacity SET lease_order=$1,lease_until_ms=$2 WHERE id=1',[id,expires+this.config.leaseTailMs]);
       await db.query("UPDATE mpp_direct_p2_calls SET order_id=$2,state='quoted' WHERE id=$1",[current.id,id]);
       return (await db.query('SELECT * FROM mpp_direct_orders WHERE id=$1',[id])).rows[0];

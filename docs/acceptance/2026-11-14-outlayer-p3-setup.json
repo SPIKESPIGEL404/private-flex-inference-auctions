@@ -1,0 +1,15 @@
+{
+  "scope": "controlled-wallet-owner-http-integration-not-browser-or-chain-acceptance",
+  "realChain": false,
+  "cases": [
+    {
+      "case": "owner-login-create-policy-native-funding-activate-grants-task-logout",
+      "passed": true,
+      "wallets": 2,
+      "fundingTransfers": 2,
+      "policyAckRecovery": true,
+      "duplicateFundingRefused": true,
+      "csrfRefused": true
+    }
+  ]
+}

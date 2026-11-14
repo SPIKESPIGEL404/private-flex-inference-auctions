@@ -8,13 +8,16 @@ import { SPONSORED, principalRequest, verifySponsored } from './sponsored.mjs';
 import { createHash } from 'node:crypto';
 const mutationId = ledger => 'rbm_v2_' + createHash('sha256').update(Buffer.concat([Buffer.from('bitrouter:redis-balance-mutation:v2\0'), Buffer.from(ledger)])).digest('hex');
 export class Authority {
-  constructor({ pool, rpc, config }) { Object.assign(this, { pool, rpc, config }); }
+  constructor({ pool, rpc, config, paymentRoute }) {
+    Object.assign(this, { pool, rpc, config });
+    this.paymentRoute=paymentRoute??{method:SPONSORED,version:2,principalRequest,verify:verifySponsored,operationKey:id=>'near-pay-v2-'+id};
+  }
   async pin() {
     const { secret,databaseUrl,walletFixtureKey,buyerWalletKey,faultControlKey,...publicConfig } = this.config;
     const fingerprint = hash({ ...publicConfig, secretHash: hash(secret),databaseHash:hash(databaseUrl),merchantKeyHash:hash(walletFixtureKey),buyerKeyHash:hash(buyerWalletKey),controlKeyHash:hash(faultControlKey) });
     const db = await this.pool.connect();
     try {
-      await db.query(`INSERT INTO mpp_direct_configuration(fingerprint,configuration,mode) VALUES($1,$2,'controlled') ON CONFLICT DO NOTHING`, [fingerprint, publicConfig]);
+      await db.query(`INSERT INTO mpp_direct_configuration(fingerprint,configuration,mode) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`, [fingerprint, publicConfig,this.config.mode]);
       const row = (await db.query('SELECT fingerprint FROM mpp_direct_configuration')).rows[0];
       requireThat(row?.fingerprint === fingerprint, 'payment_configuration_changed');
     } finally { db.release(); }
@@ -129,10 +132,10 @@ export class Authority {
   }
   async loadChallenge(id) { return (await this.pool.query("SELECT challenge FROM mpp_direct_orders WHERE challenge->>'id'=$1",[id])).rows[0]?.challenge; }
   async originalOperation(order) {
-    const response=await fetch(this.config.walletFixtureUrl+'/wallet/status',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
+    const response=await (this.paymentRoute.services?.fetch??fetch)(this.config.walletFixtureUrl+'/wallet/status',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
       headers:{'content-type':'application/json','x-fixture-key':this.config.buyerWalletKey},body:JSON.stringify({orderRef:order.id})});
     requireThat(response.ok,'original_sponsor_operation_unknown');const original=await response.json();
-    requireThat(original.orderRef===order.id&&original.operationKey==='near-pay-v2-'+order.id&&original.credential,'original_sponsor_operation_unknown');
+    requireThat(original.orderRef===order.id&&original.operationKey===this.paymentRoute.operationKey(order.id)&&original.credential,'original_sponsor_operation_unknown');
     const credential=Credential.deserialize(original.credential);
     requireThat(challengeIdentity(credential.challenge)===challengeIdentity(order.challenge)&&credential.payload.txHash===original.txHash,'original_sponsor_operation_conflict');
     return {...original,credential};
@@ -154,14 +157,14 @@ export class Authority {
     requireThat(wallet.txHash===v.txHash,'original_sponsor_operation_conflict');
     return this.transaction(original.user_id,async db => {
       const o = (await db.query('SELECT * FROM mpp_direct_orders WHERE id=$1 FOR UPDATE',[v.orderRef])).rows[0];
-      requireThat(v.payer===o.challenge.request.payer && v.recipient===o.challenge.request.recipient
-        &&v.gasSponsor===this.config.gasSponsor&&v.sponsorOperation===o.sponsor_operation,'verified_payment_binding_mismatch');
+      requireThat(v.payer===o.challenge.request.payer && v.recipient===o.challenge.request.recipient,'verified_payment_binding_mismatch');
+      this.checkPaymentGasBinding(o,v);
       if(v.failed){
         requireThat(v.nonceConsumed,'failed_principal_not_closed');
         const identity='failed-native:'+v.network+':'+v.txHash;
         const old=(await db.query('SELECT order_id FROM mpp_direct_anomalies WHERE identity=$1',[identity])).rows[0];
         if(old){requireThat(old.order_id===o.id,'failed_transaction_already_assigned');return {committed:true,projectionReady:false,orderRef:o.id};}
-        await this.finalizeProjectGas(db,o.sponsor_operation,v.gasActualYocto,v);
+        await this.finalizePaymentGas(db,o,v);
         await db.query("INSERT INTO mpp_direct_anomalies(identity,order_id,reason,evidence,amount,refunded) VALUES($1,$2,'failed_delegate_zero_principal',$3,0,true)",[identity,o.id,v]);
         await db.query('UPDATE mpp_direct_tasks SET reserved_nano=reserved_nano-$2 WHERE id=$1',[o.task_id,o.reserve_nano]);
         await db.query("UPDATE mpp_direct_orders SET state='cancelled' WHERE id=$1",[o.id]);
@@ -174,10 +177,10 @@ export class Authority {
         const task = (await db.query('SELECT * FROM mpp_direct_tasks WHERE id=$1 FOR UPDATE',[o.task_id])).rows[0];
         const cap = (await db.query('SELECT * FROM mpp_direct_capacity WHERE id=1 FOR UPDATE')).rows[0];
         const now = Number((await db.query('SELECT floor(extract(epoch FROM clock_timestamp())*1000)::bigint AS n')).rows[0].n);
-        const admissible = v.amount===o.p&&!v.late && now<Number(o.admission_before_ms) && task.active && task.revision===o.task_revision
+        const admissible = v.amount===o.p&&!v.late&&!v.assignmentMissing && now<Number(o.admission_before_ms) && task.active && task.revision===o.task_revision
           && o.state!=='cancelled' && cap.lease_order===o.id && now<Number(cap.lease_until_ms);
         await db.query('INSERT INTO mpp_direct_movements(identity,order_id,purpose,operation_id,proof) VALUES($1,$2,\'payment\',$3,$4)',[v.movementKey,o.id,'pay-'+o.id,v]);
-        await this.finalizeProjectGas(db,o.sponsor_operation,v.gasActualYocto,v);
+        await this.finalizePaymentGas(db,o,v);
         if(v.amount!==o.p){
           await db.query('INSERT INTO mpp_direct_anomalies(identity,order_id,reason,evidence,amount) VALUES($1,$2,\'native_amount_mismatch\',$3,$4)',[v.movementKey,o.id,v,v.amount]);
           await db.query("UPDATE mpp_direct_orders SET state='exception' WHERE id=$1",[o.id]);
@@ -192,7 +195,7 @@ export class Authority {
           const account = (await db.query("SELECT id FROM credit_accounts WHERE user_id=$1 AND currency='USD' FOR UPDATE",[o.user_id])).rows[0];
           const ledger = 'near_pay_'+o.id;
           await db.query(`INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,currency,idempotency_key,metadata)
-            VALUES($1,$2,'purchase',$3,'USD',$1,$4)`,[ledger,account.id,o.service_micro,{source:SPONSORED,method_version:2,order_id:o.id,fx:o.rate_nano_per_near,principal:o.p}]);
+            VALUES($1,$2,'purchase',$3,'USD',$1,$4)`,[ledger,account.id,o.service_micro,{source:this.paymentRoute.method,method_version:this.paymentRoute.version,order_id:o.id,fx:o.rate_nano_per_near,principal:o.p}]);
           await db.query('UPDATE credit_accounts SET balance_micro_usd=balance_micro_usd+$2 WHERE id=$1',[account.id,o.service_micro]);
           await db.query('INSERT INTO redis_balance_mutations(mutation_id,user_id,ledger_entry_id,signed_delta_micro_usd) VALUES($1,$2,$3,$4)',[mutationId(ledger),o.user_id,ledger,o.service_micro]);
           await db.query("UPDATE mpp_direct_orders SET received=true,h=p,escrow_micro=service_micro,credit_ledger=$2,state='paid' WHERE id=$1",[o.id,ledger]);
@@ -212,7 +215,7 @@ export class Authority {
     requireThat(journal,'original_payment_unknown');
     // A later invalid public presentation cannot hide the durable original.
     const {credential} = await this.originalOperation(o);
-    const v = await verifySponsored({credential,expectedChallenge:o.challenge,rpc:this.rpc,allowMismatch:true,allowFailure:true});
+    const v = await this.paymentRoute.verify({credential,expectedChallenge:o.challenge,rpc:this.rpc,allowMismatch:true,allowFailure:true});
     await this.consumeVerifiedPayment(v); return this.view(await this.getOrder(order,user));
   }
   view(o) { return {id:o.id,state:o.state,nativeId:o.admitted_request,principal:{P:o.received?o.p:'0',C:o.c,H:o.h,W:o.w,R:o.r},
@@ -223,11 +226,11 @@ export class Authority {
       requireThat(!row.admitted_request,'already_admitted');
       if(['exception','refund_due','refunded','settled'].includes(row.state))return this.view(row);
       if(walletProof?.knownUnsent===true&&!row.received){
-        requireThat(walletProof.orderRef===o.id&&walletProof.operationKey==='near-pay-v2-'+o.id,'invalid_unsent_wallet_binding');
+        requireThat(walletProof.orderRef===o.id&&walletProof.operationKey===this.paymentRoute.operationKey(o.id),'invalid_unsent_wallet_binding');
         const op=(await db.query('SELECT * FROM mpp_direct_sponsor_operations WHERE id=$1 FOR UPDATE',[row.sponsor_operation])).rows[0];
         if(op.state==='authorized'||op.state==='unknown'){
           await db.query('UPDATE mpp_direct_tasks SET reserved_nano=reserved_nano-$2 WHERE id=$1',[o.task_id,o.reserve_nano]);
-          await db.query('UPDATE mpp_direct_project_budget SET reserved_yocto=reserved_yocto-$1 WHERE id=1',[op.estimate_yocto]);
+          await this.releasePaymentGas(db,op);
           await db.query("UPDATE mpp_direct_sponsor_operations SET state='never_sent',evidence=$2 WHERE id=$1",[op.id,walletProof]);
         }
       }
@@ -245,7 +248,7 @@ export class Authority {
       const old = (await db.query('SELECT * FROM mpp_direct_refunds WHERE order_id=$1',[o.id])).rows[0]; if (old) return old;
       const id = 'refund-'+o.id;
       const amount=anomaly?.amount??row.w;
-      const binding={...principalRequest(row.challenge.request),...(anomaly?{amount}: {})};
+      const binding={...this.paymentRoute.principalRequest(row.challenge.request),...(anomaly?{amount}: {})};
       const plan = refundPlan({orderRef:o.id,binding,amount,refundableYocto:amount,operationId:id,createdAtMs:Date.now()});
       await this.reserveRefundGas(db,o.id);
       await db.query('INSERT INTO mpp_direct_refunds(id,order_id,plan,plan_hash) VALUES($1,$2,$3,$4)',[id,o.id,plan,hash(plan)]);
@@ -261,7 +264,7 @@ export class Authority {
   }
   async confirmRefund(id, publicKey) {
     const refund = (await this.pool.query('SELECT * FROM mpp_direct_refunds WHERE id=$1',[id])).rows[0]; requireThat(refund,'unknown_refund');
-    const proof = await verifyRefund({plan:refund.plan,originalSend:refund.original_send,txHash:refund.original_send?.txHash,publicKey,rpc:this.rpc});
+    const proof = await (this.paymentRoute.verifyRefund??verifyRefund)({plan:refund.plan,originalSend:refund.original_send,txHash:refund.original_send?.txHash,publicKey,rpc:this.rpc});
     const order = (await this.pool.query('SELECT * FROM mpp_direct_orders WHERE id=$1',[refund.order_id])).rows[0];
     return this.transaction(order.user_id,async db => {
       const o = (await db.query('SELECT * FROM mpp_direct_orders WHERE id=$1 FOR UPDATE',[order.id])).rows[0];
@@ -274,7 +277,7 @@ export class Authority {
       if (BigInt(o.escrow_micro)>0n) {
         ledger = 'near_refund_'+o.id;
         const account = (await db.query("SELECT id FROM credit_accounts WHERE user_id=$1 AND currency='USD' FOR UPDATE",[o.user_id])).rows[0];
-        await db.query(`INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,currency,idempotency_key,metadata) VALUES($1,$2,'refund',$3,'USD',$1,$4)`,[ledger,account.id,String(-BigInt(o.escrow_micro)),{source:SPONSORED,method_version:2,order_id:o.id,refund_id:r.id}]);
+        await db.query(`INSERT INTO credit_ledger_entries(id,credit_account_id,entry_type,amount_micro_usd,currency,idempotency_key,metadata) VALUES($1,$2,'refund',$3,'USD',$1,$4)`,[ledger,account.id,String(-BigInt(o.escrow_micro)),{source:this.paymentRoute.method,method_version:this.paymentRoute.version,order_id:o.id,refund_id:r.id}]);
         await db.query('UPDATE credit_accounts SET balance_micro_usd=balance_micro_usd-$2 WHERE id=$1',[account.id,o.escrow_micro]);
         await db.query('INSERT INTO redis_balance_mutations(mutation_id,user_id,ledger_entry_id,signed_delta_micro_usd) VALUES($1,$2,$3,$4)',[mutationId(ledger),o.user_id,ledger,String(-BigInt(o.escrow_micro))]);
       }
@@ -291,6 +294,11 @@ export class Authority {
       return this.view((await db.query('SELECT * FROM mpp_direct_orders WHERE id=$1',[o.id])).rows[0]);
     });
   }
+  checkPaymentGasBinding(o,v) {
+    requireThat(v.gasSponsor===this.config.gasSponsor&&v.sponsorOperation===o.sponsor_operation,'verified_payment_binding_mismatch');
+  }
+  async finalizePaymentGas(db,o,v) { return this.finalizeProjectGas(db,o.sponsor_operation,v.gasActualYocto,v); }
+  async releasePaymentGas(db,op) { await db.query('UPDATE mpp_direct_project_budget SET reserved_yocto=reserved_yocto-$1 WHERE id=1',[op.estimate_yocto]); }
   async finalizeProjectGas(db,id,actual,evidence){
     const op=(await db.query('SELECT * FROM mpp_direct_sponsor_operations WHERE id=$1 FOR UPDATE',[id])).rows[0];requireThat(op,'unknown_sponsor_operation');
     if(op.state==='final'){requireThat(op.actual_yocto===actual,'project_fee_conflict');return;}

@@ -21,7 +21,7 @@ export async function createTaskRuntime({url,sessionId,fetcher=fetch,backend,was
  const timer=setInterval(()=>{if(!closed)void api('heartbeat',{}).catch(()=>{turn?.cancel({reason:'handoff'});});},1500);
  try{
   engine=await createFxEngine({...(backend?{backend}:{}),...(wasm?{wasm}:{}),sessionId,
-   provider:{name:'controlled',baseUrl:url+'/v1',models:{'m/external':{contextWindow:32000,maxOutputTokens:64,supportsToolUse:true,supportsVision:false}}},model:'m/external',
+   provider:{name:status.runtime?.providerName??'controlled',baseUrl:url+'/v1',models:{'m/external':{contextWindow:status.runtime?.contextWindow??32000,maxOutputTokens:status.runtime?.maxOutputTokens??64,supportsToolUse:true,supportsVision:false}}},model:'m/external',
    instructions:'Use the virtual bash tool to complete the task from /workspace/task.txt. Verify /workspace/result.txt before reporting completion. Payment and procurement are managed by the host; never call payment or network tools.',
    persistence:{marks:true,load:async()=>{const value=await api('journal',{load:true});return {journal:value.journal.map(r=>({cursor:r.cursor,data:decode(r.data)}))};},
     append:async record=>api('journal',{expected:record.expected,idempotencyKey:record.idempotencyKey,data:encode(record.data),marks:record.marks??[],barrier:record.barrier})},
