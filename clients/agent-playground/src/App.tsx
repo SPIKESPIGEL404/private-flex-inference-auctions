@@ -28,7 +28,7 @@ function Pane({agent,refresh,park}:{agent:Agent;refresh:()=>void;park:()=>void})
  const remove=async()=>{if(agent.state==='complete'||await pause())park();};
  return <section className="pane" aria-label={agent.agent_id+'任务'}>
   <div className="pane-title"><strong>{agent.agent_id}</strong><span>{detail?.state??agent.state}</span><button onClick={()=>void remove()} aria-label={'停放'+agent.agent_id}>−</button></div>
-  <div className="identity">{agent.payer} · NEAR 本金 · 项目赞助 gas</div>
+  <div className="identity">{agent.payer} · 虚拟 NEAR 本金与 gas</div>
   <div className="meter"><span>已扣 {usd(agent.spent_nano)}</span><span>占用 {usd(agent.reserved_nano)}</span><span>预算 {usd(agent.budget_nano)}</span></div>
   <div className="terminal">{core?<Terminal core={core} autoResize onReady={wt=>{terminal.current=wt;setTerminalReady(true);}} onData={()=>{}} scrollbackLines={1000}/>:<p>加载终端…</p>}</div>
   <div className="actions"><button disabled={busy||agent.state==='complete'} onClick={()=>void start()}>{agent.paused?'恢复任务':'开始 / 恢复'}</button><button disabled={agent.paused||agent.state==='complete'} onClick={()=>void pause()}>暂停</button>

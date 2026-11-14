@@ -18,14 +18,14 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=true CARGO_BUILD_JOBS=2 CARGO_NET_OFFLINE=false
 RUN cargo build --locked --release --manifest-path crates/private-market-p2/Cargo.toml --bin private-market-host-p2 --target-dir /src/target
 
 FROM ${NODE_IMAGE} AS assets
+WORKDIR /app/services/mpp-near-direct
+COPY services/mpp-near-direct ./
+RUN npm ci --ignore-scripts --omit=dev
 WORKDIR /app/clients/agent-playground
 COPY clients/agent-playground/package*.json ./
 RUN npm ci --ignore-scripts
 COPY clients/agent-playground ./
 RUN npm run build
-WORKDIR /app/services/mpp-near-direct
-COPY services/mpp-near-direct/package*.json ./
-RUN npm ci --ignore-scripts --omit=dev
 
 FROM ${NODE_IMAGE} AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends python3 postgresql-15 redis-server ca-certificates \
