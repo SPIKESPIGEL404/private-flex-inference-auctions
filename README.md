@@ -163,6 +163,16 @@ scripted preview is available only through an explicit development switch;
 wallet-mode failures do not fall back to scripted responses. No deployed Market
 or real funds were changed by this implementation batch.
 
+## Live GPU dashboard
+
+The optional [GPU dashboard](docs/live-gpu-dashboard.md) connects the private
+Chutes vLLM metrics to the main page's bottom GPU pane and a standalone `/gpu` page.
+It shows live queues, token throughput, KV cache and latency windows through
+server-side Prometheus collection. The Chutes key never enters the browser.
+Below the main header, Money summarizes observed agent wallet balances and
+configured task limits separately. Seller revenue/costs/refunds remain `—` until
+settlement/billing sources are connected. Agent traffic integration is separate work.
+
 ## Verify the Market before buying
 
 The following describes the controlled identity acceptance in this integration; deployment evidence must be evaluated for its own exact release and scope.

@@ -1,0 +1,25 @@
+services:
+  prometheus:
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    # Read the operator-owned 0600 key without changing its host permissions.
+    user: "0:0"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]
+    security_opt: [no-new-privileges:true]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=256MB
+    ports: ["127.0.0.1:${PROVIDER_PROMETHEUS_PORT:-19091}:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${CHUTES_METRICS_KEY_FILE:?Set the absolute Chutes key file path}:/run/secrets/chutes-api-key:ro
+      - telemetry-data:/prometheus
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+volumes:
+  telemetry-data:

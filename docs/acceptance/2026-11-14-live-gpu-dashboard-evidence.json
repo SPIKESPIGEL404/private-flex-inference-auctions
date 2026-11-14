@@ -1,0 +1,75 @@
+{
+  "status": "pass-scoped-live-monitoring",
+  "checkedAt": "2026-11-14T18:26:42.194094+00:00",
+  "baseMain": "e71d7af78f21e0676fb45e224eeea4ccf951e9ed",
+  "deployment": "local Prometheus + buyer gateway + browser; no hosted frontend rollout",
+  "liveObservation": {
+    "source": "vllm",
+    "model": "qwen3.8-27b",
+    "scope": "engine",
+    "state": "live",
+    "sampledAt": 1794680796029,
+    "observedAt": 1794680802190,
+    "ageMs": 6161,
+    "epoch": "1794678104.32",
+    "metrics": {
+      "running": 0,
+      "waiting": 0,
+      "kvUsage": 0,
+      "outputTokensPerSecond": 0,
+      "inputTokensPerSecond": 0,
+      "cacheHitRate": null,
+      "ttftP95Ms": null,
+      "queueP95Ms": null,
+      "newPrefillTokensPerRequest": null,
+      "preemptionsTotal": 0,
+      "completedPerSecond": 0
+    }
+  },
+  "checks": {
+    "buyerGatewayTests": 23,
+    "newTelemetryTests": 8,
+    "prometheusEvaluator": "v3.16.0; nonzero histogram/counter case and worker-reset case passed",
+    "frontend": "TypeScript and Vite production build passed; dedicated GPU route loads no terminal WASM",
+    "browser": {
+      "desktop": "1440x900 live Chutes-backed view",
+      "mobile": [
+        "390x844",
+        "320x844"
+      ],
+      "horizontalOverflow": false,
+      "pauseResume": "passed; pause freezes view while backend collection continues",
+      "controlledFixture": [
+        "nonzero values",
+        "stale samples hidden",
+        "upstream failure hidden",
+        "recovery",
+        "process epoch change suppresses derived values",
+        "Live/Preview switch",
+        "collapse/expand preserves original buyer terminal node"
+      ],
+      "gpuPageDirectProviderRequests": false,
+      "gpuPageWasmRequests": false
+    }
+  },
+  "newInferenceRequests": 0,
+  "chuteDeploymentChanged": false,
+  "marketFundingOrSupplyChanged": false,
+  "sourceSha256": {
+    "clients/buyer-gateway/src/provider-telemetry.mjs": "c28844eaee9e036f4383c0cba1d09019fbbe9ae41ddbeb1983396544f2e5c325",
+    "clients/buyer-gateway/src/server.mjs": "e41033cb4a44e88aee7a5399f20a07f5d8436246c6d255deade2944223de0335",
+    "clients/market-playground/src/provider-telemetry.ts": "3a608b4b5b42191c23556f68590fcced95b3dd83c2b322217c413f8bce85d13e",
+    "clients/market-playground/src/LiveProviderStatistics.tsx": "7979f5bb1e719a5e913d10ad679d0df520e1d8dc58d6ec4b93a5e68ffcc9e558",
+    "clients/market-playground/src/main.tsx": "361b47cf4cb4547aaeb53b67d3a7adc9798acdb9196c75adc0423f029fd8fc46",
+    "deploy/telemetry/prometheus.yml": "8176d330219eec0b8d7ce72e1b03e0cc99b85646fa4bf01cbb0348223e636b4c",
+    "deploy/telemetry/compose.yaml": "14cad48426fa85e7ec4c198e9cebe4be0c20ca1fcbc6ad0d132e05b417bb96dd"
+  },
+  "limits": [
+    "Live observation covers an idle engine, not a performance benchmark",
+    "Nonzero throughput and p95 cases are controlled checks, not live GPU measurements",
+    "Five-minute UI history starts at gateway startup; Prometheus stores underlying history separately",
+    "KV cache usage is not SM/GPU compute utilization; no hardware exporter added",
+    "Samples are unsigned monitoring; no new TEE execution proof claim",
+    "Existing buyer/MPP inference routing remains outside this monitoring change"
+  ]
+}

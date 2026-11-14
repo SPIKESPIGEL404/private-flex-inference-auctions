@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { dollars, experimentModes, percent, relativeChange, sampleGpuCost, statisticsWindow } from './statistics';
 import type { ExperimentMode, StatisticsMetric, StatisticsSample, StatisticsView } from './statistics';
+import { LiveProviderStatistics } from './LiveProviderStatistics';
 
 const views: StatisticsView[] = ['earnings', 'cache', 'latency', 'trust'];
 const metricLabels: Record<StatisticsMetric, string> = {
@@ -52,11 +53,22 @@ function ComparisonChart({ metric, current, baseline, mode }: {
   </div>;
 }
 
-export function ProviderStatistics({ open, mode, view, onOpenChange, onModeChange, onViewChange }: {
+type StatisticsProps = {
   open: boolean; mode: ExperimentMode; view: StatisticsView;
   onOpenChange: (open: boolean) => void; onModeChange: (mode: ExperimentMode) => void;
   onViewChange: (view: StatisticsView) => void;
-}) {
+  accessScope?: string;
+};
+export function ProviderStatistics(props: StatisticsProps) {
+  const [source, setSource] = useState<'live' | 'preview'>('live');
+  return <div className="provider-statistics-container">
+    <div className="statistics-source-switch"><label>data <select aria-label="Provider data source" value={source} onChange={e => setSource(e.target.value as 'live' | 'preview')}>
+      <option value="live">Live engine</option><option value="preview">Simulated preview</option>
+    </select></label><a href="/gpu">open GPU dashboard ↗</a></div>
+    {source === 'live' ? <LiveProviderStatistics open={props.open} onOpenChange={props.onOpenChange} accessScope={props.accessScope} /> : <StatisticsPreview {...props} />}
+  </div>;
+}
+function StatisticsPreview({ open, mode, view, onOpenChange, onModeChange, onViewChange }: StatisticsProps) {
   const [playing, setPlaying] = useState(true);
   const [tick, setTick] = useState(60);
   const [earningsMetric, setEarningsMetric] = useState<StatisticsMetric>('revenue');

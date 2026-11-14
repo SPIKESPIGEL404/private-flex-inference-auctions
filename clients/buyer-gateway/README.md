@@ -40,6 +40,16 @@ to that process. Multi-replica coordination is not implemented.
 
 ## Host configuration
 
+Optional real engine monitoring is documented in the [GPU dashboard guide](../../docs/live-gpu-dashboard.md).
+`PROVIDER_PROMETHEUS_URL` enables fixed, read-only queries; private sessions are
+required unless `PROVIDER_TELEMETRY_PUBLIC=1` explicitly exposes the curated global
+engine statistics. The Chutes credential remains solely with Prometheus.
+Telemetry cannot enable wallet funding or inference procurement.
+Allocation responses include nullable `balanceObservedAt` per buyer. It is
+updated only after a successful balance read, so the main Money overview can
+distinguish default zeros from observed wallet balances. This adds observation
+metadata; no settlement or billing ledger is exposed by this field.
+
 `.env.example` contains empty secret fields and is safe to commit. `.env` and
 `.state/` are ignored. No `VITE_` or browser environment variable carries a secret.
 

@@ -4,6 +4,7 @@ import { resolve, extname, sep } from 'node:path';
 import { Auth } from './auth.mjs';
 import { Onboarding } from './onboarding.mjs';
 import { check, publicError } from './errors.mjs';
+import { ProviderTelemetry } from './provider-telemetry.mjs';
 
 const cookieName = 'private_market_session', challengeName = 'private_market_challenge';
 function cookies(request) {
@@ -26,7 +27,7 @@ function json(response, status, value) {
   response.end(JSON.stringify(value));
 }
 
-export function createGateway({ config, store, api, rpc, now = Date.now }) {
+export function createGateway({ config, store, api, rpc, now = Date.now, telemetry = new ProviderTelemetry(config.providerTelemetry, { now }) }) {
   const auth = new Auth(store, rpc, config.origin, now);
   const onboarding = new Onboarding({ store, api, rpc, config, now });
   const rates = new Map();
@@ -50,7 +51,7 @@ export function createGateway({ config, store, api, rpc, now = Date.now }) {
       if (!path.startsWith('/buyer-api/')) {
         check(request.method === 'GET' || request.method === 'HEAD', 'method_not_allowed', 405);
         const pathname = decodeURIComponent(path);
-        const file = resolve(config.staticDir, '.' + (['/', '/proposal', '/proposal/'].includes(pathname) ? '/index.html' : pathname));
+        const file = resolve(config.staticDir, '.' + (['/', '/gpu', '/gpu/', '/proposal', '/proposal/'].includes(pathname) ? '/index.html' : pathname));
         check(file.startsWith(config.staticDir + sep), 'not_found', 404);
         const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' };
         const type = types[extname(file)];
@@ -73,6 +74,34 @@ export function createGateway({ config, store, api, rpc, now = Date.now }) {
           ownerTermsUrl: config.ownerTermsUrl, outlayerTermsUrl: config.outlayerTermsUrl, acceptanceVersion: config.acceptanceVersion }); return;
       }
       const jar = cookies(request);
+      if (path === '/buyer-api/provider-telemetry' || path === '/buyer-api/provider-telemetry/events') {
+        check(request.method === 'GET', 'method_not_allowed', 405);
+        check(!url.search, 'invalid_request_target');
+        const allowed = () => { if (config.providerTelemetry && !config.providerTelemetry.public) auth.owner(jar[cookieName]); };
+        allowed();
+        if (path === '/buyer-api/provider-telemetry') { json(response, 200, telemetry.snapshot()); return; }
+        check(telemetry.listeners.size < 32, 'rate_limited', 429);
+        response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+        let unsubscribe, heartbeat, blocked = false, blockedAt = 0;
+        const close = () => { clearInterval(heartbeat); unsubscribe?.(); response.end(); };
+        const send = value => {
+          try {
+            if (!value) { close(); return; }
+            allowed();
+            if (blocked) { if (now() - blockedAt > 10_000) close(); return; }
+            if (!response.write(`event: telemetry\ndata: ${JSON.stringify(value)}\n\n`)) {
+              blocked = true; blockedAt = now(); response.once('drain', () => { blocked = false; });
+            }
+          } catch { close(); }
+        };
+        send(telemetry.snapshot());
+        if (!response.writableEnded) {
+          unsubscribe = telemetry.subscribe(send);
+          heartbeat = setInterval(() => send(telemetry.snapshot(false)), 5000); heartbeat.unref?.();
+          response.once('close', () => { clearInterval(heartbeat); unsubscribe?.(); });
+        }
+        return;
+      }
       if (path === '/buyer-api/auth/challenge' && request.method === 'POST') {
         const challenge = auth.challenge();
         response.setHeader('set-cookie', cookie(challengeName, challenge.token, config.origin, 300));
@@ -127,5 +156,7 @@ export function createGateway({ config, store, api, rpc, now = Date.now }) {
   });
   server.requestTimeout = 30_000;
   server.headersTimeout = 10_000;
-  return { server, auth, onboarding };
+  server.once('listening', () => telemetry.start());
+  server.once('close', () => telemetry.stop());
+  return { server, auth, onboarding, telemetry };
 }

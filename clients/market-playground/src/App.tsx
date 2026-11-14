@@ -9,7 +9,8 @@ import type { Buyer, BuyerStatus } from './model';
 import type { RuntimeOptions } from './runtime';
 import { WalletController } from './wallet-api';
 import { WalletSetup } from './WalletSetup';
-import { ProviderStatistics } from './ProviderStatistics';
+import { LiveProviderStatistics } from './LiveProviderStatistics';
+import { MoneyOverview } from './MoneyOverview';
 import { loadStatisticsPreferences, statisticsStorageKey } from './statistics';
 
 type Dialog = 'settings' | 'help' | 'preview' | 'wallet' | null;
@@ -110,7 +111,7 @@ function Info({ kind, onClose }: { kind: 'help' | 'preview'; onClose: () => void
       <dl className="key-list"><dt>market</dt><dd>not connected</dd><dt>provider calls</dt><dd>0</dd>
         <dt>actual spend</dt><dd>$0.00</dd><dt>attestation / signatures</dt><dd>not checked</dd></dl>
       <p>Per-call Market procurement is deferred. This preview contains no provider credentials.</p>
-      <p>Provider statistics are an independent, scripted comparison for layout preview. They are not derived from these terminals or a measured GPU experiment. Hardware attestation is not connected.</p>
+      <p>Live engine statistics use the optional host telemetry feed and include all engine traffic. Simulated preview is an explicit scripted comparison. Neither establishes that these terminals invoked the engine; hardware attestation is separate.</p>
     </>}
   </dialog>;
 }
@@ -133,6 +134,7 @@ export default function App() {
   const [countDraft, setCountDraft] = useState(String(buyers.length));
   const [storageError, setStorageError] = useState(false);
   const [statistics, setStatistics] = useState(loadStatisticsPreferences);
+  const [gpuExpanded, setGpuExpanded] = useState(false);
   const workspace = useRef<HTMLElement>(null);
   const [size, setSize] = useState({ width: 1280, height: 720 });
   const runtimes = useRef(new Map<string, BuyerRuntime>());
@@ -254,8 +256,8 @@ export default function App() {
         <div className="header-controls">
           {preview ? <button className="preview-link" onClick={() => setDialog('preview')}>preview</button>
             : <button className="preview-link wallet-connect" onClick={() => setDialog('wallet')}>{wallet.owner?.account_id ?? 'connect NEAR'}</button>}
-          <button className="outline-button stats-header-toggle" aria-expanded={statistics.open} aria-label="Toggle provider statistics"
-            onClick={() => setStatistics(old => ({ ...old, open: !old.open }))}>stats</button>
+          <button className="outline-button stats-header-toggle" aria-expanded={statistics.open} aria-label="Toggle GPU panel"
+            onClick={() => setStatistics(old => ({ ...old, open: !old.open }))}>gpu</button>
           <label className="pane-count">buyers <input aria-label="Buyer count" type="number" min={1} max={maxBuyers} value={countDraft}
             disabled={!preview && !!allocation}
             onChange={e => { setCountDraft(e.target.value); if (/^[1-8]$/.test(e.target.value)) resize(Number(e.target.value)); }}
@@ -283,12 +285,8 @@ export default function App() {
         </div>
       </div>
     </header>
-    {!preview && <div className="gateway-status" role="status">
-      <button onClick={() => setDialog('wallet')}>{wallet.loading ? 'connecting to wallet service…' : wallet.error
-        ? wallet.error : !wallet.config?.configured ? 'wallet service awaiting host configuration'
-        : allocation ? 'agent wallets · open setup to continue' : 'connect your NEAR wallet to prepare agents'}</button>
-      <span>inference procurement pending</span>
-    </div>}
+    <MoneyOverview wallet={wallet} buyers={sessionScope === scope ? buyers : []} preview={preview}
+      onWallet={() => setDialog('wallet')} onRefresh={() => { if (allocation) void walletController.refresh(allocation.id); }} />
     <main className="terminal-workspace" ref={workspace} aria-label="Buyer terminals">{buyers.map((buyer, index) => {
       const rect = layout[index];
       return <div key={buyer.id} id={`pane-${buyer.id}`} className={`pane-slot ${zoomed === buyer.id ? 'is-zoomed' : ''} ${zoomed && zoomed !== buyer.id ? 'is-hidden' : ''}`}
@@ -299,10 +297,9 @@ export default function App() {
           onSelect={setSelected} onStatus={status} onUsage={usage} onRuntime={register} onInput={terminalInput} />
       </div>;
     })}</main>
-    <ProviderStatistics open={statistics.open} mode={statistics.mode} view={statistics.view}
+    <LiveProviderStatistics open={statistics.open} accessScope={ownerScope} compact={!gpuExpanded}
       onOpenChange={open => setStatistics(old => ({ ...old, open }))}
-      onModeChange={mode => setStatistics(old => ({ ...old, mode }))}
-      onViewChange={view => setStatistics(old => ({ ...old, view }))} />
+      onSizeChange={() => setGpuExpanded(value => !value)} />
     {dialog === 'settings' && <Settings key={current.id} buyer={current} preview={preview} onClose={() => setDialog(null)} onSave={(task, budgetMicros, scenario, all) => {
       for (const b of buyers) if (all || b.id === current.id) runtimes.current.get(b.id)?.pause();
       const update = (b: Buyer) => all || b.id === current.id ? { ...b, task, budgetMicros, scenario, previewMicros: Math.min(b.previewMicros, budgetMicros) } : b;

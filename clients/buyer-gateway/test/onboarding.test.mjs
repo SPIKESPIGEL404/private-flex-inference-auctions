@@ -12,10 +12,12 @@ test('two independently owned wallets, equal integer principal, separate grants,
   const env = setup(); t.after(() => env.store.close());
   const input = allocationInput();
   let plan = await env.onboarding.create(env.owner, input);
+  assert.ok(plan.buyers.every(b => b.balanceObservedAt === null));
   assert.equal(plan.perAgentRaw, '150000'); assert.equal(plan.remainderRaw, '1');
   assert.equal((await env.onboarding.create(env.owner, input)).id, plan.id);
   await assert.rejects(env.onboarding.create(env.owner, { ...input, total: '0.40' }), { code: 'allocation_conflict' });
   plan = await authorize(env, plan);
+  assert.ok(plan.buyers.every(b => Number.isFinite(Date.parse(b.balanceObservedAt))));
   assert.equal(new Set(plan.buyers.map(b => b.wallet)).size, 2);
   const credentials = input.buyers.map(b => env.onboarding.buyer(env.owner, b.id).credential);
   assert.notEqual(credentials[0].token, credentials[1].token);
