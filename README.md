@@ -73,3 +73,12 @@ The new Market does not read the scheduler journal, spool or execution plans.
 The [earlier security design](docs/designs/2026-11-03-security-design.md) is preserved as historical context; its proposed capabilities are not current acceptance claims.
 
 [MIT](LICENSE).
+
+## Single-model Chutes gateway
+
+[The Chutes integration](docs/chutes-gateway.md) exposes only `qwen3.8-27b` through
+a local TDX/GPU verifier and encrypted provider transport. The main-based port
+retains signed purchases and catalog-policy pinning, and uses offline buyer
+verifying keys in deployment. Its controlled acceptance and the separately
+scoped historical live evidence are documented in the run guide. Supply and
+funding remain the finite test-credit prototype.

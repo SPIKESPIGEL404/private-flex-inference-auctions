@@ -321,3 +321,12 @@ phala deploy \
 After deploy, create the printed CNAME/TXT/CAA records, confirm the CVM’s
 compose-hash equals `deploy/market/rendered/compose.hash`, then pin that hash in
 buyer `acceptedComposeHashes`.
+
+## Optional single-model Chutes profile
+
+The [Chutes run guide](chutes-gateway.md) describes a separate provider-TEE
+profile with an in-CVM loopback verifier, native encrypted Chat and TLS-passthrough
+CA configuration. It preserves this controlled deployment, golden catalog and
+signed-purchase checks. Its live catalog must be independently reviewed and
+pinned by digest before private buyer inputs are used. Historical images in
+acceptance records are not templates for deploying the current main build.

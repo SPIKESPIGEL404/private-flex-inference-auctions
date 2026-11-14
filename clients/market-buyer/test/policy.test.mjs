@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assertBootPolicy, assertMarketPolicy, validatePolicy } from '../connection.mjs';
+import { createHash } from 'node:crypto';
+import { verifyComposeMeasurement } from '@phala/aci-verifier';
+import { assertBootPolicy, assertMarketPolicy, assertMeasuredEvents, validatePolicy } from '../connection.mjs';
 
 const profile = Object.fromEntries(['mrtd', 'rtmr0', 'rtmr1', 'rtmr2'].map(k => [k, '00'.repeat(48)]));
 const digest = 'sha256:' + 'ab'.repeat(32);
@@ -45,4 +47,30 @@ test('the attested subject must carry an accepted catalog digest', () => {
   assert.throws(() => assertMarketPolicy({
     attestation: { workload_keyset: { subject: 'market-policy:sha256:' + 'ff'.repeat(32) } },
   }, policy));
+});
+
+test('runtime payload substitution cannot retain a valid digest chain', async () => {
+  // A unit fixture for event integrity, never accepted as signed hardware.
+  const compose = 'services: {}\n';
+  const sha = (v, alg) => createHash(alg).update(v).digest();
+  const events = [['app-id','12'.repeat(20)],['compose-hash',sha(compose,'sha256').toString('hex')],['system-ready','']]
+    .map(([event,event_payload]) => {
+      const kind=Buffer.alloc(4);kind.writeUInt32LE(0x08000001);
+      return {imr:3,event_type:0x08000001,event,event_payload,
+        digest:sha(Buffer.concat([kind,Buffer.from(':'+event+':'),Buffer.from(event_payload,'hex')]),'sha384').toString('hex')};
+    });
+  let mr=Buffer.alloc(48);
+  for(const event of events) mr=sha(Buffer.concat([mr,Buffer.from(event.digest,'hex')]),'sha384');
+  const q=quote();mr.copy(q,520);
+  const good=report(q);Object.assign(good.attestation.evidence,{app_compose:compose,event_log:JSON.stringify(events)});
+  const expected={...policy,acceptedAppId:'12'.repeat(20)};
+  assertMeasuredEvents(good,expected);
+  assert.throws(()=>assertMeasuredEvents(good,{...expected,acceptedAppId:'34'.repeat(20)}),/app ID/);
+  const forged=structuredClone(good), altered=structuredClone(events);
+  forged.attestation.evidence.app_compose='services: {attacker: {}}\n';
+  altered[1].event_payload=sha(forged.attestation.evidence.app_compose,'sha256').toString('hex');
+  forged.attestation.evidence.event_log=JSON.stringify(altered);
+  // The upstream digest replay alone cannot detect this payload substitution.
+  assert.equal((await verifyComposeMeasurement(forged)).ok,true);
+  assert.throws(()=>assertMeasuredEvents(forged,expected),/payload does not match/);
 });
