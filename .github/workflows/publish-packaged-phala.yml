@@ -1,0 +1,23 @@
+name: Publish packaged Phala images
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate container publishing
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Verify published bases, build, check, and publish
+        run: python3 scripts/publish-packaged-phala.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phala-published-images
+          path: published-images.json
+          if-no-files-found: error

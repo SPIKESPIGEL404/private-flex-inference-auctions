@@ -1,0 +1,6 @@
+{
+  "dstack_socket": "/var/run/dstack.sock",
+  "tls_certificate": "/ingress-evidence/cert-api.demo.bitrouter.ai.pem",
+  "public_domain": "api.demo.bitrouter.ai",
+  "keyset_lifetime_seconds": 60
+}
