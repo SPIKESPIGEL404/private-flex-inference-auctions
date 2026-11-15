@@ -23,6 +23,11 @@ export const defaultAuction: AuctionSettings = {
   maxMultiplier: "2000000",
   deadlineSeconds: 120,
 };
+export const intentsCanaryAuction = (agentIndex = 0): AuctionSettings => ({
+  ...defaultAuction,
+  baseMultiplier: agentIndex % 2 ? "3200000" : "3000000",
+  maxMultiplier: "3200000",
+});
 interface Grant {
   id: string;
   agent_id: string;
@@ -83,6 +88,7 @@ interface Order {
   financial?: { totalMicro?: string };
 }
 interface MarketData {
+  network?: "mainnet" | "testnet";
   paymentMethod?: "nearintents";
   paymentHeader?: "Authorization" | "Payment-Authorization";
   maxTaskSeconds?: number;
@@ -337,7 +343,9 @@ export class MemoryTaskController {
     this.value = { ...this.value, ownerScope };
     this.data = data;
     this.orders = financial.orders;
-    for (const grant of data.roots ?? data.grants)
+    const liveIntents =
+      data.paymentMethod === "nearintents" && data.network === "mainnet";
+    for (const [agentIndex, grant] of (data.roots ?? data.grants).entries())
       if (
         ![...this.rows.values()].some(
           (r) => r.session.agent_id === grant.agent_id,
@@ -346,11 +354,18 @@ export class MemoryTaskController {
         this.add(
           grant.agent_id,
           taskPrompt,
-          String(minimum(10000000n, BigInt(grant.agent_cap_nano))),
+          String(
+            minimum(
+              liveIntents ? 20000000n : 10000000n,
+              BigInt(grant.agent_cap_nano),
+            ),
+          ),
           "balanced",
           this.data?.paymentMethod === "nearintents"
             ? {
-                ...defaultAuction,
+                ...(liveIntents
+                  ? intentsCanaryAuction(agentIndex)
+                  : defaultAuction),
                 deadlineSeconds: Math.min(
                   1800,
                   Math.max(

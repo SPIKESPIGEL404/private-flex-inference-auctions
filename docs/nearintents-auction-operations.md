@@ -121,8 +121,9 @@ The user selected a finite 3× / 3.2× bid canary while preserving the original
 pricing formula. Dry quotes were about 0.006042 / 0.006444 USDC with a 27-second
 settlement estimate. These observations are not a standing quote or measured
 latency. Live Intents new-task forms now suggest a 3× starting bid, a 3.2× ceiling
-and a $0.02 task cap. Users review these before starting; existing tasks keep
-their settings. Smaller bids remain editable and may be rejected by the live
+and a $0.02 task cap. The two agents' initial tasks start at 3× and 3.2×,
+clamping task caps to the agent authorization. Users review these before
+starting; existing tasks keep their settings. Smaller bids remain editable and may be rejected by the live
 bridge minimum. Recheck exact amounts before funding. No minimum-price surcharge
 is silently added.
 

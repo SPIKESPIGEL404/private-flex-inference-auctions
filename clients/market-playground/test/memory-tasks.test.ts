@@ -14,7 +14,7 @@ const deferred = () => {
   const promise = new Promise((r) => (resolve = r));
   return { promise, resolve };
 };
-function fixture() {
+function fixture(profile = {}) {
   const now = Date.now(),
     requests: Array<{ path: string; body?: any }> = [],
     grants: any[] = [
@@ -67,7 +67,7 @@ function fixture() {
   const api = (async (path: string, body?: any) => {
     requests.push({ path, body });
     if (path === "authorizations" && !body)
-      return { grants: [...grants], bids: [], service, pricing };
+      return { grants: [...grants], bids: [], service, pricing, ...profile };
     if (path === "orders") return { orders };
     if (path === "authorizations" && body) {
       let g = grants.find((g) => g.operation === body.operation);
@@ -146,6 +146,23 @@ function runtime(gate = deferred()) {
   };
 }
 
+test("live Intents initial tasks respect bridge-sized defaults without running or replacing owner choices", async () => {
+  const f = fixture({ paymentMethod: "nearintents", network: "mainnet", maxTaskSeconds: 3600 });
+  f.grants.push({ ...f.grants[0], id: "root-b", agent_id: "b", agent_cap_nano: "15000000" });
+  const c = new MemoryTaskController({ api: f.api, factory: async () => { throw Error("must_not_start_on_refresh"); } });
+  await c.refresh("owner");
+  const [a, b] = c.snapshot().sessions;
+  assert.equal(a.auction?.baseMultiplier, "3000000");
+  assert.equal(b.auction?.baseMultiplier, "3200000");
+  assert.equal(a.budget_nano, "20000000");
+  assert.equal(b.budget_nano, "15000000");
+  c.configure(a.id, a.prompt, "12000000", "save", { ...a.auction!, baseMultiplier: "3100000" });
+  await c.refresh("owner");
+  assert.equal(c.snapshot().sessions[0].auction?.baseMultiplier, "3100000");
+  assert.equal(c.snapshot().sessions[0].budget_nano, "12000000");
+  assert.ok(f.requests.every((q) => !q.body));
+  c.reset();
+});
 test("view refresh never starts a runtime or writes a backend task session; task runs only once", async () => {
   const f = fixture(),
     r = runtime();

@@ -501,6 +501,7 @@ async function runServer({
           ...(mainnet || nearintents ? { roots } : {}),
           ...(nearintents
             ? {
+                network: market.config.network,
                 paymentMethod: "nearintents",
                 paymentHeader: "Payment-Authorization",
                 billing: "auction-fixed-request-v1",

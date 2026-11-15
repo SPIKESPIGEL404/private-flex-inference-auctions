@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { defaultAuction, taskPrompt } from "./memory-tasks";
+import { defaultAuction, intentsCanaryAuction, taskPrompt } from "./memory-tasks";
 import type { ReactNode } from "react";
 import type {
   AgentSession,
@@ -339,10 +339,7 @@ export function NewTask({
   const memory = sessions.some((s) => s.clientOwned);
   const [bidding, setBidding] = useState(() =>
     auctionDraft({
-      ...defaultAuction,
-      ...(liveIntents
-        ? { baseMultiplier: "3000000", maxMultiplier: "3200000" }
-        : {}),
+      ...(liveIntents ? intentsCanaryAuction() : defaultAuction),
       deadlineSeconds: windowMs > 180000 ? Math.min(900, windowMs / 1000) : 120,
     }),
   );
