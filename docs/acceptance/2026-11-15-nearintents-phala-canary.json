@@ -297,8 +297,13 @@
     "fundingSubmitted": false
   },
   "resourcesUnchanged": true,
-  "publishedSourceInputSha256": {
+  "publishedSourceBaseRevision": "85d342cc2b86c944011dc69c0d0c22427f6e92f1",
+  "publishedSourceDeltaSha256": {
     ".github/workflows/publish-packaged-phala.yml": "44e50106059f8a39fdac50360bda18cc5b50b8b68265cb97953cd97ca874c53d",
-    "scripts/publish-current-mainnet.py": "61f8d2505d8dc9fbfc7912f812c07f11bf995901e9af1eda0f0bd995dbf198fe"
+    "clients/market-playground/src/App.tsx": "d43947a465ae6f7b0a2b1ac624d6b5087bce18a4733b91f94a874eeecd3ebb9e",
+    "clients/market-playground/src/NearintentsWallets.tsx": "87f3952ebecdbd540b43ad29d10645bf1a074fe716f2526cb6d686c255d2f9e9",
+    "clients/market-playground/src/task-api.ts": "ef226d4ec7a07a511f34597e86ad17eb42aa3df8eafd7294b6ab7cb1dc29da88",
+    "scripts/publish-current-mainnet.py": "61f8d2505d8dc9fbfc7912f812c07f11bf995901e9af1eda0f0bd995dbf198fe",
+    "services/mpp-near-direct/auction/server.mjs": "66f6569adc0d8d0a0e60fcc8014908cdc789b23179adfd075bf190df93130106"
   }
 }
