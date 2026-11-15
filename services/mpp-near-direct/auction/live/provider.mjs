@@ -11,8 +11,14 @@ import { bounded } from "./timeouts.mjs";
 
 export class NearCloudProvider {
   scope = LIVE_MODE;
-  constructor({ market, client, catalog, fault = () => {} }) {
-    Object.assign(this, { market, client, catalog, fault });
+  constructor({
+    market,
+    client,
+    catalog,
+    keyFingerprint = "",
+    fault = () => {},
+  }) {
+    Object.assign(this, { market, client, catalog, keyFingerprint, fault });
     this.pool = market.pool;
     this.plan = market.config.livePlan;
   }
@@ -30,7 +36,18 @@ export class NearCloudProvider {
       "provider_budget_changed",
     );
   }
+  async blocked() {
+    return (
+      (
+        await this.pool.query(
+          "SELECT id FROM mpp_direct_live_provider_ops WHERE verification->>'kind'='http-refusal-v1' AND verification->>'keyFingerprint'=$1 LIMIT 1",
+          [this.keyFingerprint],
+        )
+      ).rowCount > 0
+    );
+  }
   async preflight() {
+    check(!(await this.blocked()), "provider_key_or_credit_refused");
     await bounded(this.client.verify(MODEL));
     const tariff = freezeNearTariff(await this.catalog());
     check(tariff.expiresAtMs > Date.now(), "provider_tariff_unavailable");
@@ -175,6 +192,24 @@ export class NearCloudProvider {
         signal: AbortSignal.timeout(90000),
       },
     );
+    if ([401, 402, 403].includes(response.status)) {
+      // A terminal authorization/billing refusal is not a usable model result.
+      // Refund the buyer, keep the full project expense reserve, and durably
+      // block this key. Do not assert zero upstream bill or retry the invoke.
+      await response.body?.cancel();
+      await this.pool.query(
+        "UPDATE mpp_direct_live_provider_ops SET state='captured',verification=$2 WHERE id=$1 AND state='sending'",
+        [
+          id,
+          {
+            kind: "http-refusal-v1",
+            status: response.status,
+            keyFingerprint: this.keyFingerprint,
+          },
+        ],
+      );
+      return { failure: "provider_refused" };
+    }
     check(
       response.ok &&
         response.headers.get("content-type")?.startsWith("text/event-stream"),
@@ -198,7 +233,24 @@ export class NearCloudProvider {
   }
   async recoverOriginal(id) {
     let row = await this.row(id);
-    if (!row) return null;
+    if (!row) {
+      // A process may die after the market claim and before creating the
+      // provider intent. Seal the absent intent atomically. A delayed sender
+      // must win this same primary key before POST, so it cannot follow this
+      // permanent never-sent proof.
+      await this.pool.query(
+        `INSERT INTO mpp_direct_live_provider_ops(id,body_hash,maximum_micro,state,created_ms)
+         SELECT a.execution_id,b.request_hash,0,'never_sent',$2
+         FROM mpp_direct_auction_allocations a JOIN mpp_direct_auction_bids b ON b.id=a.bid_id
+         WHERE a.execution_id=$1 AND a.execution IN('executing','unknown')
+         ON CONFLICT DO NOTHING`,
+        [id, Date.now()],
+      );
+      row = await this.row(id);
+      if (!row) return null;
+    }
+    if (row.verification?.kind === "http-refusal-v1")
+      return { failure: "provider_refused" };
     if (row.state === "never_sent") return { failure: "provider_never_sent" };
     if (row.state === "verified") return this.result(row);
     if (row.state !== "captured") return null;

@@ -32,6 +32,18 @@ market-usd-near-v1`, the plan's exact HTTPS `source`, positive integer
 The runtime rereads `fxFile` every 15 seconds; stale/missing FX stops new quotes.
 It does not prevent original recovery or refund.
 
+The first ready transition includes one project-funded paid Cloud chat probe;
+public model listing and SDK attestation alone cannot validate API credit. This
+probe consumes the reviewed provider allowance/call count and never repeats an
+uncertain POST, including after restart. HTTP 401/402/403 during later buyer
+inference blocks that key and refunds full buyer principal; actual agent gas is
+still spent and the project retains the upstream expense reserve. Resolve an
+Unknown effect using its original evidence before proceeding; do not erase its
+journal or reset budgets. Key rotation uses a new versioned `nearAiKeyFile` under
+the same private data directory and a new sealed key, preserving old files and
+the unchanged plan/PG allowance. A new fingerprint requires its own bounded
+probe; rotation never grants a fresh expense budget.
+
 For a Phala launch, pass public runtime JSON through
 `MAINNET_AUCTION_CONFIG_JSON`. Pass one additional **sealed**
 `MAINNET_AUCTION_PRIVATE_JSON` object with `merchantKey`, `storageKey` (32 bytes hex),

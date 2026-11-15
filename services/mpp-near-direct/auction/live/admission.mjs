@@ -1,5 +1,6 @@
 import { hash, requireThat as check } from "../../contract.mjs";
 import { validateFx, LIVE_MODE } from "./policy.mjs";
+import { usageCostMicro } from "../../../inference-comparison/core.mjs";
 // Conservative qualification for the bounded text/bash Qwen template. All text
 // and JSON bytes are counted (including escaped bytes) plus 1024 template tokens
 // per message and 4096 for tool scaffolding. This is NOT exact token metering;
@@ -59,14 +60,46 @@ export function qualify(body, raw, service) {
     requestHash: hash(raw),
   };
 }
-export function liveAdmission({ plan }) {
+export function liveAdmission({ plan, keyFingerprint = "" }) {
+  const maximumProviderMicro = BigInt(
+    usageCostMicro(plan.service.rates, {
+      prompt_tokens: plan.service.maxInputTokens,
+      completion_tokens: plan.service.maxOutputTokens,
+      prompt_tokens_details: {
+        cached_tokens:
+          BigInt(plan.service.rates.cache_input) >
+          BigInt(plan.service.rates.input)
+            ? plan.service.maxInputTokens
+            : 0,
+      },
+    }),
+  );
   return {
     scope: LIVE_MODE,
     async ready(db, at) {
       const r = (
         await db.query("SELECT * FROM mpp_direct_live_supply WHERE singleton")
       ).rows[0];
+      const budget = (
+        await db.query(
+          "SELECT * FROM mpp_direct_live_provider_budget WHERE singleton",
+        )
+      ).rows[0];
+      const blocked =
+        (
+          await db.query(
+            "SELECT id FROM mpp_direct_live_provider_ops WHERE verification->>'kind'='http-refusal-v1' AND verification->>'keyFingerprint'=$1 LIMIT 1",
+            [keyFingerprint],
+          )
+        ).rowCount > 0;
       return (
+        !blocked &&
+        budget &&
+        budget.calls < budget.maximum_calls &&
+        BigInt(budget.spent_micro) +
+          BigInt(budget.reserved_micro) +
+          maximumProviderMicro <=
+          BigInt(budget.maximum_micro) &&
         !!r?.ready &&
         Number(r.observed_ms) <= at &&
         at < Number(r.expires_ms) &&

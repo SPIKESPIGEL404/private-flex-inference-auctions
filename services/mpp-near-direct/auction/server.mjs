@@ -1,9 +1,9 @@
 import http from "node:http";
 import { LIVE_MODE } from "./live/policy.mjs";
 import { bounded } from "./live/timeouts.mjs";
-import { Challenge } from "mppx";
+import { Challenge, Receipt } from "mppx";
 import { ownerAuth as createOwnerAuth } from "./owner-auth.mjs";
-import { hash, requireThat as check } from "../contract.mjs";
+import { hash, requireThat as check, METHOD } from "../contract.mjs";
 
 const json = (res, status, value, headers = {}) => {
   res.writeHead(status, {
@@ -587,13 +587,38 @@ async function runServer({
             req.headers.authorization,
           );
         }
-        if (status.result)
+        if (status.result) {
+          let receiptHeaders = {};
+          if (mainnet) {
+            const proof = (
+              await market.pool.query(
+                "SELECT m.evidence FROM mpp_direct_auction_movements m JOIN mpp_direct_auction_allocations a ON a.id=m.allocation_id WHERE a.order_id=$1 AND m.kind='payment'",
+                [status.orderId],
+              )
+            ).rows[0]?.evidence;
+            check(
+              proof?.movementKey && Number.isSafeInteger(proof.paidAtMs),
+              "original_payment_receipt_required",
+            );
+            receiptHeaders = {
+              "payment-receipt": Receipt.serialize(
+                Receipt.from({
+                  method: METHOD,
+                  status: "success",
+                  reference: proof.movementKey,
+                  timestamp: new Date(proof.paidAtMs).toISOString(),
+                }),
+              ),
+            };
+          }
           return void (res.writeHead(200, {
             "content-type": "text/event-stream",
             "cache-control": "no-store",
             "x-order-id": status.orderId,
+            ...receiptHeaders,
           }),
           res.end(status.result.sse));
+        }
         if (["fenced", "failed"].includes(status.executionState))
           return json(res, 409, {
             error: {

@@ -1073,9 +1073,14 @@ export class AuctionMarket {
   }
   async failExecution(id, { claim, generation, reason }) {
     // Trusted provider adapter only: a durably closed, never-dispatched intent,
-    // or a verified response outside the frozen contract. Never a timeout.
+    // a verified response outside the frozen contract, or an explicit terminal
+    // HTTP authorization/billing refusal. Never a timeout.
     check(
-      ["provider_never_sent", "verified_contract_breach"].includes(reason),
+      [
+        "provider_never_sent",
+        "verified_contract_breach",
+        "provider_refused",
+      ].includes(reason),
       "definite_execution_failure_required",
     );
     return this.transaction(async (db, _state, at) => {

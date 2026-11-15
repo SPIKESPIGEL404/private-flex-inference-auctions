@@ -11,6 +11,8 @@ import { AuctionWallet } from "../live/wallet.mjs";
 import { AuctionSetup } from "../live/setup.mjs";
 import { LIVE_MODE } from "../live/policy.mjs";
 import { startMainnetAuctionServer } from "../server.mjs";
+import { ProjectProbe } from "../live/project-probe.mjs";
+import { Store } from "../../../../clients/buyer-gateway/src/store.mjs";
 const pool = new pg.Pool({
   connectionString: process.env.AUCTION_TEST_DATABASE_URL,
   max: 16,
@@ -45,6 +47,10 @@ async function setup() {
     live: liveAdmission({ plan: p }),
   });
   await market.initialize();
+  await pool.query(
+    "INSERT INTO mpp_direct_live_provider_budget(singleton,maximum_micro,maximum_calls) VALUES(true,$1,$2)",
+    [p.providerMaximumMicro, p.maximumProviderCalls],
+  );
   await recordFx(pool, fx());
   await pool.query(
     "INSERT INTO mpp_direct_live_payment_budget VALUES(true,$1,0)",
@@ -212,9 +218,166 @@ function provider(
   };
   return {
     value: new NearCloudProvider({ market: f.market, client, catalog }),
+    client,
     posts: () => posts,
   };
 }
+test("live PG: absent provider intent is permanently sealed before refund, including a delayed dispatcher", async () => {
+  const f = await setup(),
+    { a, permit } = await paid(f),
+    p = provider(f);
+  await p.value.initialize();
+  const outcome = await p.value.recoverOriginal(permit.executionId);
+  assert.deepEqual(outcome, { failure: "provider_never_sent" });
+  await f.market.failExecution(a.id, { ...permit, reason: outcome.failure });
+  assert.deepEqual(await p.value.executeOriginal(permit), outcome);
+  assert.equal(p.posts(), 0);
+  assert.equal(
+    (await f.market.status("a", a.id)).principal.refundPending,
+    String(a.principal),
+  );
+});
+test("live PG: explicit billing refusal refunds principal, retains expense exposure and blocks the same key", async () => {
+  const f = await setup(),
+    { a, permit } = await paid(f);
+  let posts = 0;
+  const p = new NearCloudProvider({
+    market: f.market,
+    keyFingerprint: "refused-key",
+    catalog,
+    client: {
+      async verify() {},
+      async fetch() {
+        posts++;
+        return new Response("denied", { status: 401 });
+      },
+    },
+  });
+  await p.initialize();
+  const result = await p.executeOriginal(permit);
+  assert.deepEqual(result, { failure: "provider_refused" });
+  await f.market.failExecution(a.id, { ...permit, reason: result.failure });
+  assert.equal(
+    (await f.market.status("a", a.id)).principal.refundPending,
+    String(a.principal),
+  );
+  assert.equal(await p.blocked(), true);
+  assert.equal(
+    await liveAdmission({ plan: f.p, keyFingerprint: "refused-key" }).ready(
+      pool,
+      Date.now(),
+    ),
+    false,
+  );
+  await assert.rejects(p.preflight(), /provider_key_or_credit_refused/);
+  assert.deepEqual(await p.recoverOriginal(permit.executionId), result);
+  assert.equal(posts, 1);
+  const b = (await pool.query("SELECT * FROM mpp_direct_live_provider_budget"))
+    .rows[0];
+  assert.equal(b.calls, 1);
+  assert.ok(BigInt(b.reserved_micro) > 0n);
+  assert.equal(String(b.spent_micro), "0");
+});
+test("project probe: concurrent checks POST once and cost verified usage in the owning budget", async () => {
+  const f = await setup(),
+    p = provider(f),
+    store = new Store(":memory:", Buffer.alloc(32, 1));
+  try {
+    const probe = new ProjectProbe({
+      pool,
+      store,
+      plan: f.p,
+      planHash: hash(f.p),
+      keyFingerprint: "probe-key",
+      client: p.client,
+    });
+    const tariff = await p.value.preflight();
+    await Promise.all([probe.ensure(tariff), probe.ensure(tariff)]);
+    assert.equal((await probe.ensure(tariff)).verified, true);
+    assert.equal(p.posts(), 1);
+    const b = (
+      await pool.query("SELECT * FROM mpp_direct_live_provider_budget")
+    ).rows[0];
+    assert.equal(b.calls, 1);
+    assert.equal(String(b.reserved_micro), "0");
+    assert.ok(BigInt(b.spent_micro) > 0n);
+  } finally {
+    store.close();
+  }
+});
+test("project probe: lost provider ACK stays unresolved across coordinator restart, never repeats paid POST", async () => {
+  const f = await setup(),
+    p = provider(f, { lost: true }),
+    store = new Store(":memory:", Buffer.alloc(32, 2));
+  try {
+    const args = {
+      pool,
+      store,
+      plan: f.p,
+      planHash: hash(f.p),
+      keyFingerprint: "probe-key",
+      client: p.client,
+    };
+    const tariff = await p.value.preflight();
+    assert.equal(await new ProjectProbe(args).ensure(tariff), null);
+    assert.equal(await new ProjectProbe(args).ensure(tariff), null);
+    assert.equal(p.posts(), 1);
+    assert.ok(
+      BigInt(
+        (
+          await pool.query(
+            "SELECT reserved_micro FROM mpp_direct_live_provider_budget",
+          )
+        ).rows[0].reserved_micro,
+      ) > 0n,
+    );
+  } finally {
+    store.close();
+  }
+});
+for (const boundary of [
+  "after_probe_cost_commit",
+  "after_probe_settlement_commit",
+])
+  test(
+    "project probe: original cost survives lost COMMIT ACK at " + boundary,
+    async () => {
+      const f = await setup(),
+        p = provider(f),
+        store = new Store(":memory:", Buffer.alloc(32, 3));
+      try {
+        const args = {
+          pool,
+          store,
+          plan: f.p,
+          planHash: hash(f.p),
+          keyFingerprint: "probe-key",
+          client: p.client,
+        };
+        const tariff = await p.value.preflight();
+        const first = new ProjectProbe({
+          ...args,
+          fault(at) {
+            if (at === boundary) throw Error("commit-ack-lost");
+          },
+        });
+        await assert.rejects(first.ensure(tariff), /commit-ack-lost/);
+        assert.equal(
+          (await new ProjectProbe(args).ensure(tariff)).verified,
+          true,
+        );
+        assert.equal(p.posts(), 1);
+        const b = (
+          await pool.query("SELECT * FROM mpp_direct_live_provider_budget")
+        ).rows[0];
+        assert.equal(b.calls, 1);
+        assert.equal(String(b.reserved_micro), "0");
+        assert.ok(BigInt(b.spent_micro) > 0n);
+      } finally {
+        store.close();
+      }
+    },
+  );
 test("live PG: stale FX prevents allocations without changing original order FX", async () => {
   const f = await setup(),
     s = await allocate(f);
@@ -267,6 +430,48 @@ test("live PG: gas overrun records actual chain effect, fences execution, refund
     ...op.binding,
     operationId: op.id,
     movementKey: "fixture-refund:" + op.id,
+  });
+  test("project probe: an expired original reservation cannot start a late paid request", async () => {
+    const f = await setup(),
+      p = provider(f),
+      store = new Store(":memory:", Buffer.alloc(32, 4));
+    try {
+      const args = {
+        pool,
+        store,
+        plan: f.p,
+        planHash: hash(f.p),
+        keyFingerprint: "probe-key",
+        client: p.client,
+      };
+      const tariff = await p.value.preflight();
+      await assert.rejects(
+        new ProjectProbe({
+          ...args,
+          fault(at) {
+            if (at === "after_probe_cost_commit")
+              throw Error("commit-ack-lost");
+          },
+        }).ensure(tariff),
+        /commit-ack-lost/,
+      );
+      const resumed = new ProjectProbe({
+        ...args,
+        plan: { ...f.p, deadlineMs: Date.now() - 1 },
+      });
+      await assert.rejects(
+        resumed.ensure(tariff),
+        /project_probe_window_closed/,
+      );
+      assert.equal(p.posts(), 0);
+      assert.equal(
+        (await pool.query("SELECT calls FROM mpp_direct_live_provider_budget"))
+          .rows[0].calls,
+        1,
+      );
+    } finally {
+      store.close();
+    }
   });
   row = (
     await pool.query(

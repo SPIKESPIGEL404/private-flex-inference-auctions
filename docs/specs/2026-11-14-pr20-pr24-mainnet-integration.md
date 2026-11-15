@@ -83,6 +83,19 @@ recovery/refunds stay available. FX observations are append-only and each
 allocation freezes its own conversion. The initial canary uses operator-supplied
 FX observations; a continuously refreshed production oracle is not included.
 
+The public catalog and attestation do not authenticate the Cloud billing key.
+Before opening buyer payments, one bounded project-funded chat probe must return
+verified terminal usage. Its cost reservation and spend count against the same
+owning PG provider allowance and call count as buyer inference. An encrypted
+original-effect record fences the single POST and reconciles lost cost/settlement
+COMMIT acknowledgments; it is not a second cash ledger. An uncertain probe stays
+closed across restarts and is never reposted. Explicit buyer-invoke HTTP
+401/402/403 durably blocks that key and returns the agent's full principal;
+the project retains its upstream cost reserve rather than assuming a zero bill.
+Agent gas already paid remains spent. A process death before creating a provider
+intent permits an atomic never-sent tombstone and full principal refund; that
+tombstone also fences any delayed sender.
+
 Input admission accepts bounded text/bash requests with a deliberately conservative
 byte/template estimate. This is **not exact tokenizer qualification** or proof of
 Cloud's hidden template/checkpoint. Verified usage outside the signed contract is

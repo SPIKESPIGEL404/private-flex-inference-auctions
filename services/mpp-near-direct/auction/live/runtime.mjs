@@ -15,6 +15,7 @@ import { validateLivePlan, validateFx } from "./policy.mjs";
 import { liveAdmission, recordFx } from "./admission.mjs";
 import { AuctionWallet } from "./wallet.mjs";
 import { AuctionSetup } from "./setup.mjs";
+import { ProjectProbe } from "./project-probe.mjs";
 import { NearCloudProvider } from "./provider.mjs";
 
 async function privateText(path) {
@@ -118,6 +119,8 @@ export async function launch(config) {
       await recordFx(pool, fx);
     };
     await refreshFx().catch(() => {});
+    const apiKey = await privateText(config.nearAiKeyFile),
+      keyFingerprint = hash(apiKey);
     market = new AuctionMarket({
       pool,
       config: {
@@ -137,16 +140,16 @@ export async function launch(config) {
         minRevisionIntervalMs: 1000,
         secret: await privateText(config.marketSecretFile),
       },
-      live: liveAdmission({ plan }),
+      live: liveAdmission({ plan, keyFingerprint }),
     });
     await market.initialize();
     const wallet = new AuctionWallet({ market, api, rpc, refundSender }),
       setup = new AuctionSetup({ market, api, rpc, credentials, wallet });
-    const apiKey = await privateText(config.nearAiKeyFile),
-      client = await sdkClient(apiKey);
+    const client = await sdkClient(apiKey);
     const provider = new NearCloudProvider({
       market,
       client,
+      keyFingerprint,
       catalog: async () => {
         const r = await fetch("https://cloud-api.near.ai/v1/model/list", {
           headers: { authorization: "Bearer " + apiKey },
@@ -171,6 +174,19 @@ export async function launch(config) {
         )
       ).rows[0].maximum_calls === plan.maximumProviderCalls,
       "mainnet_payment_limit_changed",
+    );
+    const probe = new ProjectProbe({
+      pool,
+      store,
+      plan,
+      planHash,
+      keyFingerprint,
+      client,
+    });
+    // Fence old readiness before starting any recovery worker in this process.
+    await pool.query(
+      "INSERT INTO mpp_direct_live_supply VALUES(true,false,$1,$1,$2) ON CONFLICT(singleton) DO UPDATE SET ready=false,expires_ms=excluded.expires_ms",
+      [Date.now(), { status: "startup_preflight" }],
     );
     let checking = false;
     const readiness = async () => {
@@ -212,6 +228,8 @@ export async function launch(config) {
               uint(plan.gasFloorYocto),
           "merchant_refund_readiness_insufficient",
         );
+        const probeResult = await probe.ensure(tariff);
+        check(probeResult?.verified, "project_key_probe_not_verified");
         const at = Date.now();
         await pool.query(
           "INSERT INTO mpp_direct_live_supply VALUES(true,true,$1,$2,$3) ON CONFLICT(singleton) DO UPDATE SET ready=excluded.ready,observed_ms=excluded.observed_ms,expires_ms=excluded.expires_ms,evidence=excluded.evidence",
@@ -222,6 +240,10 @@ export async function launch(config) {
               source: "near-ai-cloud-sdk-preflight-v1",
               priceVersion: tariff.priceVersion,
               providerRevisionVerified: false,
+              projectKeyProbe: {
+                responseId: probeResult.responseId,
+                actualMicro: probeResult.actualMicro,
+              },
               merchantRefundKey: refundSender.publicKey,
             },
           ],
@@ -235,7 +257,6 @@ export async function launch(config) {
         checking = false;
       }
     };
-    await readiness();
     app = await startMainnetAuctionServer({
       market,
       wallet,
@@ -244,6 +265,7 @@ export async function launch(config) {
       uiOrigin: plan.origin,
       port: config.backendPort ?? 4180,
     });
+    void readiness().catch(() => {});
     const timer = setInterval(
       () => void Promise.allSettled([refreshFx(), readiness()]),
       15000,
