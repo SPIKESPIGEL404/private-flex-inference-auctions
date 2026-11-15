@@ -4,7 +4,7 @@ on:
     inputs:
       component:
         type: choice
-        options: [packaged-current, mainnet-artifact]
+        options: [packaged-current, mainnet-artifact, mainnet-current]
         default: packaged-current
       artifactRelease:
         description: Reviewed mainnet-auction-SOURCE release tag (Mainnet mode only)
@@ -26,7 +26,7 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
       - name: Verify published bases, build, check, and publish
-        if: inputs.component != 'mainnet-artifact'
+        if: inputs.component == 'packaged-current'
         run: python3 scripts/publish-packaged-phala.py
       - name: Verify offline Mainnet bootstrap and publish the current-source image
         if: inputs.component == 'mainnet-artifact'
@@ -34,6 +34,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAINNET_ARTIFACT_RELEASE: ${{ inputs.artifactRelease }}
         run: python3 scripts/publish-mainnet-auction.py
+      - name: Build the current Intents source and verify both offline bootstraps
+        if: inputs.component == 'mainnet-current'
+        run: python3 scripts/publish-current-mainnet.py
       - uses: actions/upload-artifact@v4
         with:
           name: phala-published-images
