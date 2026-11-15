@@ -1,0 +1,402 @@
+{
+  "scope": "hosted-user-funded-intents-activation-no-agent-initiated-paid-test",
+  "observedAt": "2026-11-15T21:30:28.931856+00:00",
+  "entry": "https://e83279da3fa5b47453cc62317df738b70fedf08c-3001.dstack-pha1-prod9.phala.network/",
+  "sourceRevision": "d7520499cc43011353676156cc3364dd3960e208",
+  "branch": "codex/nearintents-chat-charge",
+  "mergedToMain": false,
+  "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:43c72addfb1d3616377ebdfed78390cd96e82981493b634370a1edd94ee75a45",
+  "ci": {
+    "url": "https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43763427107",
+    "conclusion": "success",
+    "activationChecksNetwork": "none",
+    "activationChecks": 5,
+    "publication": {
+      "sourceRevision": "d7520499cc43011353676156cc3364dd3960e208",
+      "workflowRevision": "d7520499cc43011353676156cc3364dd3960e208",
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:43c72addfb1d3616377ebdfed78390cd96e82981493b634370a1edd94ee75a45",
+      "paymentMethod": "nearintents",
+      "build": "current-source-runtime-overlay-on-CI",
+      "preLaunchScriptRequired": false,
+      "realChainPaymentsTested": false,
+      "realInferenceTested": false,
+      "reusedRustBinary": {
+        "sourceRevision": "85d342cc2b86c944011dc69c0d0c22427f6e92f1",
+        "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:5021845ffdd208cfbd674662c057bc0180e420e4b6ff336ef136e29c138c968e",
+        "sha256": "d8b93779b81ad7ed02f14897a30906e19325fec4d2b334c067c1a509feb360ad"
+      },
+      "bootstrap": {
+        "scope": "offline-image-bootstrap",
+        "image": "sha256:849b53aa16b9ea0bb13daf23ae28e6b87c1c3a727bb8a66163b8a44b6e68e8f9",
+        "sourceRevision": "d7520499cc43011353676156cc3364dd3960e208",
+        "network": "none",
+        "realChainPayments": false,
+        "realInference": false,
+        "bootstrapSourceOverride": false,
+        "owningSchemaInitializedAndVerified": true,
+        "expectedNetworkGateStoppedRuntime": true,
+        "counts": {
+          "fingerprint": 1,
+          "wallets": 0,
+          "orders": 0,
+          "payments": 0,
+          "providerInvocations": 0
+        }
+      },
+      "nearintentsBootstrap": {
+        "scope": "offline-nearintents-image-bootstrap",
+        "image": "sha256:849b53aa16b9ea0bb13daf23ae28e6b87c1c3a727bb8a66163b8a44b6e68e8f9",
+        "sourceRevision": "d7520499cc43011353676156cc3364dd3960e208",
+        "network": "none",
+        "realTransfers": 0,
+        "paidInference": 0,
+        "freshVolumeAndRestartPassed": true,
+        "counts": {
+          "owning": 1,
+          "adapter": 1,
+          "agents": 0,
+          "orders": 0,
+          "credentials": 0,
+          "providerInvocations": 0
+        }
+      }
+    }
+  },
+  "deployment": {
+    "cvmId": "c93b6999-4d41-4567-acdf-0e77d8e7a76f",
+    "status": "running",
+    "inProgress": false,
+    "composeHash": "2ea2f6d818548f15d3dcd3f3308fab34fb3cd7c65bc398984c12dbd774c35a9a",
+    "manifestExactlyExpected": true,
+    "preservation": {
+      "sourceRevision": "d7520499cc43011353676156cc3364dd3960e208",
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:43c72addfb1d3616377ebdfed78390cd96e82981493b634370a1edd94ee75a45",
+      "planHash": "0939cfe0a4d2a299043fede4a033eeb4a0f2d5ad29a80a4ee06a53aca19e3441",
+      "userPaymentsEnabled": true,
+      "automaticPaidProbeEnabled": false,
+      "oldServicesPreserved": [
+        "market",
+        "agent-preview",
+        "domain-ingress",
+        "domain-diagnostics"
+      ],
+      "allVolumesPreserved": [
+        "chutes-first-history",
+        "chutes-data",
+        "near-data",
+        "tls-ca",
+        "controlled-history",
+        "first-near-history",
+        "agent-preview-data",
+        "custom-domain-certs",
+        "custom-domain-evidence",
+        "domain-observer",
+        "nearintents-auction-data"
+      ],
+      "allNetworksPreserved": {
+        "agent-preview-private": {},
+        "default": {},
+        "nearintents-auction-private": {}
+      },
+      "sealedEnvironmentNamesPreserved": [
+        "DSTACK_AUTHORIZED_KEYS",
+        "DSTACK_ROOT_PUBLIC_KEY",
+        "CHUTES_API_KEY",
+        "MARKET_ARTIFACT_KEY",
+        "MARKET_BUYER_KEYS_B64",
+        "NEARINTENTS_AUCTION_PRIVATE_JSON"
+      ],
+      "changes": [
+        "nearintents-auction.image",
+        "nearintents-auction.environment.ENABLE_NEARINTENTS_USER_PAYMENTS"
+      ],
+      "preLaunchScriptRequired": false
+    },
+    "resourceUnchanged": true,
+    "hourlyRateUnchanged": true,
+    "cliWaitExitCode": 1,
+    "cliWaitError": "Wait failed: Update failed: no error message",
+    "resolution": "No repeated deployment. API manifest exactly matched; observed the same update settle to running and verified the expected healthy container."
+  },
+  "health": {
+    "ready": true,
+    "network": "mainnet",
+    "mode": "bounded-nearintents-auction-v1",
+    "planHash": "0939cfe0a4d2a299043fede4a033eeb4a0f2d5ad29a80a4ee06a53aca19e3441",
+    "realPayment": true,
+    "paymentsPaused": false,
+    "automaticPaidProbeEnabled": false,
+    "providerReady": true,
+    "providerReadiness": {
+      "source": "near-cloud-attestation-and-catalog",
+      "paidProbe": false,
+      "providerCredit": "unverified"
+    },
+    "runDeadlineMs": 1794860952283
+  },
+  "capabilities": {
+    "version": 1,
+    "mode": "bounded-nearintents-auction-v1",
+    "taskRuntime": "client-memory-v1",
+    "network": "mainnet",
+    "tasks": true,
+    "walletSetup": false,
+    "ownerAuth": "nep413",
+    "nativeWallets": true,
+    "nativeFunding": true,
+    "inferenceEndpoint": "/buyer-api/v1/chat/completions",
+    "walletProvider": "nearintents-evm",
+    "paymentMethod": "nearintents",
+    "billing": "auction-fixed-request-v1",
+    "realInferencePayments": true,
+    "paymentsPaused": false,
+    "maxTasksPerAgent": 8,
+    "taskWindowMs": 1800000,
+    "realChainPayments": true,
+    "realInference": true
+  },
+  "assets": [
+    {
+      "file": "index.html",
+      "sha256": "f6e5810af65b10770d3d16cbe17ebb7f8791c91891ff18f653b38f65bf96b7aa",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-cyrillic-400-normal-C51Di1Mf.woff2",
+      "sha256": "c3e3d9893a3de6713b06bc2fadeacafd9ec05594c5ed18f2e23383669d9dbb9f",
+      "status": 200
+    },
+    {
+      "file": "assets/fx-term-BweRpxJV.wasm",
+      "sha256": "723ae0a6ce55cda47f66f533224d149cec4501101ca233b1493c15d4af3e1fb7",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-400-normal-B2yvC1Cq.woff",
+      "sha256": "ec7ecd39327c39a2b2792c8b402d094619b6c1e517a74420cde8fd67a71ed083",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-ext-400-normal-DI-rJ0UV.woff2",
+      "sha256": "8ede9cb664d0e0446ed066201d58e444f6147645ae0cb1108f765f68c54fe0a4",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-symbols2-500-normal-CmnCPGa0.woff",
+      "sha256": "85f29019cb4ec8c86d58ecd7ce89d35fabcf7e7c58bd62a9b38d33aeb7498e20",
+      "status": 200
+    },
+    {
+      "file": "assets/fx-core-C4mjExOH.wasm",
+      "sha256": "c2b17c90d1c4ce76f72d322bb7bd210e3d066eb1db05aaae053a4e4371cabb69",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-symbols2-400-normal-DjbiTEEA.woff",
+      "sha256": "980c7c91c59d3f4a3e361c7204fdf521302f1fb01ea35f958f57a79e6e6291a3",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-500-normal-D-GG86Jb.woff",
+      "sha256": "04dde39e58d3539d8a8933f649c556887984c89efe1d1da53c8bb2412da12138",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-ext-400-normal-CfzLURNc.woff",
+      "sha256": "7cc6e726dcf12d457c59e75d843d9486fe05410495d36735035c9c984345638c",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-cyrillic-500-normal-D2cXvDHF.woff2",
+      "sha256": "4c8a1cdd921e467c7f8d410b2308986a3acdf1065b9e0bdc4976108a855edb1f",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-cyrillic-500-normal-DfuvdVgn.woff",
+      "sha256": "91a08f259b2314d053eab6473643a2b0bb3b78ffd5a70fbfcb7006fa1a1cbe7a",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-ext-500-normal-CrWEgvU_.woff",
+      "sha256": "1c1714e8e9c550c95828150544640b0a04697562b460bb3a522a555a7ebbdef2",
+      "status": 200
+    },
+    {
+      "file": "assets/index-Dokorvli.js",
+      "sha256": "efaaddad424e7ca78bb93976c7b252b9eb7d47a0301919ab0f1235991e2e90b7",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-500-normal-YINYabwD.woff2",
+      "sha256": "72971bd4908d3984fa1b1426bb363730e4957e16a0f58bfbca76993095715488",
+      "status": 200
+    },
+    {
+      "file": "assets/index-D9Kl6wlP.js",
+      "sha256": "2461de7b7f47c03cb7d278ffd833e98adb5eb4aa3ca950186334cfd8bf2f1c1f",
+      "status": 200
+    },
+    {
+      "file": "assets/ghostty-vt-CQK3cHgQ.wasm",
+      "sha256": "dc9ab0dca64ddeaa9c0dbf9c03f41b0f578893eccc9eb517707c4f4f8355e780",
+      "status": 200
+    },
+    {
+      "file": "assets/App-BbLsVcxK.js",
+      "sha256": "a93a7589d207f3b540919cb199a7652437e65b685115699a1c1769b7d403ba3a",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-400-normal-DTRLJnHl.woff2",
+      "sha256": "3f98383b122fe015a48536cd4a1cda855a201718923ffe74931a01597107b9b5",
+      "status": 200
+    },
+    {
+      "file": "assets/index-BTsR2zce.css",
+      "sha256": "b902a4774306541605c25855885e27b57c589bfb4389ae3d61f8ce1ab8c5272a",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-vietnamese-500-normal-Dx9-epDo.woff",
+      "sha256": "288bc86db5dbad0b24f8b2e0d480b72878f02de90fcf31a1ccb9a918035fffe6",
+      "status": 200
+    },
+    {
+      "file": "assets/wasm-inline-CojyJTUa.js",
+      "sha256": "b2b5a923cc6e80bff79455bbf96fb8e155f7d0c525d7788db3543b6bda75cad0",
+      "status": 200
+    },
+    {
+      "file": "assets/task-CrtSbOCC.js",
+      "sha256": "069ab8370abc760f71d363c95637d416221a846d87ae56c9cd4db2bd5b91d0d1",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-latin-ext-500-normal-Buglb9-a.woff2",
+      "sha256": "84c2a01e0e35619e561d46285ccecec68aae76cb96c618b8e047806cb5530741",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-cyrillic-400-normal-CPJFfJgk.woff",
+      "sha256": "02b8fba2fdff88ac36fe4dbea0323081886af73ea68dabe08cad05ca62a489be",
+      "status": 200
+    },
+    {
+      "file": "assets/geist-mono-vietnamese-400-normal-CZEPLOgu.woff",
+      "sha256": "5e6255c9b6336d6cc03b626d802b1408da4662e77a9030ccbc4101c2ed851526",
+      "status": 200
+    }
+  ],
+  "unauthenticatedChecks": [
+    {
+      "path": "/buyer-api/v1/chat/completions",
+      "status": 401,
+      "body": {
+        "error": {
+          "code": "unauthorized"
+        }
+      }
+    },
+    {
+      "path": "/buyer-api/nearintents-wallets",
+      "status": 401,
+      "body": {
+        "error": {
+          "code": "unauthorized"
+        }
+      }
+    }
+  ],
+  "retainedPreview": {
+    "ready": true,
+    "phase": "P2",
+    "mode": "controlled",
+    "realPayment": false,
+    "revision": "364264085636bb79c2ae7c01a24ef1ad8dc6f78d"
+  },
+  "containers": [
+    {
+      "names": [
+        "/dstack-nearintents-auction-1"
+      ],
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:43c72addfb1d3616377ebdfed78390cd96e82981493b634370a1edd94ee75a45",
+      "image_id": "sha256:849b53aa16b9ea0bb13daf23ae28e6b87c1c3a727bb8a66163b8a44b6e68e8f9",
+      "state": "running",
+      "status": "Up 46 seconds (healthy)"
+    },
+    {
+      "names": [
+        "/dstack-agent-preview-1"
+      ],
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:9fec33917d55903f1c3d53fe967ac1f8520b02b032ef27a0b3bb59aa87e72deb",
+      "image_id": "sha256:fe4dcbfaecffc521a34554bbd4940c3a876aba0e70286896a1b72b4f7e128c8e",
+      "state": "running",
+      "status": "Up 46 seconds (healthy)"
+    },
+    {
+      "names": [
+        "/dstack-domain-diagnostics-1"
+      ],
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:d5c2bac6f3af5e753f4367e6cd89aaf066d7998344e48ecc94df232f7eb672a6",
+      "image_id": "sha256:6ea402f1862d578e5174e0f17e3d759afc1726ce2c1edd606115a1ee3b7c607a",
+      "state": "running",
+      "status": "Up 46 seconds"
+    },
+    {
+      "names": [
+        "/dstack-market-1"
+      ],
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:1edc1f284cf2d846022980695e332629a4ea804b813ad1fb25b37fad77e1a6da",
+      "image_id": "sha256:41207fca17a6146c24f737e37dae5b4a23b831a809e5691a86ce6cd3384bc5ed",
+      "state": "running",
+      "status": "Up 46 seconds (healthy)"
+    },
+    {
+      "names": [
+        "/dstack-domain-ingress-1"
+      ],
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:f3d9e066a9f41df73d7e49e500fe7183ebcca456b02531a0fa49248dfa58a046",
+      "image_id": "sha256:5735fbdb0b3fdd5ec5c5975c6f366bbf7511fdd87c09d3dfe642b034930620c0",
+      "state": "running",
+      "status": "Up 46 seconds"
+    }
+  ],
+  "controlledTests": {
+    "intents": 20,
+    "nativeRegression": 40,
+    "playground": 17,
+    "packaging": 7,
+    "total": 84,
+    "liveFinancialAcceptance": false
+  },
+  "browser": {
+    "reloadedExistingTab": true,
+    "activeBanner": "Arbitrum USDC \u2192 NEAR \u00b7 auction request price \u00b7 agent pays gas",
+    "activeCopy": "Inference is purchased only when you run a task.",
+    "ownerSignaturePerformed": false,
+    "fundingPerformed": false,
+    "taskStarted": false
+  },
+  "spending": {
+    "assistantInitiatedRealTransfers": 0,
+    "assistantInitiatedPaidInference": 0,
+    "automaticPaidProbeEnabled": false,
+    "automatedCanaryStarted": false,
+    "userInitiatedPaymentsEnabled": true
+  },
+  "remainingAcceptance": [
+    "Real owner signature and source funding",
+    "Paid source/destination settlement and model result",
+    "Cloud credit is unverified by free preflight",
+    "Failure refund reconciliation and source exits"
+  ],
+  "limits": {
+    "maximumAgentsGlobal": 2,
+    "maximumProviderCallsGlobal": 5,
+    "providerMaximumMicro": "10000",
+    "deadlineMs": 1794860952283,
+    "deadlineUtc": "2026-11-16T20:29:12.283Z",
+    "deadlineAmericaNewYork": "2026-11-16T15:29:12.283-05:00",
+    "existingFinancialStatePreserved": true
+  }
+}

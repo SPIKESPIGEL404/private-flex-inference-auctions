@@ -1,5 +1,9 @@
 # Paused NEAR Intents canary deployed to Phala
 
+This is the earlier deployment snapshot. The later user authorization and
+[active user-funded entry](2026-11-15-nearintents-user-payments.md) supersede its
+paused status; the original evidence below is retained.
+
 The user selected **deployment only, no real spending** for this run. The new
 [canary entry](https://e83279da3fa5b47453cc62317df738b70fedf08c-3001.dstack-pha1-prod9.phala.network/)
 is deployed and visibly says **paid inference paused**. The original preview
