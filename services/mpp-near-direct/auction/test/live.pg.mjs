@@ -378,6 +378,48 @@ for (const boundary of [
       }
     },
   );
+test("project probe: an expired original reservation cannot start a late paid request", async () => {
+  const f = await setup(),
+    p = provider(f),
+    store = new Store(":memory:", Buffer.alloc(32, 4));
+  try {
+    const args = {
+      pool,
+      store,
+      plan: f.p,
+      planHash: hash(f.p),
+      keyFingerprint: "probe-key",
+      client: p.client,
+    };
+    const tariff = await p.value.preflight();
+    await assert.rejects(
+      new ProjectProbe({
+        ...args,
+        fault(at) {
+          if (at === "after_probe_cost_commit")
+            throw Error("commit-ack-lost");
+        },
+      }).ensure(tariff),
+      /commit-ack-lost/,
+    );
+    const resumed = new ProjectProbe({
+      ...args,
+      plan: { ...f.p, deadlineMs: Date.now() - 1 },
+    });
+    await assert.rejects(
+      resumed.ensure(tariff),
+      /project_probe_window_closed/,
+    );
+    assert.equal(p.posts(), 0);
+    assert.equal(
+      (await pool.query("SELECT calls FROM mpp_direct_live_provider_budget"))
+        .rows[0].calls,
+      1,
+    );
+  } finally {
+    store.close();
+  }
+});
 test("live PG: stale FX prevents allocations without changing original order FX", async () => {
   const f = await setup(),
     s = await allocate(f);
@@ -431,48 +473,7 @@ test("live PG: gas overrun records actual chain effect, fences execution, refund
     operationId: op.id,
     movementKey: "fixture-refund:" + op.id,
   });
-  test("project probe: an expired original reservation cannot start a late paid request", async () => {
-    const f = await setup(),
-      p = provider(f),
-      store = new Store(":memory:", Buffer.alloc(32, 4));
-    try {
-      const args = {
-        pool,
-        store,
-        plan: f.p,
-        planHash: hash(f.p),
-        keyFingerprint: "probe-key",
-        client: p.client,
-      };
-      const tariff = await p.value.preflight();
-      await assert.rejects(
-        new ProjectProbe({
-          ...args,
-          fault(at) {
-            if (at === "after_probe_cost_commit")
-              throw Error("commit-ack-lost");
-          },
-        }).ensure(tariff),
-        /commit-ack-lost/,
-      );
-      const resumed = new ProjectProbe({
-        ...args,
-        plan: { ...f.p, deadlineMs: Date.now() - 1 },
-      });
-      await assert.rejects(
-        resumed.ensure(tariff),
-        /project_probe_window_closed/,
-      );
-      assert.equal(p.posts(), 0);
-      assert.equal(
-        (await pool.query("SELECT calls FROM mpp_direct_live_provider_budget"))
-          .rows[0].calls,
-        1,
-      );
-    } finally {
-      store.close();
-    }
-  });
+
   row = (
     await pool.query(
       "SELECT * FROM mpp_direct_auction_budgets WHERE id='owner'",
