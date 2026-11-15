@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Initialize/verify a dedicated volume in-image; no Phala pre-launch script."""
-import json, os, pathlib, signal, socket, subprocess, sys
+import hashlib, json, os, pathlib, signal, socket, subprocess, sys
 os.umask(0o077)
 if len(sys.argv)>1:
  config_path=pathlib.Path(sys.argv[1]);config=json.loads(config_path.read_text())
@@ -40,7 +40,9 @@ def run(*args,env=None):
  if result.returncode:raise RuntimeError('mainnet bootstrap failed: '+pathlib.Path(args[0]).name)
  return result.stdout.strip()
 url='postgres://preview@127.0.0.1:25432/'+database
-env={**os.environ,'DATABASE_URL':url,'REDIS_URL':'redis://127.0.0.1:26379','PRIVATE_MARKET_FIXTURE_BIND':'127.0.0.1:28081',
+seed=pathlib.Path(config['marketSecretFile']).read_text().strip()
+def binding(domain):return hashlib.sha256((domain+'\0'+config['reviewedPlanHash']+'\0'+seed).encode()).hexdigest()
+env={**os.environ,'BITROUTER_PREVIEW_BOOTSTRAP_BINDING':binding('mainnet-owning-schema'),'REDIS_BALANCE_CUTOVER_TOKEN':binding('mainnet-owning-cutover'),'DATABASE_URL':url,'REDIS_URL':'redis://127.0.0.1:26379','PRIVATE_MARKET_FIXTURE_BIND':'127.0.0.1:28081',
  'PRIVATE_MARKET_FIXTURE_PUBLIC_URL':'http://127.0.0.1:28081','PRIVATE_MARKET_NEAR_DIRECT_P1':'controlled','PRIVATE_MARKET_AUCTION':plan['mode'],
  'DATABASE_MIN_CONNECTIONS':'1','DATABASE_MAX_CONNECTIONS':'12'}
 pg_started=False;children=[]
