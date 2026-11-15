@@ -314,6 +314,7 @@ export function NewTask({
   initialPrompt,
   windowMs,
   sourceCostsSeparate = false,
+  liveIntents = false,
   onClose,
   onCreate,
 }: {
@@ -324,6 +325,7 @@ export function NewTask({
   initialPrompt?: string;
   windowMs: number;
   sourceCostsSeparate?: boolean;
+  liveIntents?: boolean;
   onClose(): void;
   onCreate(
     agent: string,
@@ -338,6 +340,9 @@ export function NewTask({
   const [bidding, setBidding] = useState(() =>
     auctionDraft({
       ...defaultAuction,
+      ...(liveIntents
+        ? { baseMultiplier: "3000000", maxMultiplier: "3200000" }
+        : {}),
       deadlineSeconds: windowMs > 180000 ? Math.min(900, windowMs / 1000) : 120,
     }),
   );
@@ -348,7 +353,7 @@ export function NewTask({
         ? taskPrompt
         : "Compute the sum of numbers.txt, write result.txt, and verify the result."),
   );
-  const [budget, setBudget] = useState("0.01"),
+  const [budget, setBudget] = useState(liveIntents ? "0.02" : "0.01"),
     [preference, setPreference] = useState<Preference>("balanced");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -363,6 +368,13 @@ export function NewTask({
         if (!busy) onClose();
       }}
     >
+      {liveIntents && (
+        <p className="dialog-note">
+          This canary starts at a 3× bid with a 3.2× ceiling and a $0.02 task
+          cap. Review these before starting. Bridge minimums can reject smaller
+          requests; each payment uses a fresh quote.
+        </p>
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();

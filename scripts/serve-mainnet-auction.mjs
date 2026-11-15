@@ -38,6 +38,7 @@ const edge = http.createServer(async (req, res) => {
               : runtime.plan.mode,
           planHash: runtime.planHash,
           realPayment: true,
+          ...(runtime.status ? await runtime.status() : {}),
         }),
       );
     }

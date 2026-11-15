@@ -3,6 +3,8 @@ import { readFile, stat, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Pool } from "pg";
 import { auctionPlan } from "./plan.mjs";
+import { auctionAccess, providerReadiness } from "./access.mjs";
+export { paidProbeAccess } from "./access.mjs";
 import { NI_MODE, NearintentsAuctionRail } from "./rail.mjs";
 import { NearintentsAuctionWallet } from "./wallet.mjs";
 import { NearintentsAuctionSetup } from "./setup.mjs";
@@ -28,16 +30,6 @@ const privateText = async (p) => {
   check((await stat(p)).mode % 512 === 384, "private_runtime_file_required");
   return (await readFile(p, "utf8")).trim();
 };
-export async function paidProbeAccess(
-  probe,
-  tariff,
-  planHash,
-  enabledHash = process.env.ENABLE_NEARINTENTS_PAID_PROBE,
-) {
-  check(enabledHash === planHash, "paid_provider_probe_not_enabled");
-  return probe.ensure(tariff);
-}
-
 export async function launchNearintentsAuction(config) {
   const { plan, planHash } = auctionPlan(config.plan);
   check(
@@ -128,6 +120,8 @@ export async function launchNearintentsAuction(config) {
       ...base,
       scope: NI_MODE,
       ready: async (db, at) =>
+        auctionAccess(planHash).userPaymentsEnabled &&
+        at < plan.deadlineMs &&
         !(
           await db.query(
             "SELECT FROM mpp_direct_auction_allocations WHERE refundable>0 LIMIT 1",
@@ -227,23 +221,26 @@ export async function launchNearintentsAuction(config) {
       if (checking) return;
       checking = true;
       try {
+        check(Date.now() < plan.deadlineMs, "mainnet_run_closed");
+        check(
+          auctionAccess(planHash).userPaymentsEnabled,
+          "user_inference_payments_not_enabled",
+        );
         const fx = await referenceFx();
         validateFx(fx);
         await recordFx(pool, fx);
-        const tariff = await provider.preflight(),
-          access = await paidProbeAccess(probe, tariff, planHash);
-        check(access?.verified, "provider_key_probe_required");
+        const { tariff, evidence } = await providerReadiness({
+          provider,
+          probe,
+          planHash,
+        });
         const at = Date.now();
         await pool.query(
           "INSERT INTO mpp_direct_live_supply VALUES(true,true,$1,$2,$3) ON CONFLICT(singleton) DO UPDATE SET ready=true,observed_ms=excluded.observed_ms,expires_ms=excluded.expires_ms,evidence=excluded.evidence",
           [
             at,
             Math.min(at + 30000, tariff.expiresAtMs),
-            {
-              source: "near-cloud-attested-key-probe",
-              responseId: access.responseId,
-              actualMicro: access.actualMicro,
-            },
+            evidence,
           ],
         );
       } catch {
@@ -270,6 +267,19 @@ export async function launchNearintentsAuction(config) {
       app,
       plan,
       planHash,
+      async status() {
+        const access = auctionAccess(planHash),
+          supply = (
+            await pool.query("SELECT * FROM mpp_direct_live_supply WHERE singleton")
+          ).rows[0];
+        return {
+          paymentsPaused: !access.userPaymentsEnabled,
+          automaticPaidProbeEnabled: access.paidProbeEnabled,
+          providerReady: await live.ready(pool, Date.now()),
+          providerReadiness: supply?.evidence ?? null,
+          runDeadlineMs: plan.deadlineMs,
+        };
+      },
       async close() {
         clearInterval(timer);
         await app.close();

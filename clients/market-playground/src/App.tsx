@@ -893,7 +893,7 @@ export default function App({ active = true }: { active?: boolean }) {
               {nearintents
                 ? paymentsPaused
                   ? "Paid inference is currently paused. Connect a wallet to review the agent setup and spending caps; wait for activation before funding."
-                  : "Create independent agent wallets, fund them with Arbitrum USDC and ETH, and set each task’s budget and bidding strategy. Agent keys stay in the trusted service."
+                  : "Create independent agent wallets, fund them with Arbitrum USDC and ETH, and set each task’s budget and bidding strategy. Inference is purchased only when you run a task. Agent keys stay in the trusted service."
                 : mainnet
                   ? "Install a merchant-only policy, fund each agent, and run tasks with real Mainnet MPP payments. Review the spending caps before funding."
                   : memory
@@ -1005,6 +1005,7 @@ export default function App({ active = true }: { active?: boolean }) {
       {dialog === "new" && tasks && hosted && (
         <NewTask
           sourceCostsSeparate={nearintents}
+          liveIntents={nearintents && mainnet}
           sessions={sessions}
           limits={hosted.limits}
           maxTasks={capabilities?.maxTasksPerAgent ?? 2}

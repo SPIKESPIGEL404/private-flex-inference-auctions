@@ -15,7 +15,7 @@ with Market(str(pathlib.Path(args.binary).resolve()),initialize=False) as m:
  if args.serve:
   subprocess.run(['node','scripts/nearintents-controlled-server.mjs'],cwd=ROOT,env=env,check=True)
  else:
-  r=subprocess.run(['node','--test','--test-concurrency=1','services/mpp-nearintents/auction/test/plan.test.mjs','services/mpp-nearintents/auction/test/source.test.mjs','services/mpp-nearintents/auction/test/auction.pg.mjs'],cwd=ROOT,env=env,text=True,capture_output=True)
+  r=subprocess.run(['node','--test','--test-concurrency=1','services/mpp-nearintents/auction/test/access.test.mjs','services/mpp-nearintents/auction/test/plan.test.mjs','services/mpp-nearintents/auction/test/source.test.mjs','services/mpp-nearintents/auction/test/auction.pg.mjs'],cwd=ROOT,env=env,text=True,capture_output=True)
   print(r.stdout);print(r.stderr)
   if r.returncode:raise SystemExit(r.returncode)
   run(m.binary,'verify-auction-schema',str(m.state),env=m.env)

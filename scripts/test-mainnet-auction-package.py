@@ -28,6 +28,13 @@ class PackageTests(unittest.TestCase):
   self.assertNotIn('ENABLE_NEARINTENTS_PAID_PROBE',service['environment']);self.assertEqual(after['allowed_envs'],['EXISTING_SECRET','NEARINTENTS_AUCTION_PRIVATE_JSON'])
   active,_=overlay.prepare(before,'ghcr.io/o/r@sha256:'+'b'*64,cfg,True)
   self.assertEqual(yaml.safe_load(active['docker_compose_file'])['services']['nearintents-auction']['environment']['ENABLE_NEARINTENTS_PAID_PROBE'],'c'*64)
+ def test_user_purchases_can_be_enabled_without_authorizing_an_operator_probe(self):
+  cfg={'paymentMethod':'nearintents','dataDirectory':'/data/nearintents-v1','reviewedPlanHash':'c'*64,'plan':{'mode':'live'}}
+  after,report=overlay.prepare(self.before(),'ghcr.io/o/r@sha256:'+'b'*64,cfg,enable_user_payments=True)
+  env=yaml.safe_load(after['docker_compose_file'])['services']['nearintents-auction']['environment']
+  self.assertEqual(env['ENABLE_NEARINTENTS_USER_PAYMENTS'],'c'*64)
+  self.assertNotIn('ENABLE_NEARINTENTS_PAID_PROBE',env)
+  self.assertTrue(report['userPaymentsEnabled']);self.assertFalse(report['paidProbeEnabled'])
  def test_canary_cannot_take_an_existing_service_port(self):
   before=self.before();compose=yaml.safe_load(before['docker_compose_file']);compose['services']['old']['ports']=['3001:3000'];before['docker_compose_file']=yaml.safe_dump(compose)
   with self.assertRaisesRegex(ValueError,'canary_port_already_in_use'):overlay.prepare(before,'ghcr.io/o/r@sha256:'+'b'*64,self.config())

@@ -4,7 +4,7 @@ import argparse,copy,hashlib,json,re
 from pathlib import Path
 import yaml
 
-def prepare(before,image,config,enable_paid_probe=False):
+def prepare(before,image,config,enable_paid_probe=False,enable_user_payments=False):
  if not re.fullmatch(r'ghcr\.io/[a-z0-9_./-]+@sha256:[a-f0-9]{64}',image):raise ValueError('immutable_ghcr_image_required')
  if before.get('pre_launch_script') or before.get('init_script'):raise ValueError('no_prelaunch_manifest_required')
  if before.get('requirements',{}).get('ephemeral_data_disk'):raise ValueError('persistent_disk_required')
@@ -32,6 +32,7 @@ def prepare(before,image,config,enable_paid_probe=False):
   service.update(volumes=[volume+':/data'],networks=[network],mem_limit='1024m',stop_grace_period='300s')
   service['environment']={'AUCTION_PAYMENT_PROFILE':'nearintents','ENABLE_NEARINTENTS_AUCTION':config['reviewedPlanHash'],prefix+'_CONFIG_JSON':raw.replace('$','$$'),prefix+'_PRIVATE_JSON':'${NEARINTENTS_AUCTION_PRIVATE_JSON:?sealed Intents credentials required}'}
   if enable_paid_probe:service['environment']['ENABLE_NEARINTENTS_PAID_PROBE']=config['reviewedPlanHash']
+  if enable_user_payments:service['environment']['ENABLE_NEARINTENTS_USER_PAYMENTS']=config['reviewedPlanHash']
  compose['services'][name]=service;compose.setdefault('volumes',{})[volume]={};compose.setdefault('networks',{})[network]={}
  after=copy.deepcopy(before);after['docker_compose_file']=yaml.safe_dump(compose,sort_keys=False)
  after['allowed_envs']=list(before.get('allowed_envs',[]))+([] if prefix+'_PRIVATE_JSON' in before.get('allowed_envs',[]) else [prefix+'_PRIVATE_JSON'])
@@ -43,10 +44,11 @@ def prepare(before,image,config,enable_paid_probe=False):
   'originalServicesPreserved':list(original['services']),'originalVolumesPreserved':list(original.get('volumes',{})),
   'existingSealedEnvironmentNamesPreserved':list(before.get('allowed_envs',[])),
   'newSealedEnvironmentName':prefix+'_PRIVATE_JSON','preLaunchScriptRequired':False,'paidProbeEnabled':bool(intents and enable_paid_probe),
+  'userPaymentsEnabled':bool(intents and enable_user_payments),
   'reviewedPlanHash':config['reviewedPlanHash'],'image':image,
   'beforeSha256':hashlib.sha256(json.dumps(before,sort_keys=True,separators=(',',':')).encode()).hexdigest()}
  return after,report
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('before');p.add_argument('image');p.add_argument('public_config');p.add_argument('output');p.add_argument('--report',required=True);p.add_argument('--enable-paid-probe',action='store_true');a=p.parse_args()
- after,report=prepare(json.loads(Path(a.before).read_text()),a.image,json.loads(Path(a.public_config).read_text()),a.enable_paid_probe)
+ p=argparse.ArgumentParser();p.add_argument('before');p.add_argument('image');p.add_argument('public_config');p.add_argument('output');p.add_argument('--report',required=True);p.add_argument('--enable-paid-probe',action='store_true');p.add_argument('--enable-user-payments',action='store_true');a=p.parse_args()
+ after,report=prepare(json.loads(Path(a.before).read_text()),a.image,json.loads(Path(a.public_config).read_text()),a.enable_paid_probe,a.enable_user_payments)
  Path(a.output).write_text(json.dumps(after,indent=2)+'\n');Path(a.report).write_text(json.dumps(report,indent=2)+'\n')

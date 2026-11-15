@@ -1,6 +1,7 @@
 import http from "node:http";
 import { LIVE_MODE } from "./live/policy.mjs";
 import { bounded } from "./live/timeouts.mjs";
+import { auctionAccess } from "../../mpp-nearintents/auction/access.mjs";
 import { Challenge, Receipt } from "mppx";
 import { ownerAuth as createOwnerAuth } from "./owner-auth.mjs";
 import { hash, requireThat as check, METHOD } from "../contract.mjs";
@@ -311,8 +312,7 @@ async function runServer({
           paymentsPaused: !!(
             mainnet &&
             nearintents &&
-            process.env.ENABLE_NEARINTENTS_PAID_PROBE !==
-              market.config.reviewedPlanHash
+            !auctionAccess(market.config.reviewedPlanHash).userPaymentsEnabled
           ),
           maxTasksPerAgent: 8,
           taskWindowMs: nearintents ? 1800000 : 180000,

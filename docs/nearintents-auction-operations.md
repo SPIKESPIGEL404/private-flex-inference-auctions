@@ -67,8 +67,8 @@ are in-container):
 `plan` and `reviewedPlanHash` remain the exact offline output. Optional
 `oneClickJwtFile` must also be in that directory. The sealed private object has
 `storageKey` (32-byte hex), `marketSecret`, `nearAiKey`, and optional `oneClickJwt`.
-There is no `merchantKey` in this runtime. Provider key probing can incur one
-bounded paid inference and is part of the explicitly reviewed allowance.
+There is no `merchantKey` in this runtime. An optional provider key probe can
+incur one bounded paid inference and requires separate operator authorization.
 
 ## In-image startup
 
@@ -84,19 +84,31 @@ NEARINTENTS_AUCTION_PRIVATE_JSON=<sealed private JSON>
 ENABLE_NEARINTENTS_AUCTION=<exact reviewedPlanHash>
 ```
 
-The deployed page and wallets can start without buying a Cloud probe. Until
-the operator also sets `ENABLE_NEARINTENTS_PAID_PROBE` to the same exact plan
-hash, supply stays unavailable and no paid readiness probe is started. Enable
-that flag only within the approved provider allowance. The probe consumes one
-of the immutable provider call slots; restarting never grants another allowance.
+The deployed page and wallets can start without buying a Cloud probe. Set
+`ENABLE_NEARINTENTS_USER_PAYMENTS=<exact reviewedPlanHash>` to admit user-funded
+tasks. This enables read-only attestation and authenticated catalog checks, not
+a billable model probe. Available Cloud credit is **unverified** by those checks.
+Only an owner's authorized task, with its original payment confirmed, may
+dispatch paid inference. Existing provider budgets and permanent authorization/
+billing refusal fences still apply. A failed paid delivery remains a refund
+liability and blocks new sales until reconciliation.
+
+`ENABLE_NEARINTENTS_PAID_PROBE=<exact reviewedPlanHash>` is a separate, optional
+operator switch. Keep it absent when allowing user-funded tasks without automatic
+spending. If both switches are set, it permits one bounded readiness probe, which
+consumes a provider call slot; restarting never grants a new allowance. Disabling
+the probe cannot bypass an unresolved original probe. Neither switch launches a
+canary test runner. `/healthz` reports the switches, actual admission readiness,
+read-only evidence and deadline separately from process health.
 
 The bootstrap uses database `private_market_auction_nearintents_v1`; the native
 database name is unchanged. The original Rust schema layout still uses
 `PRIVATE_MARKET_AUCTION=bounded-mainnet-v1`; the JS payment profile separately
 requires its own hash gate, schema/instance binding and exclusive runtime lease.
 The overlay renderer now selects a distinct Intents service, volume, network and
-sealed name from `paymentMethod: nearintents`. Its default leaves the paid probe
-off; `--enable-paid-probe` explicitly enables it. It refuses an occupied canary
+sealed name from `paymentMethod: nearintents`. Its default leaves both purchase
+and probe activation off; `--enable-user-payments` enables user-funded tasks,
+and `--enable-paid-probe` is separate. It refuses an occupied canary
 port and preserves the existing services, volumes and settings. All existing
 sealed values must be preserved when supplying the combined environment file.
 The publisher verifies both native bootstrap and Intents fresh-volume/restart
@@ -108,8 +120,11 @@ that tariff) was below 1Click's then-current bridge minimum (about $0.00529).
 The user selected a finite 3× / 3.2× bid canary while preserving the original
 pricing formula. Dry quotes were about 0.006042 / 0.006444 USDC with a 27-second
 settlement estimate. These observations are not a standing quote or measured
-latency. Default 1× orders are not accepted as a working live path; recheck exact
-amounts before funding. No minimum-price surcharge is silently added.
+latency. Live Intents new-task forms now suggest a 3× starting bid, a 3.2× ceiling
+and a $0.02 task cap. Users review these before starting; existing tasks keep
+their settings. Smaller bids remain editable and may be rejected by the live
+bridge minimum. Recheck exact amounts before funding. No minimum-price surcharge
+is silently added.
 
 The UI declares the active profile explicitly. Owner NEAR login must be on
 Mainnet; funding is USDC and ETH on Arbitrum. Successful fixed bundles have no

@@ -20,6 +20,7 @@ if info['Architecture']!='amd64' or info['Config']['Labels']['org.opencontainers
 for image in [base,local]:
  actual=subprocess.check_output(['docker','run','--rm','--platform','linux/amd64','--network','none','--read-only','--entrypoint','sha256sum',image,'/usr/local/bin/private-market-host-p2'],text=True).split()[0]
  if actual!=binary:raise SystemExit('reused_binary_changed')
+run('docker','run','--rm','--platform','linux/amd64','--network','none','--read-only','--entrypoint','node',local,'--test','services/mpp-nearintents/auction/test/access.test.mjs')
 for script,name in [('accept-mainnet-bootstrap.py','native-bootstrap.json'),('accept-nearintents-bootstrap.py','intents-bootstrap.json')]:
  run(sys.executable,'scripts/'+script,local,'--evidence',name)
 target=registry+':mainnet-current-'+source[:12]+'-'+os.environ['GITHUB_RUN_ID']
