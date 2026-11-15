@@ -675,7 +675,13 @@ async fn serve(dir: &Path) -> Result<()> {
         "{}",
         json!({"url":url,"mode":mode,"attested":false,"attestation_available":attestation_available})
     );
+    let parent_closed=async {
+        if env::var("PRIVATE_MARKET_P3_PARENT_PIPE").as_deref()==Ok("1") {
+            let _=tokio::task::spawn_blocking(|| {use std::io::Read;let mut byte=[0u8;1];let _=std::io::stdin().read(&mut byte);}).await;
+        } else { std::future::pending::<()>().await; }
+    };
     let outcome = tokio::select! {
+        _ = parent_closed => Ok(()),
         signal = tokio::signal::ctrl_c() => signal.context("shutdown signal"),
         result = tasks.join_next() => match result {
             Some(Ok(Err(e))) => Err(e),
@@ -705,6 +711,51 @@ async fn main() -> Result<()> {
         "usage: private-market-host <init|init-deploy|serve|emit-deploy-catalog|init-live|init-live-deploy|qualify-live|validate-live> <state-or-profile> [input]"
     );
     match (args[1].as_str(), args.len()) {
+        ("register-profile-p3", 5) => {
+            ensure!(env::var("PRIVATE_MARKET_AGENT_P3").as_deref()==Ok("bounded"),"bounded P3 profile required");
+            let base:State=live::read(&Path::new(&args[2]).join("state.json"))?;
+            let (database,redis)=targets()?;
+            ensure!(base.database==database && base.redis==redis && !base.deploy_golden
+                && base.binding==required("BITROUTER_PREVIEW_BOOTSTRAP_BINDING")?
+                && base.cutover==required("REDIS_BALANCE_CUTOVER_TOKEN")?,"profile must share original financial authority");
+            let dir=Path::new(&args[3]);fs::create_dir(dir)?;
+            #[cfg(unix)] {use std::os::unix::fs::PermissionsExt;fs::set_permissions(dir,fs::Permissions::from_mode(0o700))?;}
+            let registration:live::Registration=live::read(Path::new(&args[4]))?;
+            let db=FabricDb::connect(&database).await?;
+            live::register(db.conn().clone(),&registration).await?;
+            write_private(&dir.join("registration.json"),&registration)?;
+            let state=State {registration_sha256:Some(bitrouter_market::persistence_codec::digest(&fs::read(dir.join("registration.json"))?)),catalog_sha256:None,..base};
+            write_private(&dir.join("state.json"),&state)?;
+            fs::File::open(dir)?.sync_all()?;
+            db.shutdown_handle().close(tokio::time::Instant::now()+Duration::from_secs(5)).await?;
+            println!("{}",json!({"registered":true}));Ok(())
+        }
+        ("quote-native-p3", 3) => {
+            use bitrouter_cloud::platform_billing::{meter, money::MicroUsd};
+            use bitrouter_market::{cost::base_charge_cap, order::{RequestSize, TokenRates}};
+            use std::io::Read;
+            ensure!(env::var("PRIVATE_MARKET_AGENT_P3").as_deref() == Ok("bounded"), "bounded P3 quote required");
+            let mut bytes=String::new();std::io::stdin().take(262145).read_to_string(&mut bytes)?;
+            ensure!(bytes.len()<=262144,"P3 quote input too large");
+            let input:Value=serde_json::from_str(&bytes)?;
+            let body=input.get("body").context("P3 native body required")?;
+            let ids:Vec<u32>=serde_json::from_value(input.get("token_ids").context("qualified tokenizer required")?.clone())?;
+            ensure!(!ids.is_empty() && ids.len()<=8192,"P3 token scope exceeded");
+            let rates:TokenRates=serde_json::from_value(input.get("rates").context("frozen real rates required")?.clone())?;
+            let (_,native)=bitrouter_cloud::market::inference::DeliveryOptions::parse(meter::ApiProtocol::ChatCompletions,body)?;
+            let _:bitrouter_ai::protocol::chat_completions::ChatRequest=serde_json::from_value(native.clone())?;
+            let snapshot=meter::freeze(meter::ApiProtocol::ChatCompletions,&native)?;
+            let output=bitrouter_cloud::market::inference::output_contract(meter::ApiProtocol::ChatCompletions,body)?;
+            let max=body["max_completion_tokens"].as_u64().context("explicit P3 output limit required")?;
+            ensure!((1..=512).contains(&max),"P3 output scope exceeded");
+            let provider=base_charge_cap(&catalog::spec("chat_completions"),RequestSize{input_tokens:ids.len() as u64,max_output_tokens:max},rates)?;
+            let platform=MicroUsd::from_input_tokens(u128::from(snapshot.billable_input_tokens)).map_err(anyhow::Error::msg)?.value();
+            let total=provider.0+u64::try_from(platform)?;
+            println!("{}",json!({"provider_micro":provider.0,"platform_micro":platform,"total_micro":total,"input_tokens":ids.len(),"meter":snapshot,"output_contract":output,
+              "expected_purchase":{"service_type":"on_demand","provider_cap":provider.0,"total_cap":(total*1000).to_string(),"wait_budget_ms":null,"max_attempts":1,
+              "options":[{"id":1,"model_ref":body["model"],"providers":[7]}]}}));
+            Ok(())
+        }
         ("quote-native-p1" | "quote-native-p2", 3) => {
             use bitrouter_cloud::platform_billing::{meter, money::MicroUsd};
             use bitrouter_market::{
@@ -990,6 +1041,14 @@ mod policy_digest {
 }
 
 fn direct_p1_enabled(is_live: bool) -> Result<bool> {
+    if let Ok(mode) = env::var("PRIVATE_MARKET_AGENT_P3") {
+        ensure!((mode == "bounded" || (mode == "controlled" && !is_live))
+            && env::var("PRIVATE_MARKET_AGENT_P2").is_err()
+            && env::var("PRIVATE_MARKET_NEAR_DIRECT_P1").is_err()
+            && env::var("PRIVATE_MARKET_MPP_METHOD").is_err()
+            && env::var("PRIVATE_MARKET_MPP_TEST_API").is_err(), "isolated OutLayer P3 mode required");
+        return Ok(true);
+    }
     if env::var("PRIVATE_MARKET_AGENT_P2").is_ok() {
         ensure!(
             env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled")

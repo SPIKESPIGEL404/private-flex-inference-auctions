@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "scope": "two-outlayer-agents-real-cloud-mpp-testnet",
+  "passed": true,
+  "network": "testnet",
+  "model": "Qwen/Qwen3.8-27B",
+  "baseCommit": "2755e99779dfad3f21ece0a078ab65e8a4b0e1e8",
+  "outlayerSourcePr": "https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/pull/20",
+  "outlayerSourceCommit": "e4a47017578b7da807845b6fdf6e2dc35b24ac09",
+  "localBranch": "codex/outlayer-cloud-mpp-acceptance",
+  "maximumUpstreamMicroUsd": "10000",
+  "retainedProviderMaximumMicroUsd": "1002",
+  "actualServiceMicroUsd": "90",
+  "providerInvoiceVerified": false,
+  "fxConvention": "1 test NEAR represents 1 USD; not market FX",
+  "providerAttempts": 2,
+  "agentPaymentPosts": 2,
+  "finalRestartProviderInvocations": 0,
+  "originalResponseReplay": true,
+  "agentAFrozenPurchaseBlocked": true,
+  "bothAgentsFinallyFrozen": true,
+  "ownerControllerMode": "local-testnet-merchant-key-via-cli",
+  "tests": {
+    "mppWalletCloud": 81,
+    "inferenceComparison": 28,
+    "total": 109,
+    "allPassed": true
+  },
+  "browserWalletIntegration": false,
+  "marketAutobidderIntegration": false,
+  "chutesInvocations": 0,
+  "mainnetTransactions": 0,
+  "hostedNativeAckFaultInjection": false,
+  "hostedOutlayerAttestationIndependentlyVerified": false,
+  "freshReadOnlyAudit": {
+    "passed": true,
+    "persistentRpcCache": false,
+    "apiKeysRead": 0,
+    "agentPrivateKeysRead": 0,
+    "broadcasts": 0,
+    "providerCalls": 0
+  },
+  "cases": [
+    {
+      "agentId": "agent-a",
+      "accountId": "9c617cabf4db57e7f11dc6b3d668108ab7104dc689bd6c3dff7469c9cbf2ee73",
+      "walletId": "0f999c75-37da-40c3-9d17-0ff1111b1827",
+      "answer": "4",
+      "taskCompleted": true,
+      "usage": {
+        "prompt_tokens": 61,
+        "total_tokens": 92,
+        "completion_tokens": 31,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "reasoning_tokens": 28,
+        "completion_tokens_details": {
+          "reasoning_tokens": 28
+        }
+      },
+      "version": 1,
+      "scope": "independent-read-only-chain-and-financial-audit",
+      "network": "testnet",
+      "orderId": "66705d2afc9b45418d27b521b20dd56d1e3a3ed317ea3c3a383b024b329b3cdb",
+      "paymentTxHash": "DQM3iBSoct5ASiMZJUwHLn6ugCf3bixQf96FWJFAhgDU",
+      "refundTxHash": "ARwebJKhfBW2zPPdq65USwrpwjpE1tqkKBUNuNDSXC9w",
+      "finalTransfers": 2,
+      "financialSignaturesValid": true,
+      "actualServiceMicroUsd": "45",
+      "principal": {
+        "P": "501000000000000000000",
+        "C": "45000000000000000000",
+        "H": "0",
+        "W": "0",
+        "R": "456000000000000000000"
+      },
+      "agentGasActualYocto": "44636512500000000000",
+      "merchantGasActualYocto": "834989537500000000000",
+      "providerVerification": "recorded-official-SDK-runtime-provider_tee",
+      "providerSignatureRecorded": true,
+      "modelEncryptedWireReverifiedOffline": false,
+      "broadcasts": 0,
+      "providerCalls": 0,
+      "budgetYocto": "20000000000000000000000",
+      "frozenPolicyVerified": true
+    },
+    {
+      "agentId": "agent-b",
+      "accountId": "ddd6d65c1e6e9f8ea5b52ac46e14bc776d6e6f9d511303c4f3f19b17b541f5a4",
+      "walletId": "ff54892f-c46d-44d1-8c85-b1dba90b649b",
+      "answer": "4",
+      "taskCompleted": true,
+      "usage": {
+        "prompt_tokens": 61,
+        "total_tokens": 92,
+        "completion_tokens": 31,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "reasoning_tokens": 28,
+        "completion_tokens_details": {
+          "reasoning_tokens": 28
+        }
+      },
+      "version": 1,
+      "scope": "independent-read-only-chain-and-financial-audit",
+      "network": "testnet",
+      "orderId": "64dd36c74a2ffefcf5a8ac0a61594ad3ca5e480b804a6466ee6cf97396b8f990",
+      "paymentTxHash": "31VYsUZnaG4FMgEjRM7wKeyM1xwd5faH8DzZWAa9F3Pd",
+      "refundTxHash": "An8iidkkXNpM2ADFrfasPMUvXaEKwjyVGcJNq87wUXwF",
+      "finalTransfers": 2,
+      "financialSignaturesValid": true,
+      "actualServiceMicroUsd": "45",
+      "principal": {
+        "P": "501000000000000000000",
+        "C": "45000000000000000000",
+        "H": "0",
+        "W": "0",
+        "R": "456000000000000000000"
+      },
+      "agentGasActualYocto": "44636512500000000000",
+      "merchantGasActualYocto": "834989537500000000000",
+      "providerVerification": "recorded-official-SDK-runtime-provider_tee",
+      "providerSignatureRecorded": true,
+      "modelEncryptedWireReverifiedOffline": false,
+      "broadcasts": 0,
+      "providerCalls": 0,
+      "budgetYocto": "30000000000000000000000",
+      "frozenPolicyVerified": true
+    }
+  ],
+  "ownerTransactions": [
+    {
+      "id": "policy-agent-a",
+      "txHash": "BJtN9a7yRqAv1WXJCxjw1CX7oodu95kdizAVSxzzmgcP",
+      "state": "final",
+      "depositYocto": "13940000000000000000000",
+      "gasActualYocto": "448316485898900000000"
+    },
+    {
+      "id": "fund-agent-a",
+      "txHash": "FgLEH1vcMrfaVViF92xHHeTqMk4D7hrL1X3ZgqCWbEW5",
+      "state": "final",
+      "depositYocto": "50000000000000000000000",
+      "gasActualYocto": "7114989537500000000000"
+    },
+    {
+      "id": "policy-agent-b",
+      "txHash": "9SpgECsKxYxVomuajRY2jrERWyYCRXQXMbs39EVebZjG",
+      "state": "final",
+      "depositYocto": "13940000000000000000000",
+      "gasActualYocto": "453386546243100000000"
+    },
+    {
+      "id": "fund-agent-b",
+      "txHash": "HPKP2dpLgeqTyyQnywyoLsk4mTpVoPBZFa46nLkYsii1",
+      "state": "final",
+      "depositYocto": "60000000000000000000000",
+      "gasActualYocto": "7114989537500000000000"
+    },
+    {
+      "id": "freeze-a-after-payment",
+      "txHash": "6awM2G9DdPVPtq1XDAe98ktuyLx2KtXufNP3vnCX9wZo",
+      "state": "final",
+      "depositYocto": "0",
+      "gasActualYocto": "295108431071400000000"
+    },
+    {
+      "id": "freeze-b-cleanup",
+      "txHash": "5vFu5KkAtMrHqiRpndsp3ZYF5S5qLqFK2C1YQwQnq65y",
+      "state": "final",
+      "depositYocto": "0",
+      "gasActualYocto": "295337582929800000000"
+    }
+  ],
+  "cancelledQuotes": [
+    {
+      "orderId": "25f638d9e7e606e0e743c405ec7b521030b260714c0ef51a4015bc64a16f57a7",
+      "reason": "expired-quote-known-unsent",
+      "knownUnsent": {
+        "operationId": "near-pay-v1-25f638d9e7e606e0e743c405ec7b521030b260714c0ef51a4015bc64a16f57a7",
+        "attempts": 0,
+        "cancelledAtMs": 1794698776097
+      },
+      "retainedMaximumMicro": "501"
+    }
+  ],
+  "sourceSha256": {
+    "services/mpp-near-direct/near-cloud/accept-outlayer.mjs": "c6d0906e43ef568a64b2cfeff6d2b808b9a160129af2f54846dfc75fabb38e18",
+    "services/mpp-near-direct/near-cloud/outlayer-client.mjs": "14f8193f17420bae9a8a0de83b29a4362a279bdf5df65cdc7673e106858e2e4a",
+    "services/mpp-near-direct/near-cloud/authority.mjs": "ae822eb5eb1def0b0d15250d5f0147496860d7f4301265d250200e3b098246ab",
+    "services/mpp-near-direct/near-cloud/server.mjs": "9afed03230fffe3e1f3e20f4e1c559fc479b3d1dea611baeff32ca929e54c3bc",
+    "services/mpp-near-direct/near-cloud/verify-outlayer-evidence.mjs": "e97c949866723008afbb8fc4000313341eab0255acaee5657757dd43a6abff03",
+    "services/mpp-near-direct/near-cloud/verify-evidence.mjs": "fcb118119a476d7304960f3c7ab0b500ca12691b53ae254322aa6b2d7afe96ef",
+    "services/mpp-near-direct/near-cloud/test/integration.test.mjs": "f148f14e57a1da789166af2087f25f84a54ef40aec13783e101259829c258fea",
+    "services/mpp-near-direct/near-cloud/test/outlayer.test.mjs": "c26aa14a33b7357b937b7044a5f6dff626950ec80b70ce34fa874442d8638a0f",
+    "services/mpp-near-direct/p3/outlayer.mjs": "a59e822f2ca0eb5983fc33f7161a40cfc8a9bf23913bab712b8c49d95c1ef99d",
+    "services/mpp-near-direct/p3/wallet.mjs": "539fc299b0dc2a76270acd21e73b8c1f845099cddeec74b53e786e63309f4a0f",
+    "services/mpp-near-direct/p3/outlayer-native-verification.mjs": "3ee5566a71d2bfcf2a75ad18e51ea133bd66e50cd0ce186c09407b1693b9ec51",
+    "services/mpp-near-direct/p3/test/wallet.test.mjs": "c190541d923c9a6b7fcf004dde3ef7cf1fb030c6b6a217de3f2d0fa921b29983",
+    "services/mpp-near-direct/contract.mjs": "1f325fba57983ee297e1b22772f22ef1930cbe0350e47329c30663b276389b7c",
+    "services/mpp-near-direct/method.mjs": "8ff37900a2cfb6aeb19b6c841f6a6be091681f0e5cdf61bea2e57e72116d1348",
+    "services/mpp-near-direct/near.mjs": "5e68d4f5cea2e6c2a530638d971617e6f66f82f8d642f1e9ad7c2357b01d457b",
+    "services/mpp-near-direct/package-lock.json": "c22452d9cf02375c0af19f85851487dbd9e3e6eb488e0af57ccdf6e427014714",
+    "services/inference-comparison/near-bridge.mjs": "9ff150972e470013dc77ee39df9a0b002918fe05deac0142b71dc45605bbdd7f",
+    "services/inference-comparison/core.mjs": "989dc7c11235ebd8a0fd7da62a0acf778d8697fbce31f4b5a30c38beb4922c41",
+    "services/inference-comparison/package-lock.json": "7b12812f6524c386d75bb55e6cc72435b129a7c1616017d97d27db207de6acaf",
+    "docs/near-cloud-outlayer-mpp.md": "f696399e3e1dd9595c2e9b578742852b52ff491cf89cf25ce11939831a25b573",
+    "docs/acceptance/2026-11-14-outlayer-cloud-mpp.md": "c97fa533b57d9eecde5011b5cbffd67d722cb00a5d3958626a78d1527beb3a8b"
+  },
+  "initialAcceptanceCommit": "803ceeac99b5e029822bc034342157aa19bb224d",
+  "initialAcceptanceDelivery": {
+    "pushed": false,
+    "merged": false,
+    "deployed": false,
+    "independentSubagentReview": false
+  },
+  "integrationPr": 20
+}

@@ -1,0 +1,65 @@
+{
+  "realChain": false,
+  "realProvider": false,
+  "scope": "original-native-source-qualification-with-loopback-provider-double",
+  "cases": [
+    {
+      "case": "request-specific-real-token-count-native-qualification-two-fx-tasks",
+      "passed": true,
+      "counts": {
+        "tools": 2,
+        "refunds": 4,
+        "payments": 4,
+        "executions": 4,
+        "chainTransfers": 8
+      },
+      "providerDoubleCalls": [
+        {
+          "calibration": true,
+          "inputTokens": 106,
+          "hasToolResult": false
+        },
+        {
+          "calibration": false,
+          "inputTokens": 106,
+          "hasToolResult": false
+        },
+        {
+          "calibration": true,
+          "inputTokens": 175,
+          "hasToolResult": true
+        },
+        {
+          "calibration": false,
+          "inputTokens": 175,
+          "hasToolResult": true
+        },
+        {
+          "calibration": true,
+          "inputTokens": 106,
+          "hasToolResult": false
+        },
+        {
+          "calibration": false,
+          "inputTokens": 106,
+          "hasToolResult": false
+        },
+        {
+          "calibration": true,
+          "inputTokens": 175,
+          "hasToolResult": true
+        },
+        {
+          "calibration": false,
+          "inputTokens": 175,
+          "hasToolResult": true
+        }
+      ],
+      "oneOriginalHost": true
+    },
+    {
+      "case": "calibration-ack-loss-keeps-project-reservation-no-agent-payment-or-repost",
+      "passed": true
+    }
+  ]
+}

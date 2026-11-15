@@ -3,13 +3,13 @@
 - 状态：**Draft — for review**。第 1 节为本轮确认的产品方向；其余具体接口、付款和实施合同为待审提案。
 - 日期：2026-11-14，America/New_York。
 
-**2026-11-14 最新用户决定：agent 自付 inference 本金和付款 gas。** MVP 使用 Agent API `nativeNearTransfer`，不采用项目托管 gas key。商户承担服务退款 gas，不从应退本金中扣除。NEP-366 fixture 的本金语义错误仍成立，旧 v2 不具备真实付款资格；G1 改为普通 native Transfer、真实 agent 费用、原操作恢复与退款资格验收，详见 [P3 计划](2026-11-14-agent-mpp-p3-run-plan.md)。
+**2026-11-14 本轮修订：钱包层从 Agent API 改为 OutLayer Custody。** 每 agent 独立无 binding 钱包；用户连接 NEAR 钱包并成为 policy controller，确认策略后注资。agent 自付 native NEAR 本金和付款 gas，商户承担服务退款 gas。采用普通 Transfer + 原 NEP-413/MPP v1 绑定，不使用 NEP-366 或项目 gas key。详细合同与证据见 [OutLayer 迁移规格](2026-11-14-outlayer-custody-migration.md)及 [P3 计划](2026-11-14-agent-mpp-p3-run-plan.md)。
 - 适用仓库：`private-flex-inference-auctions`；整合 PR #4、#5、#6 的相关能力。
 - 首要目标：证明 agent 使用自己的资金，自主购买 inference，并利用真实模型和工具完成任务。
-- 用户流程：**Connect wallet → fund 每个 agent → 各 agent 自主 bid、通过 MPP 付款并完成任务。**
-- 本轮修订：agent 自付 inference 本金和付款 gas；商户承担服务退款 gas；订单到期停止新采购/新接纳，已发起的付款继续核对，不要求链上交易同时失效。
+- 用户流程：**Connect wallet → 设置并确认每 agent spend policy → fund 每个 agent → 各 agent 自主 bid、通过 MPP 付款并完成任务。**
+- 本轮范围：替换钱包创建、授权、签名和恢复 adapter；MPP inference 入口、autobidder、Market 权威、按量退差和独立订单/链上期限保持原合同。本文不自动变更代码或部署。
 
-本稿的 P0 已有[合同与受控原型](2026-11-14-agent-mpp-p0-contract.md)及[owning interfaces](2026-11-14-agent-mpp-p0-owning-interfaces.md)。最新用户决定为 native NEAR、按量预付退差、agent 自付本金和付款 gas，以及订单到期与链上交易失效分离。G1 验证 Agent API 原生付款、独立验款、gas 记账及原操作恢复。API 没有调用方逐笔 gas 硬上限，gas reserve 是采购前估计与停购阈值，不宣称为链上强制上限；超估时如实记账、停止新采购，未决责任不释放。历史 P0/P1/P2 结果保留其原快照范围，不能因修改 spec 自动变为真实资金 PASS。
+本稿的 P0 已有[合同与受控原型](2026-11-14-agent-mpp-p0-contract.md)及[owning interfaces](2026-11-14-agent-mpp-p0-owning-interfaces.md)。最新用户决定为 native NEAR、按量预付退差、agent 自付本金和付款 gas，以及订单到期与链上交易失效分离。G1 验证 OutLayer native Transfer + exact NEP-413 绑定、独立验款、gas 记账、原操作恢复及商户退款。五项钱包原语和普通 Transfer/NEP-413/冻结后退款已有真实 testnet 组件证据；[独立实现记录](../agent-mpp-p3.md)区分本地通过与真实完整任务尚未通过，不作为 G1/P3 PASS。普通 native Transfer 路线不提供本项目调用方逐笔 gas 费用硬上限，gas reserve 是采购前估计与停购阈值，不宣称为链上强制上限；超估时如实记账、停止新采购，未决责任不释放。历史 P0/P1/P2 结果保留其原快照范围，不能因修改 spec 自动变为真实资金 PASS。
 
 受控实现另见 [P1](../agent-mpp-p1.md) 与 [P2](../agent-mpp-p2.md)。P2 使用两个真实 fx 引擎、虚拟工具及原 Market 账本，但模型与 NEAR 回执仍为确定性 fixtures；它验证接线、预算与恢复，不将本文“真实模型完成任务”、钱包连接/注资或 G1/P3 自动视为已验收。
 
@@ -26,7 +26,8 @@
 | 本轮接受的设计方向 | 跨调用管理任务预算，单次调用内根据紧迫性和报价选择采购条件；阶梯加价只是可选策略 |
 | 本轮接受的设计方向 | speed 首版优先考虑取得可用模型终态的端到端耗时；TTFT 单独记录 |
 | 本轮接受的设计方向 | 报价区分延迟估计与服务承诺；没有真实速度差异/调度能力时不宣称可以加钱买更快 |
-| 保留的入口约束 | 浏览器运行独立 fx 会话；同一 owner 的不同 agent 分别持有钱包、grant、任务和预算 |
+| 保留的入口约束 | 浏览器运行独立 fx 会话；同一 owner 的不同 agent 分别绑定 OutLayer 钱包、链上 policy、任务授权和预算 |
+| 用户本轮要求 | 钱包层从 Agent API 改为 OutLayer；详细 schema、controller bootstrap、凭证隔离和未知操作处理见迁移规格 |
 | 本轮替代的支付方向 | 标准 `nearintents.charge` 不再作为每轮 inference 的付款方法；NEAR 链上直付通过独立 MPP 方法适配 |
 | 用户本轮已确认 | 首版 native NEAR（24 位精度）；FT 不在 v1；项目直付方法具体实现见 P0 合同 |
 | 用户本轮已确认 | 首版按量预付退差；固定订单价保留为未来独立合同，不在执行后切换模式 |
@@ -61,7 +62,7 @@ cost/speed 双目标同样不自动选定固定订单价或按量收费，也不
 
 本次包含钱包到 inference 的自主采购、cost/speed 选择、工具续轮、预算和故障恢复。不以卖方收益提升、GPU 利用率提升或竞争性清算效果作为首版通过条件；这些指标需要后续实验。
 
-跨链注资沿所选链/资产的实际支持范围实施，不承诺任意区块链或任意 token。跨链 funding 与 owner 身份/签名授权分别验证；不能把成功兑换或存款视为已取得创建、grant 或任务权限。
+跨链注资沿所选链/资产的实际支持范围实施，不承诺任意区块链或任意 token。跨链 funding 与 owner 身份/签名授权分别验证；不能把成功兑换或存款视为已取得创建、policy 控制或任务权限。
 
 上述固定基线未提供完整的双目标买方控制器及可比较的端到端速度合同。受控报价可以验证选择逻辑；真实加价换取更快服务的结论，必须来自实际不同的服务条件及后端交付能力，不能由模拟快慢标签推出。
 
@@ -95,31 +96,31 @@ flowchart TB
 | 组件 | 拥有的责任 | 边界 |
 | --- | --- | --- |
 | Owner/网页 | 登录、确认注资计划、native 权限和任务授权；查看、暂停和撤销 | 分列本金、agent 付款 gas 和源链注资费用；每轮不再请求 owner 签名 |
-| fx runtime | 构造模型请求、执行本地工具、使用结果继续任务 | 不持有 grant，不通过模型文本批准突破预算 |
+| fx runtime | 构造模型请求、执行本地工具、使用结果继续任务 | 不持有 wallet API key 或任务执行凭证，不通过模型文本批准突破预算 |
 | 每 agent autobidder | 跨调用管理预算；单次调用内权衡成本、紧迫性、预计交付时间和风险，决定采购条件 | 不决定卖方 ask、全局清算、其他 agent 的报价或实际调度结果 |
 | MPP inference client | 包装模型 transport，处理等待、402、付款、重呈和恢复 | 给 fx 返回正常模型结果；不要求 fx 显式编排资金/采购 REST 操作 |
-| 钱包执行器 | 按该 agent 的 grant、native 权限及冻结条款发送 native Transfer | 核验本金、gas reserve、任务预算和原操作；不提供任意转账或合约调用 |
-| 商户退款执行器 | 按原订单的未清偿责任发送/恢复退款 | 商户单独承担退款 gas；不从 agent 应退本金中扣取；退款不依赖 agent grant |
+| 钱包执行器 | 按该 agent 的 OutLayer policy、任务授权及冻结条款发送 native Transfer | 核验本金、gas reserve、任务预算和原操作；不提供任意转账或合约调用 |
+| 商户退款执行器 | 按原订单的未清偿责任发送/恢复退款 | 商户单独承担退款 gas；不从 agent 应退本金中扣取；退款不依赖 agent 钱包 API key 或付款 policy |
 | MPP Proxy | 对外 inference API、认证、付款验证和订单绑定 | 通过 Market 执行，不绕过其供给、资金、接纳及恢复权威 |
 | Market | 供给/价格/速度信息、条款有效性、成交与预留、执行许可、用量、结算和恢复 | 保存有效 bid 与接纳权威；不替所有 agent 运行共享买方策略，不将延迟估计自动变成服务保证 |
 
 autobidder、MPP client 和钱包执行器可以托管于共享服务，但必须按 agent 隔离状态、授权和并发。逻辑上每 agent 独立，不要求每 agent 单独部署进程。
 
-NEAR Intents/1Click 仅承担注资、必要兑换及另行授权的补充资金；热路径不请求 1Click 报价、solver 结算或 Intents 付款回执。可以继续使用 Agent API 管理钱包/grant 及执行其 native 路由；这不等于继续用 Intents 余额支付每个订单。
+NEAR Intents/1Click 仅承担注资、必要兑换及另行授权的补充资金；热路径不请求 1Click 报价、solver 结算或 Intents 付款回执。钱包创建、policy 签名和 native transfer 改用 OutLayer；不再要求 Agent API partner key/grant。外部 1Click funding 直接交付 native NEAR，不使用 OutLayer Intents balance 充当链上付款余额。
 
-“直接调用”指模型请求落在 MPP proxy 的 inference endpoint。浏览器仍可调用受限钱包服务取得资金操作结果；不得为了直接调用而把 partner key/grant 放入浏览器、fx 环境或模型上下文。原 `/buyer-api/inference` 不再作为产品 inference 协议；如保留兼容层，须明确弃用并禁止形成另一套订单权威。
+“直接调用”指模型请求落在 MPP proxy 的 inference endpoint。浏览器仍可调用受限钱包服务取得资金操作结果；不得为了直接调用而把 OutLayer wallet key 放入浏览器、fx 环境或模型上下文。原 `/buyer-api/inference` 不再作为产品 inference 协议；如保留兼容层，须明确弃用并禁止形成另一套订单权威。
 
 ## 4. 钱包连接、授权与注资
 
 ### 4.1 身份与余额边界
 
-复用 #5 的 owner 验证、不可变分配计划和独立 grant 恢复，修改资金落点和权限。必须建立以下持久关系：
+复用 #5 的 owner 登录验证、不可变分配计划和部分失败恢复原则；Agent API create/grant 流程按 OutLayer 重新实现。用户直接发送策略存储交易成为 controller，独立 FINAL 读回后才开放注资。必须建立以下持久关系：
 
-`verified owner → buyer_id → Agent API agent_id → NEAR 链上账户/付款权限 → Market principal → NEAR 退款目的地版本`
+`verified owner → buyer_id → OutLayer wallet_id/credentialRef → NEAR implicit payer/key → policy controller/version/hash → Market principal → NEAR 退款目的地版本`
 
 不同 agent 使用不同 Market 资金 principal；owner 相同不授予自动合并余额的权限。buyer label、请求体 ID、MPP source 或公开交易 hash 不能建立账户归属。
 
-Intents 内部余额、NEAR 账户的 native NEAR 及各 NEP-141 合约余额分别读取，不能因它们使用同一个 account ID 就视为同一余额。现有 Agent API Intents balance 读数不证明 native 付款资金已经到位。[N2]
+Intents 内部余额、NEAR 账户的 native NEAR 及各 NEP-141 合约余额分别读取，不能因它们使用同一个 account ID 就视为同一余额。OutLayer `/balance?chain=near` 的 executor 余额也须与独立 RPC 核对，要求无 account binding；Intents/wNEAR 余额不证明 native 本金或 gas 已到位。[O1][O2]
 
 充值所用源链钱包与 owner 身份分开记录。#5 的 NEAR owner 登录是审阅基线；若首版还支持其他链钱包作为 owner，须另外实现服务支持的 owner 类型、签名验证与恢复，不能从“支持跨链付款”推导出所有 owner 签名均已支持。
 
@@ -136,16 +137,16 @@ Intents 内部余额、NEAR 账户的 native NEAR 及各 NEP-141 合约余额分
 ### 4.3 gas、账户准备与可运行状态
 
 - 首版 agent 的 native NEAR 余额承担 inference 本金和付款 gas。实际付款 gas 持久记为 agent 支出；商户承担退款 gas，不从应退本金扣取。
-- 当前 Agent API `nativeNearTransfer` 的 agent 自付 gas 语义符合最新选择。[N2] 不引入 NEP-366 或项目托管 gas key；现有 API 不提供调用方逐笔 gas 硬上限。
+- OutLayer `/wallet/v1/transfer` 的真实 testnet 交易已证明 agent 同时支付本金与 gas。[O2] 不引入 NEP-366、personal binding 或项目托管 gas key；gas reserve 不能包装成逐笔链上硬上限。
 - agent 须有扣除账户存储锁定、既有本金和 gas 预留后的可用 NEAR。准备阶段留出付款 gas reserve；余额/预算不足或实际 gas 超估时停止新采购，不自动充值。
 - 用户跨链注资的源链费用、兑换费用及资金回收费用按独立计划披露，不混入每轮 inference 本金或退款。
 - 用最终链上结果及账户/合约余额核对到账；跨链服务返回完成或一串源链 hash 本身不能替代目标账户可用资金检查。
 
-每 agent 创建、grant、native 策略、资产 funding 和 gas 准备独立跟踪；刷新/部分失败恢复原操作，不重新创建整组。签署策略前展示商户/合约、资产、受 native 路径约束的规则和本项目额外执行的任务预算守卫，不能暗示 Intents 的全部预算/审批保护继续适用。
+每 agent 创建、controller 确认、OutLayer policy、资产 funding 和 gas 准备独立跟踪；刷新/部分失败恢复原操作，不重新创建整组。签署策略前展示商户/合约、资产、受 native 路径约束的规则和本项目额外执行的任务预算守卫，不能暗示 Intents 的全部预算/审批保护继续适用。
 
 任务设置至少区分总预算、单次最大支出、任务截止时间和成本/速度偏好。具体调用期限与出价由该 agent 在授权内产生；用户不需要配置每轮加价步骤或手动执行付款。提高硬 cap、延长授权或扩大模型范围须新的有效授权。
 
-首次运行须同时满足身份绑定、grant/native 策略生效并读回、agent 链上本金及付款 gas reserve 核对、对应 MPP 方法可用和任务授权。只有 Intents 余额时不得显示为可直付。准备完成后无需额外让用户手动购买平台额度。
+首次运行须同时满足身份绑定、OutLayer policy/controller 生效并读回、agent 链上本金及付款 gas reserve 核对、对应 MPP 方法可用和任务授权。只有 Intents 余额时不得显示为可直付。准备完成后无需额外让用户手动购买平台额度。
 
 ## 5. 每 agent autobidder
 
@@ -265,7 +266,7 @@ Content-Type: application/json
 }
 ```
 
-两个 `Bitrouter-*` header 及其引用格式是项目提案，不是 MPP 标准。实现前冻结版本和鉴权方式；任务引用须绑定 agent、原请求、预算/能力授权、各类硬期限和 cost/speed 策略版本，bid 引用须绑定当前价格上限、时间偏好与 revision。复用这两个引用承载采购上下文，不为每项时间指标增加一组公共 headers。客户端自报的 cap 或偏好不能替代服务端授权核验。普通 agent access token 与付款 grant 分离。
+两个 `Bitrouter-*` header 及其引用格式是项目提案，不是 MPP 标准。实现前冻结版本和鉴权方式；任务引用须绑定 agent、原请求、预算/能力授权、各类硬期限和 cost/speed 策略版本，bid 引用须绑定当前价格上限、时间偏好与 revision。复用这两个引用承载采购上下文，不为每项时间指标增加一组公共 headers。客户端自报的 cap 或偏好不能替代服务端授权核验。应用 agent access token、任务授权与后端 OutLayer wallet credential 分离。
 
 收到 402 后，客户端使用 Challenge 指定的付款头重呈 Credential，保留应用认证。本项目建议使用 `Payment-Authorization`，避免覆盖 `Authorization: Bearer`。同一次付款重试使用原凭证及原逻辑调用，不生成新的模型调用 key。
 
@@ -297,10 +298,10 @@ Content-Type: application/json
 2. 任务预算管理给出当前调用可用授权；Proxy 保存原始计时及请求记录，Market 检查模型能力、计量和有效供给。此授权额度不等于已经取得现金/容量预留。
 3. 单次采购决策评估价格、速度依据、服务承诺及 NEAR 链上付款/验款时间和 gas，在硬约束内选择候选；跨链注资不属于本轮 402 付款步骤。无合适候选则等待、调价或到期关闭，尚不付款或派发。
 4. 为选定候选预留任务授权，取得第 8 节的真实供给预留，冻结 bid revision、Offer/价格合同、服务条件、时间起止点、最大责任和报价/付款期限；再创建绑定订单的 MPP Challenge。替换候选先确证释放原责任。
-5. 钱包执行器核验 grant/native 权限、任务授权、agent 本金、付款 gas reserve 及新付款期限；发送前保存原 API 请求、稳定 idempotency key、grant/binding 版本和费用预留。保存返回的 correlation ID 并恢复同一操作；未知状态不换 key 重付，不退回 Intents 付款。API 未提供的原签名 bytes 不伪造为已持有证据。
+5. 钱包执行器核验 OutLayer policy/controller、任务授权、agent 本金、付款 gas reserve 及新付款期限；发送前保存精确请求、稳定 `X-Idempotency-Key`、policy/binding 版本和费用预留。保存 OutLayer UUID `request_id` 并查询同一操作；未知状态不换 key 重付，不退回 Intents。没有 request_id 的 ACK 丢失在 native 去重合同尚未合格时只进入 review，不自动重 POST。API 未提供的原签名 bytes 不伪造为已持有证据。
 6. 客户端通过本项目 MPP 直付方法重呈原交易证据；Proxy 独立核验最终执行、实收、订单绑定和全局消费状态，再将款项写入原账本/projection。钱包 API 声称成功或提交 hash 不等于验款完成，更不等于 inference 已执行。
 7. Market 核实原报价、服务条件、预留、最晚接纳时间与资金条件，通过唯一 admission command 冻结执行授权。必要提交确认前不派发；已收款但不能履行原条款时进入原订单退款流程。
-8. 执行后，将 native response/SSE 交给 fx，记录实际各阶段耗时，按第 10 节最终选定的价格/履约合同结算；发生退款义务时沿原身份恢复。固定价不因正常短输出自动退差，按量提案则计算应退差额。
+8. 执行后，将 native response/SSE 交给 fx，记录实际各阶段耗时，按第 10 节最终选定的价格/履约合同结算；发生退款义务时沿原身份恢复。固定价不因正常短输出自动退差，本 v1 按量合同计算应退差额。
 9. 更新任务预算、未决责任及策略观察，fx 使用结果调用本地工具或完成任务。每次后续模型调用建立新身份；恢复原调用不计作新调用。预计但未确认的退款不资助下一轮付款。
 
 | 状态域 | 建议状态 |
@@ -349,22 +350,21 @@ Content-Type: application/json
 
 ### 9.2 native 钱包执行与支出守卫
 
-Agent API 提供 `nativeNearTransfer` 和 `nativeNearCall`，从 agent 的 NEAR 链上账户执行，不消费其 Intents 内部余额。相关 native 开关需 owner 授权、有效 grant 和策略读回；#5 的 confidential transfer/withdraw 策略不能原样视为已开放这条路线。[N2]
+OutLayer `/wallet/v1/transfer` 从 agent 自有 implicit account 支付本金与 gas；`/wallet/v1/sign-message` 提供 NEP-413。MVP 每 agent 使用无 binding 独立 custody 钱包；不使用 asset/executor 分离的 personal binding。policy 确认前不允许注资或采购，OutLayer `wk_` 只保存在后端 secret store。[O1][O2]
 
-native 路径的 `budget`、timelock、schedule 和 owner approval 不按普通 Intents 动作执行。原生 NEAR 转账或 call 附带的 NEAR 有目的地及适用金额限制；这不等于可以限制 NEP-141 call 实际转出的所有 token。[N2] 因此：
+- Policy 仅允许 native Transfer、商户白名单、单笔本金上限和 MPP recipient 的 sign_message；关闭 raw_sign、通用 call、delete、Intents、swap、其他链签名等能力。字段模板及待测项目见迁移规格。
+- OutLayer 每笔签名检查 policy；日/小时/月及 rate counter 是 gateway 提供的累计用量，官方明确并发下 best-effort，不能充当任务硬预算。本项目原资金 writer 继续原子校验任务/调用上限、gas reserve、未决责任和可用余额，每 agent 跨任务串行化资金写入。[O1]
+- 不提供面向模型/浏览器的通用钱包转发；只按认证 Challenge、原冻结订单和当前授权发送。
+- 维持 exact single Transfer + NEP-413 订单绑定。adapter 将 OutLayer hex/base58 key 和 base58 signature 严格规范化为既有 v1 base58 publicKey/base64 signature，不修改 MPP wire 以掩盖 provider 差异。
+- 用户持有 controller，可更新/冻结 policy；冻结阻止后续签名，不撤回在途付款。每轮付款无需 owner 签名，商户退款不要求 agent 解冻。
 
-- 本项目在可信买方执行器内持久、原子地检查任务预算、原资产本金 cap、资产/网络、商户、参数、付款 gas reserve 和累计实际 gas。商户退款资金与 gas 是独立责任，不扩大 agent 授权。
-- 不提供面向模型/浏览器的任意 `nativeNearCall` 转发。只执行经过已认证 Challenge、冻结订单和允许资产合同校验的付款动作。
-- 若 token 合约 allowlist 无法由 wallet provider 强制限制收款方/金额，须在签署授权时如实说明可信执行器的权限边界；P0 review 专用支付合约/受限签名方案，不将其伪装成 provider 已强制执行的预算。
-- 钱包 API key 与 grant 不进入浏览器或模型；保留 Agent API 托管签名，每轮不要求 owner 签名。MVP 不使用项目托管的 agent FullAccess 私钥。
-
-首版结算资产为 native NEAR，使用 agent 直接签署单笔 Transfer 的 MPP 方法与 NEP-413 订单绑定。真实 G1 验证 Agent API 原操作、实际 gas 和完整 FINAL receipt 图；NEP-366/gas-key 原型留作历史研究，不属于选中路线。
+G1 另验 exact NEP-413、native 幂等/ACK 恢复、实际 gas、完整 FINAL 图与商户退款；已有五项钱包原语不覆盖这些项目。NEP-366/gas-key 原型及旧 Agent API SDK interop 均留作历史证据。
 
 ### 9.3 Challenge、订单绑定与验款
 
 付款资源固定：agent/principal、实际付款账户、logical call、quote、原生请求指纹、bid/策略版本、价格/服务条件、NEAR 网络、精确资产/合约与最小单位金额、收款对象、各适用期限、随机订单 reference 和退款目的地版本。付款前验证预期商户、Proxy 的当前 TLS/身份及资源绑定，历史部署证据不代替当前判定。
 
-钱包执行器在发送前保存稳定 API idempotency key、精确请求和 hash、agent/grant/binding、原订单及本金/gas reserve。首次请求前持久标记可能已发送；返回后保存原 correlation ID。ACK 丢失时只按官方规则恢复同一 key 和 body；已有 correlation ID 后仅查询原状态。NEEDS_REVIEW 停止自动重提。结果未知时不创建替代付款、不切换签名路线。
+钱包执行器在发送前保存稳定 API idempotency key、精确请求和 hash、agent/policy/binding、原订单及本金/gas reserve。首次请求前持久标记可能已发送；返回后保存原 OutLayer request_id。ACK 丢失时不更换 key/body；已知 UUID request_id 后只查询原状态。native 去重与保留期未完成资格验收前，无 ID 的歧义发送不得自动重 POST。`needs_review` 停止自动重提。结果未知时不创建替代付款、不切换签名路线。
 
 原生 NEAR Transfer 没有任意订单 memo 字段。P0 选用同一 agent 交易签名 key 的 NEP-413 签名，将原 Challenge、订单条款和交易 hash 绑定，再由资金权威全局消费该实际转账。它是链下签名分配，不声称链上 invoice 合约的约束；双签只能消费一次。只有 hash、相同金额或大致时间不足以验收，具体 schema 与信任边界见 P0 合同。
 
@@ -384,7 +384,7 @@ RPC 超时、钱包状态 unknown 或 hash 尚未查到均不能证明未付款�
 
 到期后实收、少付/多付、错误资产和不可归属款项保留异常负债。订单到期不表示链上原付款失效或未发送。通过认证恢复核实原资金动作，不绕过 expiry 接纳、不新建付款。未接纳且原条件已失效时全额退回匹配本金；付款 gas 仍为 agent 已发生费用，退款 gas 由商户承担。
 
-此路径的付款成功与否由 NEAR 资金移动判断，常规 inference 付款不使用 1Click `SUCCESS` 或 Agent API Intents 透明日志回执作为收款证明。主网真实验收前必须完成原生转账/合约验款及异常退款能力。
+此路径的付款成功与否由 NEAR 资金移动判断，常规 inference 付款不使用 1Click `SUCCESS` 或 OutLayer API success/Intents 回执作为收款证明。主网真实验收前必须完成原生转账/合约验款及异常退款能力。
 
 ### 9.5 agent 付款 gas 与订单到期的验收边界
 
@@ -393,13 +393,13 @@ RPC 超时、钱包状态 unknown 或 hash 尚未查到均不能证明未付款�
 | 到期时的原操作 | 处理 |
 | --- | --- |
 | 尚未签署/派发，且可确证没有发送 | 关闭报价与原操作；按同一权威释放容量及本金预留；不再启动新付款 |
-| 已签署、已派发、可能发送或结果未知 | 保留原 API key/body、授权、本金和 gas reserve，恢复原 correlation；过期不证明未付款，不创建另一笔本金付款 |
+| 已签署、已派发、可能发送或结果未知 | 保留原 API idempotency key/body、授权、本金和 gas reserve，恢复原 request_id；过期不证明未付款，不创建另一笔本金付款 |
 | 本金确认，但原报价/供给/接纳授权已失效且尚未接纳 | 保存实收与全局消费证据，不执行或改价；全额退回原 agent，商户承担退款 gas，已烧付款 gas 保留为 agent 支出 |
 | 已接纳的原执行 | 按原执行身份继续恢复、停止和结算；订单期限不会自动撤销已有执行、免单或生成一笔未经核实的退款 |
 
 `payment_expires_at` 和 MPP Credential 的 expiry 继续约束新付款/正常呈证与准入；交易自身的 nonce、协议有效窗口或候选机制中的 `max_block_height` 另行验证，不要求其与订单墙钟期限完全相同。过期后只允许认证恢复和责任核对，不借恢复重开采购窗口。
 
-G1 是当前真实发送前的资格检查：Agent API native Transfer 与 NEP-413 绑定、原 idempotency/correlation 恢复、独立 FINAL 验款、agent 实际付款 gas 记账、迟到/失败处理和商户退款。gas-key 原型和旧 NEP-366 fixtures 都不能代替本路线的 G1；历史验收状态不自动改变。
+G1 是当前真实发送前的资格检查：OutLayer native Transfer 与 exact NEP-413 绑定、原 idempotency/request_id 恢复、独立 FINAL 验款、agent 实际付款 gas 记账、迟到/失败处理和商户退款。gas-key 原型和旧 NEP-366 fixtures 都不能代替本路线的 G1；历史验收状态不自动改变。
 
 ## 10. 价格与资金合同（按量 v1 已确认）
 
@@ -451,11 +451,11 @@ MPP charge 的金额在付款前确定，它本身不定义推理用量结算。
 
 商户服务退款与 1Click 对跨链注资失败的退款分别记录：前者绑定 inference 订单和 agent 的 NEAR 退款账户，后者绑定 allocation/funding leg 与当时确认的源链退款目的地，不能重复返款或合用一个全局 refundTo。商户退款有稳定操作 key、资金冻结和恢复 outbox；原生链上付款执行失败若没有商户实收，不凭失败状态生成第二笔商户退款。
 
-退款响应丢失时恢复原链上转账；只有确认原资金动作不可能执行时才能解除退款冻结。确认最终链上净到账并核对可用余额后再恢复可花用资金，不把“已发送”或 hash 当作退款到账。grant 撤销不解除商户退款责任；收退款的权限路径不应要求买方重新开启付款 grant。
+退款响应丢失时恢复原链上转账；只有确认原资金动作不可能执行时才能解除退款冻结。确认最终链上净到账并核对可用余额后再恢复可花用资金，不把“已发送”或 hash 当作退款到账。policy 撤销、冻结或 wallet key 失效不解除商户退款责任；收退款的权限路径不应要求买方重新启用付款 policy 或 API key。
 
 用户最新确认 agent 承担 inference 本金和付款 gas；包括付款失败/晚到账已烧 gas。商户承担服务退款 gas，不从应退本金扣除。跨链注资费用另外列示。每个正退款单位都应返还，不吞小额本金；无法执行原币退款时不能通过真实资金验收。
 
-agent 任务预算预留最大服务本金和付款 gas reserve，持续计入实际已烧 gas。本金守恒 `P=C+H+W+R` 不混入 gas。退款核清只释放对应本金责任；actual payment gas 仍为支出，不能假定 provider 周期限额/grant 同步恢复。未决付款、执行和退款保留相关责任。
+agent 任务预算预留最大服务本金和付款 gas reserve，持续计入实际已烧 gas。本金守恒 `P=C+H+W+R` 不混入 gas。退款核清只释放对应本金责任；actual payment gas 仍为支出，不能假定 provider 周期限额/授权同步恢复。未决付款、执行和退款保留相关责任。
 
 按量预付时，NEAR 链上退款等待仍可能阻塞工具续购，真实验收须覆盖周转资金占用。固定价减少正常退差，但不消除交易确认、验款或失败退款。速度违约按已接受的承诺处理，普通预测误差不能被客户端自行解释成已退款；正常退差、未履约和其他失败仍沿各自冻结合同处理。
 
@@ -474,7 +474,7 @@ cost/speed 决策围绕当前已冻结的模型需求进行。若 fx 为后续�
 - 计量/资格覆盖动态 prompt 和工具 transcript，不复用旧固定请求的 token IDs 或资格观察。
 - seller/Provider 确认支持该工具合同；当前 live catalog 的 `client_tools: false` 必须经过能力扩展及重新资格验收。[L4]
 - native JSON、文本和工具调用的 SSE delta、finish reason 与 usage 可被 fx 正确消费。
-- wallet、grant、报价、付款和任务预算字段不进入 Provider 请求或 just-bash 工作区。
+- wallet credential、policy、报价、付款和任务预算字段不进入 Provider 请求或 just-bash 工作区。
 
 保留原 Provider 请求/响应字节及其证据映射，协议转换后的事件单独标识。付款回执、Market 财务记录和 Provider 证明各自保留范围，不互相替代。
 
@@ -493,7 +493,7 @@ cost/speed 决策围绕当前已冻结的模型需求进行。若 fx 为后续�
 | SSE 中断 | 从原执行事件恢复；不再付费、不新派发，不把断线当作无费用失败 |
 | Pause/缩减 pane/断开钱包 | 持久停止新采购；已有付款、执行和退款继续核对 |
 | Cancel 与成交并发 | 返回确定提交顺序；接纳之后按原执行取消合同处理，不误报“已取消且未收费” |
-| grant 撤销或过期 | 禁止新买方资金动作；商户仍承担已收款订单的结算/退款责任 |
+| policy 冻结/失配、wallet key 失效或任务授权到期 | 禁止新买方资金动作；原在途操作继续核对；商户仍承担结算/退款责任 |
 
 浏览器关闭后不承诺 fx 任务循环继续运行。已授权调用的资金、接纳与退款恢复必须独立于页面存活；autobidder 对当前调用是否继续等待由任务期限和持久暂停状态决定。
 
@@ -517,7 +517,7 @@ cost/speed 决策围绕当前已冻结的模型需求进行。若 fx 为后续�
 
 评估 cost/speed 时固定请求和能力条件，并同时观察任务完成情况。失败、取消或没有取得可用结果的调用单独报告，不能作为更快成功的样本；不能通过降低服务质量、只显示 Provider 延迟或忽略退款/支付费用来宣称改进。
 
-托管买方组件可见其处理的任务/预算，须在部署信任边界中说明。Proxy/Market 的钱包、资金和报价记录按 principal 隔离，grant/partner key 不进入日志或浏览器。NEAR 链上直付暴露对应地址、金额与时序；不能继续把这部分描述为 confidential Intents 付款，也不因 Market 在 TEE 中运行就获得支付匿名性。
+托管买方组件可见其处理的任务/预算，须在部署信任边界中说明。Proxy/Market 的钱包、资金和报价记录按 principal 隔离，OutLayer wallet key 不进入日志、浏览器、fx 或模型。NEAR 链上直付暴露对应地址、金额与时序；不能继续把这部分描述为 confidential Intents 付款，也不因 Market 在 TEE 中运行就获得支付匿名性。
 
 修改镜像、服务、支付配置或可信客户端后重新验证对应部署。历史 TEE/通道或模型证据不自动覆盖新增组件。[L5]
 
@@ -527,14 +527,14 @@ cost/speed 决策围绕当前已冻结的模型需求进行。若 fx 为后续�
 
 | 记录 | 关键关联与用途 |
 | --- | --- |
-| AgentBinding / TaskAuthorization | owner、链上付款账户、Market principal、grant/native 策略、任务预算/权限、cost/speed 偏好和各类期限 |
+| AgentBinding / TaskAuthorization | owner、provider=outlayer、wallet_id/credentialRef、payer/key、Market principal、policy controller/version/hash、任务授权/binding version、预算/偏好和各类期限 |
 | Allocation / FundingLeg | 源链/资产/精度、最大扣款、目标 agent native NEAR、1Click 资源、源链退款目标、原操作及最终到账；与 inference 和 merchant refund gas 分列 |
 | InferenceRequest | 逻辑调用 key、fx session、原生请求字节/指纹、任务、原始计时、当前状态 |
 | BudgetAllocation / Decision | 当前调用授权与占用、后续预算留存规则、候选输入快照、预计 cost/time、风险和选择原因 |
 | BidRevision / BidOperation | 当前价格/时间采购条件、策略版本、绝对时间、CAS、人工控制和幂等结果 |
 | Quote / SupplyReservation | Offer/价格合同、速度依据与服务承诺、有效 revision、各类期限、容量预留、付款 reference |
 | PaymentOperation / PaymentConsumption | 直付方法/版本、钱包原操作及交易身份、Challenge/Credential、NEAR 网络/receipt/action、订单绑定、实收与全局防重 |
-| NativePaymentOperation | 原 API 请求/hash、agent/grant/binding、原 idempotency key、correlation ID、tx identity、本金与付款 gas reserve、actual gas 和恢复状态；无项目赞助分支 |
+| NativePaymentOperation | 原 API 请求/hash、agent/policy/binding、原 idempotency key、OutLayer UUID request_id、tx identity、本金与付款 gas reserve、actual gas 和恢复状态；无项目赞助分支 |
 | AdmissionCommand / NativeRequestMapping | 原调用到唯一接纳、原生执行及原事件的关联 |
 | Settlement / RefundOperation | 资产/精度/换算版本、原账本与订单用途、C/H/W/R、NEAR 退款操作及终态证据；不复用跨链 funding 退款 |
 | TimingObservation | 各阶段起止、时钟来源、可用终态、与原预测/承诺的对应及偏差 |
@@ -549,18 +549,18 @@ NEAR 交易、钱包 API 与数据库无法组成一个天然原子事务；跨�
 
 | 阶段 | 工作 | 退出条件 |
 | --- | --- | --- |
-| P0 合同与方法可行性 | 历史 v1 直接 Transfer 原型；当前 agent 自付本金+gas，保留独立期限 | 历史 PARTIAL 不自动变 PASS；G1 验证 native API、实际费用和恢复 |
+| P0 合同与方法可行性 | 历史 v1 直接 Transfer 原型；当前 agent 自付本金+gas，保留独立期限 | 历史 PARTIAL 不自动变 PASS；G1 验证 OutLayer adapter、exact NEP-413、native 幂等/费用/恢复与退款；钱包五项实测单列 |
 | P1 受控单调用 | 原生 Proxy、一个 agent、受控 receipts、PG/Redis | 历史 fixture 只证明接线；真实 native 路线另验预算、gas、恢复与退款 |
 | P2 受控任务与多 agent | 两层策略、fx 工具续轮、两 agent、并发预算、取消和全进程恢复 | 改变预算/紧迫性时采购行为可解释；任务和异常用例通过；fixtures 明确标识 |
 | P3 有界真实验收 | 冻结源本金/费用、agent 本金/付款 gas、商户退款预算、native 授权、Provider 次数和部署上限 | 跨链注资后两 agent 各自支付本金+gas 完成任务，至少一个工具续轮；每轮无 1Click |
 
 | 编号 | 验收场景 | 必须观察到的结果 |
 | --- | --- | --- |
-| A1 | owner 登录、创建、grant、跨链等本金注资及部分失败 | 源链付款不充当 owner 授权；钱包独立，恢复原计划，无跨 agent 转移或整组重发 |
+| A1 | owner 登录、OutLayer 创建、controller/policy、跨链等本金注资及部分失败 | 源链付款不充当 owner 授权；钱包独立，恢复原计划，无跨 agent 转移或整组重发 |
 | A2 | fx 首次调用与工具结果续轮 | 都请求 Proxy chat endpoint，均由对应 agent 的付款路径承担 |
 | A3 | 初始条件不满足，后续在策略内调价/等待 | 真实 revision 与选择原因；授权内成交；无供给阶段零付款、零 Provider 调用；不把加价等同于提速 |
 | A4 | 两 agent 不同预算/策略同时运行 | 报价、付款和任务进度互不冒用；停止一个不停止另一个 |
-| A5 | 错商户/资产/金额/退款目标/过期 Challenge | 付款前拒绝；不扩大 grant 或静默换路线 |
+| A5 | 错商户/资产/金额/退款目标/过期 Challenge | 付款前拒绝；不扩大 policy/任务授权或静默换路线 |
 | A6 | 同一 Credential 重呈、换包装、跨订单/agent 重用 | 同一实际资金移动只消费一次，不能给另一订单执行 |
 | A7 | 钱包已付款但 API ACK 丢失/进程重启 | 恢复原资金操作；无第二笔付款 |
 | A8 | 链上验款后账本回滚、COMMIT ACK 丢失、projection 落后 | 原证明可恢复；一次入账；权威未就绪前不派发 |
@@ -570,7 +570,7 @@ NEAR 交易、钱包 API 与数据库无法组成一个天然原子事务；跨�
 | A12 | 接纳成功但 ACK 丢失、Provider 结果未知 | 恢复原 command/执行；Unknown 不释放责任或盲重跑 |
 | A13 | JSON/SSE、工具 delta、断线及原事件恢复 | fx 可继续原任务；不重复付款、执行或重复提交工具续轮 |
 | A14 | 成功、输出上限、确定失败、取消和 Unknown | 原冻结合同结算；C 不超 P；各资金状态可对账 |
-| A15 | 退款发送后 ACK 丢失、grant 已撤销 | 商户恢复原退款；不重复退款或提前恢复可用资金 |
+| A15 | 退款发送后 ACK 丢失、policy 已冻结或 wallet key 已失效 | 商户恢复原退款；不重复退款或提前恢复可用资金 |
 | A16 | Pause、切 owner、停放 pane、旧状态恢复 | 停止新采购且隔离权限；旧责任继续核对；不补发现金/供给 |
 | A17 | 精度边界、费用、少付/多付、错误资产 | 整数计算与原金额规则一致；异常款有负债记录；正常订单守恒 |
 | A18 | 真实任务与付款证据复核 | 各 agent 的任务产物、工具轨迹、付款、用量、账单和退款可关联 |
@@ -584,13 +584,13 @@ NEAR 交易、钱包 API 与数据库无法组成一个天然原子事务；跨�
 | A26 | 对最终选定价格模式验收正常/异常结算与后续续购 | 按冻结模式计算费用及退款；上游成本单独核对；未知/未到账退款不资助下一轮 |
 | A27 | 错误余额、agent 本金/gas reserve 不足、源资产非六位精度 | 分开核验 source/funding 与 agent 真实 NEAR，不满足不 ready，不自动补资 |
 | A28 | 一次跨链准备后连续 inference 与工具续轮 | 每轮由对应 agent 的 NEAR 余额付款，无逐单 1Click quote/swap/withdraw、无重复 owner 签名 |
-| A29 | native 方法已开放但任务预算/商户/token 参数越权 | 本项目守卫在签名/发送前拒绝；不依赖 native 路径不适用的 Intents budget，不开放任意 call |
+| A29 | native 方法已开放但任务预算/商户/资产参数越权 | OutLayer 单笔 policy 与本项目任务守卫在签名/发送前拒绝；不依赖 best-effort 累计 counter，不开放任意 call |
 | A30 | 伪造/public hash、错误 agent/网络/合约/订单、RPC pending、FT 回退部分资金 | 独立终态/净到账及绑定检查；未验收不派发，资金移动持久全局防重，unknown 不再付 |
-| A31 | 1Click 注资退款与商户 NEAR 服务退款并发或 ACK 丢失 | 分别恢复原操作和已认证目的地，无重复退款；native grant 失效不抹掉商户责任 |
+| A31 | 1Click 注资退款与商户 NEAR 服务退款并发或 ACK 丢失 | 分别恢复原操作和已认证目的地，无重复退款；policy/key 失效不抹掉商户责任 |
 | A32 | 低频注资与热路径付款的延迟/费用复核 | 阶段和样本来源可区分；链上确认/验款仍计入；不把少一个中间环节直接宣称为已验证提速 |
 | A33 | agent 付款及商户退款 | 本金/商户实收/原订单匹配；实际付款 gas 归 agent，退款 gas 归商户，不减少应退本金 |
 | A34 | 原付款已签署/派发或未知，订单先到期，之后才上链/被观察到 | 原操作继续恢复，无新本金授权；失去接纳资格时不派发，实收本金全额进入原退款流程，未知责任不提前释放 |
-| A35 | API ACK 丢失、未知状态、gas 超估 | 原 idempotency/correlation 恢复；NEEDS_REVIEW 停止自动重提；不换 key，不重复付款；实际费用持久记录，超估停止新采购 |
+| A35 | API ACK 丢失、未知状态、gas 超估 | 已知 OutLayer request_id 查询原操作；无 ID 的歧义发送在 native 去重合格前进入 review；needs_review 停止自动重提；不换 key；actual gas 持久记录，超估停购 |
 
 真实任务建议选择可复核的本地文件/计算任务：模型读任务，调用 just-bash 工具取得实际结果，再购买下一轮推理并交付可检查的产物。人工核对产物和工具结果；受控模型响应只能验证协议接线，不证明自主任务能力。
 
@@ -608,7 +608,7 @@ NEAR 交易、钱包 API 与数据库无法组成一个天然原子事务；跨�
 | R6 API 与运行位置 | Proxy chat 为主入口；每 agent 独立托管 bidder/钱包执行组件；浏览器保留 fx | 主入口与每 agent bidder 已确认；部署位置、辅助 API、认证、metadata 和暂停合同待审 |
 | R7 首轮真实闭环 | 两 agent、一个卖方、一个支持工具的模型，至少一个任务有工具续轮 | 待审；另定本金、手续费、退款、Provider 和部署运行上限 |
 | R8 speed 合同与策略参数 | 主要看可用终态端到端耗时；分开 TTFT、估计、承诺和实测；v0 采用版本化确定性规则 | 指标方向与区分原则已确认；各期限/时钟、偏好与风险映射、新鲜度及真实服务能力待冻结 |
-| R9 MPP 直付方法 | Agent API native transfer + 订单绑定/全局消费/NEP-413，gas 独立记账 | 不使用 NEP-366 或项目托管 gas key；真实 API 与恢复须验收 |
+| R9 MPP 直付方法 | OutLayer native transfer + 订单绑定/全局消费/NEP-413，gas 独立记账 | 不使用 binding、NEP-366 或项目托管 gas key；原语已测，exact MPP/恢复/退款须另验 |
 
 当前合同见 [P0 修订](2026-11-14-agent-mpp-p0-contract.md)。最新用户决定为 native NEAR、按量预付退差、agent 自付本金和付款 gas、商户承担退款 gas，以及独立订单/链上期限。历史 sponsored 合同已被替代；不能把 spec 修订、gas-key component tests 或历史 fixture 结果当作真实 native 付款或 P3 PASS。
 
@@ -633,3 +633,6 @@ NEAR 交易、钱包 API 与数据库无法组成一个天然原子事务；跨�
 - [N4 NEAR RPC Transactions](https://docs.near.org/api/rpc/transactions)：广播、执行、最终性与相关 receipts；发送成功不能代替最终实收验款。
 - [N5 NEP-141](https://github.com/near/NEPs/blob/master/neps/nep-0141.md)：FT transfer/call 与未使用 token 的异步退回；资产精度及注册还需对应元数据/存储合同。
 - [N6 NEP-366](https://github.com/near/NEPs/blob/master/neps/nep-0366.md)：用于核对历史 v2 fixture 的经济语义；已退出本 MVP 支付路线。
+
+- [O1 OutLayer 当前钱包合同与调研](2026-11-14-outlayer-custody-migration.md)：含固定源码、API、最小 policy、controller bootstrap、凭证/编码与恢复合同；替代当前路线对 Agent API 的依赖。上列 N1/N2 仅为旧路线历史参考。
+- [O2 OutLayer testnet 钱包原语脱敏证据](../acceptance/2026-11-14-outlayer-wallet-policy-evidence.json)：策略创建、允许付款、越额/非白名单/冻结拒绝 5/5；不是 MPP、浏览器 owner、真实推理、退款或 G1/P3 PASS。

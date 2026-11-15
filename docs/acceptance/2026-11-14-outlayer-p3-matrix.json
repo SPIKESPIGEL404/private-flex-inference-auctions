@@ -1,0 +1,41 @@
+{
+  "scope": "local-original-market-and-outlayer-shaped-doubles",
+  "realChain": false,
+  "realProvider": false,
+  "cases": [
+    {
+      "case": "two-fx-native-outlayer-principal-gas-refunds-restart",
+      "passed": true,
+      "counts": {
+        "tools": 2,
+        "refunds": 4,
+        "payments": 4,
+        "executions": 4,
+        "chainTransfers": 8
+      }
+    },
+    {
+      "case": "paid-signature-failure-refunds-without-admission-or-repay",
+      "passed": true,
+      "counts": {
+        "tools": 0,
+        "refunds": 1,
+        "payments": 1,
+        "executions": 0,
+        "chainTransfers": 2
+      }
+    },
+    {
+      "case": "lost-native-ack-survives-restart-without-second-post-or-release",
+      "passed": true
+    },
+    {
+      "case": "owner-revocation-stops-new-effects-keeps-read-recovery",
+      "passed": true
+    },
+    {
+      "case": "project-cost-revocation-fences-both-agents-private-plan-owner-only",
+      "passed": true
+    }
+  ]
+}
