@@ -1,0 +1,36 @@
+{
+  "mode": "live",
+  "schema": "nearintents_chat_canary",
+  "realm": "inference.example",
+  "billing": "fixed-request-v1",
+  "destinationAsset": "near:mainnet/nep141:wrap.near",
+  "destinationRecipient": "REPLACE_WITH_MERCHANT",
+  "expiresWindow": 300,
+  "settlementTimeout": 120,
+  "pollInterval": 2000,
+  "providerTimeoutMs": 120000,
+  "maximumCalls": 4,
+  "maximumOpenQuotes": 2,
+  "maximumProviderMicro": "10000",
+  "deadlineMs": 0,
+  "agents": [{
+    "id": "agent-a",
+    "tokenHash": "REPLACE_WITH_GENERATED_TOKEN_HASH",
+    "originAsset": "eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "refundTo": "REPLACE_WITH_AGENT_EVM_ADDRESS",
+    "maximumAmountIn": "1000000",
+    "maximumTotalAmountIn": "4000000"
+  }],
+  "offers": [{
+    "model": "Qwen/Qwen3.8-27B",
+    "version": "qwen-fixed-request-v1",
+    "amountOut": "10000000000000000000000",
+    "providerReserveMicro": "1000",
+    "maxInputTokens": 32000,
+    "maxOutputTokens": 512
+  }],
+  "provider": {
+    "kind": "openai-http-v1",
+    "url": "https://YOUR_PROVIDER/v1/chat/completions"
+  }
+}

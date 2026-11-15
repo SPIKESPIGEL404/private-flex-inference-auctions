@@ -1,5 +1,10 @@
 # 标准 NEAR Intents charge 入金
 
+逐次推理付款现已作为独立候选模式实现，见
+[Paid Chat Completions](../services/mpp-nearintents/chat/README.md) 和
+[逐请求收费合同](specs/2026-11-15-nearintents-chat-charge.md)。它直接保护
+`/v1/chat/completions`，不经过本文的入金/测试余额链路；尚未接入现有拍卖定价或前端部署。
+
 本实现使用官方 `@defuse-protocol/nearintents-mpp-sdk@0.4.1` 的 `nearintents.charge`，搭配其 peer 版本 `mppx@0.17.0`。支持标准 `method=nearintents`、`intent=charge`、源链交易 hash Credential 和带源/目标交易引用的 Receipt；不使用 Agent API 私密回执替代标准凭证。
 
 Rust 宿主继续负责应用认证和资金查询；Node stdio 适配器调用官方方法。买方认证仍放在 `Authorization: Bearer`，MPP Credential 使用 Challenge 指定的 `Payment-Authorization`。SDK 服务只在宿主派生的私有子进程中运行，没有公开的内部验款接口，也不持有买方钱包私钥。

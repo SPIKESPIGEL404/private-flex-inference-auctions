@@ -3,7 +3,12 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=22.19.0" },
-  "scripts": { "test": "node --test test/*.test.mjs" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:chat": "node --test test/chat*.test.mjs",
+    "chat:serve": "node chat/serve.mjs",
+    "chat:agent": "node chat/agent.mjs"
+  },
   "dependencies": {
     "@defuse-protocol/nearintents-mpp-sdk": "0.4.1",
     "mppx": "0.17.0",

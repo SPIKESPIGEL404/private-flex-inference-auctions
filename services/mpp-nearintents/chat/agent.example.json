@@ -1,0 +1,25 @@
+{
+  "url": "https://YOUR_PROXY/v1/chat/completions",
+  "walletFile": "/private/agent-wallet.json",
+  "journalDirectory": "/private/agent-payment-journal",
+  "rpcUrl": "https://YOUR_ARBITRUM_RPC",
+  "originAsset": "eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+  "refundTo": "REPLACE_WITH_AGENT_EVM_ADDRESS",
+  "maximumGasWei": "100000000000000",
+  "maximumTotalGasWei": "400000000000000",
+  "maximumAttempts": 30,
+  "timeoutMs": 300000,
+  "policy": {
+    "allowedOriginNetworks": ["eip155:42161"],
+    "allowedCurrencies": ["eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831"],
+    "maxAmountIn": {"eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831": "1000000"},
+    "maximumTotalAmountIn": "4000000",
+    "maximumAmountOut": "10000000000000000000000",
+    "maximumSettlementSeconds": 60,
+    "expectedRefundTo": "REPLACE_WITH_AGENT_EVM_ADDRESS",
+    "expectedDestination": {
+      "destinationAsset": "near:mainnet/nep141:wrap.near",
+      "destinationRecipient": "REPLACE_WITH_MERCHANT"
+    }
+  }
+}

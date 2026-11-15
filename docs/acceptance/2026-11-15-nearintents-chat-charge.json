@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-15",
+  "scope": "controlled official MPP per-inference charge; no blockchain broadcast or paid provider invocation",
+  "node": "v24.22.1",
+  "postgres": "PostgreSQL 18.6 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.3.34.2), 64-bit",
+  "sdk": {
+    "nearintents-mpp-sdk": "0.4.1",
+    "mppx": "0.17.0",
+    "viem": "2.57.7"
+  },
+  "result": {
+    "tests": 23,
+    "pass": 23,
+    "fail": 0,
+    "skipped": 0
+  },
+  "checks": [
+    "real fx/just-bash task buys two inferences through the same paid chat API and verifies its artifact",
+    "official SDK pays for a chat request directly; replay and restart never pay or infer again",
+    "native SSE bytes survive the payment handshake and replay",
+    "authentication, body binding, independent agents and concurrent presentations",
+    "atomic SDK consumption rolls back with paid-order persistence; original credential recovers",
+    "original result write retries captured bytes without invoking provider twice",
+    "a dispatch crash remains fenced across restart and cannot regenerate inference",
+    "paid provider failure retains full refund liability and cannot trigger another charge",
+    "swap failure and credential tampering never deliver inference or issue a replacement quote",
+    "agent price, speed and cumulative budget limits reject before a wallet effect",
+    "configuration cannot change merchant, price or HMAC secret on restart",
+    "lost response after paid completion replays the original result through the same API",
+    "lost signer ACK recovers the original transfer before presenting a credential",
+    "agent speed policy refuses a slow source route before signing",
+    "source USDC and a 24-decimal NEAR destination retain separate exact atomic amounts",
+    "bounded live configuration pins the official settlement endpoint and input/output contract",
+    "provider truncation, identity changes and excess usage cannot become delivered results",
+    "EVM payer persists real signed bytes before broadcast and recovers a lost ACK using the same nonce",
+    "gas cap and source wallet binding fail before signing or broadcast",
+    "journal refuses a concurrent or crash-left wallet lock",
+    "agent CLI creates an unfunded private wallet, prints a secret-free plan and refuses unapproved live startup",
+    "live endpoint cannot be redirected to a fake settlement authority",
+    "controlled endpoint and HMAC secret are explicit and pinned"
+  ],
+  "task": {
+    "runtime": "real fx/just-bash",
+    "model": "owned response fixture",
+    "payment_network": "owned 1Click fixture",
+    "inference_purchases": 2,
+    "wallet_effects": 2,
+    "artifact": {
+      "sum": 42,
+      "count": 3
+    }
+  },
+  "additional_existing_task_regression": {
+    "tests": 7,
+    "pass": 7,
+    "scope": "unchanged native task/client transport"
+  },
+  "real_blockchain_broadcasts": 0,
+  "real_provider_invocations": 0,
+  "deployment_changed": false,
+  "source_base": "bffdc54ceef2d432c1ffbd870b6d24cf264721c3",
+  "inputs_sha256": {
+    "clients/market-buyer/purchase-sign.mjs": "7eefe1ee3eda9f32b7b43e84d09e38b88b7b43b7d384b0479232904a4eb4263e",
+    "services/mpp-nearintents/bridge.mjs": "669f0f5f9370d734c7e5b70fd6e62617a1518dfc92e1607fdac1882e0762d39f",
+    "services/mpp-nearintents/chat/README.md": "42f9f50e6ac0566e8665cfaadb3b358d9e758de4be77ffbec544e460dcd61f45",
+    "services/mpp-nearintents/chat/agent.example.json": "e26fb4edf35762e7fa08ea4141ca65b32062ca8ca0e2458ad82ce25471ff3d41",
+    "services/mpp-nearintents/chat/agent.mjs": "94fb78c42ba48c5add904d2bd8033c1e2b3a51cbe0061a91d9a803582386fd9e",
+    "services/mpp-nearintents/chat/authority.mjs": "d008e5f3780ad82a27f643b312f54cd085d2394178b94f212396016fdd565245",
+    "services/mpp-nearintents/chat/client.mjs": "cf912b880eab244ec1f157c591cd3acf108dee71dd411291864295a7c244eea7",
+    "services/mpp-nearintents/chat/config.mjs": "4c873a3ccd017572e85589c42b70e7f9a0a1934437ee6fe90413be2a0bb500ef",
+    "services/mpp-nearintents/chat/evm-payer.mjs": "59362389464dfe5d7bf2045825fa3c73b33b08c0046c272868b05a7e49a4820a",
+    "services/mpp-nearintents/chat/journal.mjs": "634693f2556a9f16b1fc34fea4126bfa4725279b9e4258c154e881680eaa5c0a",
+    "services/mpp-nearintents/chat/payment.example.json": "b3fc80d31866449048a60b30db0d87ba3419c19ac9766416a16c274c4efca36a",
+    "services/mpp-nearintents/chat/provider.mjs": "50ed2fe7109cafba3c27e74720a1b9e710dfeeb953edf55eb379d20238cbf6b3",
+    "services/mpp-nearintents/chat/schema.sql": "cd2149a73ee43c7acd3de77859f4cc5217f0275cd25ea44b089604ba74afebc3",
+    "services/mpp-nearintents/chat/serve.mjs": "b07e1f78f61890027d80f36288d615d1b72917b6de6547d86810988cbea09391",
+    "services/mpp-nearintents/chat/server.mjs": "c78f6d9a3108a7ff2d40a55342eff2fc0c6f505907367a68e7d7abe48f03f8c7",
+    "services/mpp-nearintents/package-lock.json": "13638f04f667bf2e8030147df87216c120aca19468b631a6ae341c17dd7940d6",
+    "services/mpp-nearintents/package.json": "4c4951b0f8f44e01e24c41cf6c41ac156023f74e15262c1f445d93e6a30b7b31",
+    "services/mpp-nearintents/test/chat-fixture.mjs": "04ede8d5cc6b5d77be3090ff7127539dd0cba60d94ad10499487d20b6adc212c",
+    "services/mpp-nearintents/test/chat-task.pg.test.mjs": "aa2e62c899ba95a67bd508991f7c2a649be4dbd108ed2435820c2c309bd3ddad",
+    "services/mpp-nearintents/test/chat.pg.test.mjs": "3981a8d1e16188d812c65fdf685d260588e04b527b8e06c3341c8ec8d9aac18e",
+    "services/mpp-nearintents/test/chat.test.mjs": "361deb02c1d45539ad3725f29487fd90c21a46e007dd4f4dc5cdb0c735254dad"
+  }
+}
