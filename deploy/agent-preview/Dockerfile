@@ -21,6 +21,9 @@ FROM ${NODE_IMAGE} AS assets
 WORKDIR /app/services/mpp-near-direct
 COPY services/mpp-near-direct ./
 RUN npm ci --ignore-scripts --omit=dev
+WORKDIR /app/services/inference-comparison
+COPY services/inference-comparison/package*.json ./
+RUN npm ci --ignore-scripts --omit=dev
 WORKDIR /app/clients/market-playground
 COPY clients/market-playground/package*.json ./
 RUN npm ci --ignore-scripts
@@ -42,11 +45,23 @@ COPY --from=rustbuild /src/target/release/private-market-host-p2 /usr/local/bin/
 COPY --from=assets /app/clients/market-playground/dist ./clients/market-playground/dist
 COPY services/mpp-near-direct ./services/mpp-near-direct
 COPY --from=assets /app/services/mpp-near-direct/node_modules ./services/mpp-near-direct/node_modules
+COPY services/inference-comparison/core.mjs services/inference-comparison/near-bridge.mjs ./services/inference-comparison/
+COPY --from=assets /app/services/inference-comparison/node_modules ./services/inference-comparison/node_modules
+COPY clients/market-buyer/purchase-sign.mjs ./clients/market-buyer/purchase-sign.mjs
 COPY clients/buyer-gateway/src ./clients/buyer-gateway/src
 RUN ln -s /app/services/mpp-near-direct/node_modules /app/clients/buyer-gateway/node_modules
 COPY scripts/*.py ./scripts/
+COPY scripts/*.mjs ./scripts/
 ENV PATH=/usr/lib/postgresql/18/bin:$PATH P1_NODE=/usr/local/bin/node PYTHONDONTWRITEBYTECODE=1 NODE_OPTIONS=--max-old-space-size=384
 USER preview:preview
 EXPOSE 3000
 HEALTHCHECK --start-period=120s --interval=15s --timeout=5s CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(async r=>{let j=await r.json();if(!r.ok||!j.ready||j.realPayment!==false)process.exit(1)}).catch(()=>process.exit(1))"
 ENTRYPOINT ["python3", "/app/scripts/serve-agent-mpp-preview.py"]
+
+# Separate explicit target; never changes the existing P2 entry or its volume.
+FROM runtime AS mainnet
+HEALTHCHECK --start-period=120s --interval=15s --timeout=5s CMD node -e "fetch('http://127.0.0.1:3000/healthz').then(async r=>{let j=await r.json();if(!r.ok||!j.ready||j.network!=='mainnet'||j.realPayment!==true)process.exit(1)}).catch(()=>process.exit(1))"
+ENTRYPOINT ["python3", "/app/scripts/bootstrap-mainnet-auction.py"]
+
+# Keep an untargeted build compatible with the existing preview release.
+FROM runtime AS preview

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "vite/client"
+    ]
+  },
+  "include": [
+    "src/p3.ts",
+    "vite.p3.config.ts"
+  ]
+}

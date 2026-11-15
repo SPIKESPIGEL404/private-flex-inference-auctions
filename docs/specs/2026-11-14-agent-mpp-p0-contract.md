@@ -1,8 +1,12 @@
+> 2026-11-14 revision: Agent API custody/grants are superseded by OutLayer.
+> Economics, MPP v1 wire and original ledger authority remain unchanged.
+> This is a spec migration, not a claim that runtime/production has migrated.
+
 # Agent MPP integration — current native-payment contract
 
 Date: 2026-11-14. The user's latest decision is **agent-paid inference
 principal and payment gas**, with merchant-paid refund gas. Use the documented
-Agent API native Transfer path; do not move agent keys into project custody.
+OutLayer native Transfer path; do not move agent keys into project custody.
 Native NEAR (24 places), metered prepay/refund and independent order/chain
 validity remain confirmed. This supersedes the previous project-sponsored gas
 amendment. Historical v1/v2 acceptance records keep their original scope; no
@@ -18,13 +22,13 @@ the later concrete run plan, not by this contract.
 | --- | --- | --- |
 | R1 pricing | Metered maximum prepayment; verified usage settles at frozen provider rates + existing platform fee. Fixed order price remains a future distinct contract. | Existing owning settlement uses actual usage; integer prototype covers maximum and actual charge conversion. |
 | R2 refunds | Normal unused principal and definitive pre-dispatch failure refund in native NEAR to original authenticated agent. Every positive refundable unit is owed; no dust cutoff or forced platform credit. Project pays merchant refund gas. | Refund plan + independent reverse-transfer verifier implemented. Durable merchant executor/outbox required in P1. |
-| R3 bidder | Two layers; 25% unallocated task authorization retained for later rounds; no assumed total round count. Uncertain liabilities remain reserved and refunds are unavailable until confirmed. Bid includes the service fee; agent payment gas is separately reserved and recorded as non-refundable buyer expense. | Integer mapping/reference selector demonstrated in historical v1. New budget/route behavior needs corresponding implementation tests. |
+| R3 bidder | Two layers; 25% unallocated task authorization retained for later rounds; no assumed total round count. Uncertain liabilities remain reserved and refunds are unavailable until confirmed. Bid includes the service fee; agent payment gas is separately reserved and recorded as non-refundable buyer expense. | Integer mapping/reference selector demonstrated in historical v1. OutLayer adapter, gas accounting and budget behavior need corresponding implementation tests. |
 | R4 reservation | One supply lease per logical call; 75s hold, 60s payment window, 2s conservative clock allowance. New admission requires its deadline and lease still valid; clock expiry alone never proves payment was absent. | Owning supply reservation and cash-purpose interfaces frozen separately; not implemented by HTTP sequencing. |
 | R5 funding/asset | Supported 1Click source assets -> `DESTINATION_CHAIN` -> each agent's actual NEAR balance. Native NEAR 24 places is the sole hot-path asset. Equal source principal; remainder stays source wallet. Source fees and resulting target amounts shown per leg. | Pure allocation contract covers source precision. Real quote asset IDs/minimums/fees remain runtime preflight, not hardcoded. No FT registration needed on this route. |
-| R6 API/location | Browser fx -> authenticated Proxy `/v1/chat/completions`; one hosted bidder/executor per agent. Login owner, task grant and chain payer binding remain separate. No raw transfer/signing relay exposed to browser/tools. | P0 package is a method library only. PR #5 runtime still needs P1 native transport integration. |
-| R7 real run | Two agents, one seller, one tool-capable model, at least one tool continuation. **Current external spend/deployment allowance = zero**; a later bounded run plan must set source principal, fees, gas, refunds and provider limits. | This is a P3 gate, not an unresolved P0 algorithm. No real trial is silently started. |
+| R6 API/location | Browser fx -> authenticated Proxy `/v1/chat/completions`; one hosted bidder/executor per agent. Login owner, task authorization, OutLayer policy/controller and chain payer binding remain separate. No raw transfer/signing relay exposed to browser/tools. | P0 evidence is historical. Current OutLayer onboarding/transport adapter and real acceptance remain required; see the migration implementation map. |
+| R7 real run | Two agents, one seller, one tool-capable model, at least one tool continuation. **This spec grants no additional external spend/deployment allowance**; a later bounded run plan must set source principal, fees, gas, refunds and provider limits. | This is a P3 gate, not an unresolved P0 algorithm. No real trial is silently started. |
 | R8 speed | Usable terminal end-to-end; TTFT separate; p95 forecast valid for same request scope and <=30s old. No v1 latency SLA; hard-guarantee-only requests decline. Preference and urgency change deterministic scores within all hard caps. | Policy v1 implemented; two service timings in tests are explicitly simulated. No claim of paying more for real speed. |
-| R9 method | Native NEAR principal and payment gas from agent; retain exact Transfer, NEP-413 order binding and global consumption. Use Agent API native transfer, not NEP-366 or project-hosted gas keys. | Historical v1 verifies only agent-signed plain Transfer + NEP-413 assignment. It does not qualify the live SDK/wallet or actual gas accounting. G1 must qualify the native API route. |
+| R9 method | Native NEAR principal and payment gas from agent; retain exact Transfer, NEP-413 order binding and global consumption. Use OutLayer native transfer, not NEP-366 or project-hosted gas keys. | Historical v1 verifies only agent-signed plain Transfer + NEP-413 assignment. Five OutLayer primitives now have testnet evidence, including agent-paid gas. G1 still must qualify exact MPP signing, native recovery and refunds. |
 
 ## Prices, precision and delivery
 
@@ -50,7 +54,7 @@ rounding, never raw yoctoNEAR. No float money.
 Agent payment gas is separate from inference principal. Before dispatch, reserve
 service principal plus a conservative gas allowance under the same task/agent
 money fence, and keep a native gas floor after storage locks. Include estimated
-gas in comparable buyer cost. Agent API native Transfer has no caller-specified
+gas in comparable buyer cost. The selected plain native Transfer route has no caller-specified
 gas-fee ceiling: reserve is an operational estimate, not a chain-enforced cap.
 Record FINAL actual gas even above estimate, stop new purchases on overrun, and
 keep unresolved liabilities held. Actual fees count against subsequent task and
@@ -74,7 +78,7 @@ failure liabilities still apply.
 
 All transitions preserve `P=C+H+W+R`. Refund principal is denominated in the
 original asset and rate. Merchant gas is a separate project expense. Refunds
-remain payable after buyer grant revocation and never automatically bridge back
+remain payable after buyer policy freeze or credential revocation and never automatically bridge back
 to the original user's source chain. A refund operation may not exceed the
 locked remaining `W`; split/partial refunds require separate stable operation
 IDs under the same order fence.
@@ -109,35 +113,39 @@ P1 wires this contract to #6 bid revisions, preserving original absolute times.
 ## Native payment and recovery
 
 The authoritative owner/agent binding freezes agent ID, actual NEAR payer,
-refund payer, network, version and grant revision. A new binding is a new
+refund payer, network, version and OutLayer policy controller/version/hash. A new binding is a new
 authorization; pending old liabilities remain attached to the old version.
 
-Before a new payment, persist the exact API request, immutable idempotency key,
-original order/challenge, agent/grant/binding and principal/gas reservation.
-Mark the operation possibly dispatched BEFORE the HTTP request. Save its original
-correlation ID before returning. Missing ACK may recover only the same key/body
-under the API contract; after correlation is known, query that operation.
-NEEDS_REVIEW stops automatic redispatch. Expiry does not create a replacement
-payment window. Raw signed bytes are not returned by this API and are not claimed
-as a local artifact. No alternate signer, raw signing or arbitrary call is open.
+Current custody, onboarding, policy schema and provider recovery are defined by
+[OutLayer migration specification](2026-11-14-outlayer-custody-migration.md).
+Each agent is a separate unbound custody wallet. The verified owner becomes its
+on-chain policy controller before funding. Wallet API keys are backend-only
+secret references, never fx/model/browser grants or keys.
 
-A native policy allows only merchant transfers and the MPP NEP-413 recipient.
-Account-policy USD budget/owner approval are not native task guards. The trusted
-executor enforces task totals in addition to provider asset/rate limits.
+Before payment persist the exact request/hash, immutable X-Idempotency-Key,
+original challenge, wallet/payer/key/policy/binding, and principal/gas reservation.
+Mark possibly dispatched before HTTP. Store OutLayer UUID request_id and original
+transaction hash; query that original operation. Do not reuse the old Agent API
+op_ parser, correlation/status schema or grant validation.
 
-The native readiness guard requires a fresh final NEAR-chain account balance,
-correct network/account/native asset/24-place denomination, and spendable native
-amount after protocol storage locks and all project reservations. Intents and
-wNEAR FT balances cannot satisfy it. Its evidence must be produced by the trusted
-reader and wallet writer, not a caller-supplied balance label.
+Lost ACK without request_id remains Unknown: native transfer idempotency,
+body-conflict, retention and restart semantics must qualify before any automatic
+same-key POST recovery. Known request_id uses status reads; needs_review stops
+automation. Expiry does not authorize another send. Raw signed bytes are not
+claimed as an API artifact. No alternate signer or raw signing relay is open.
 
-New Agent policies retain `confidential:true` as required by current Agent API
-policy signing, with `actions:[]` to authorize no Intents spend actions. Native
-transfer permissions and withdrawal-shaped destination checks remain separate.
-The official OpenAPI allows the empty action array; its Policy schema is pinned
-and validated in tests. This does not claim a live owner/grant acceptance or
-privacy for native transfers. Hosted Agent API beta is mainnet-only; testnet
-objects in the package are controlled fixtures.
+The on-chain policy permits only native merchant Transfer, a per-transaction
+principal cap and exact MPP NEP-413 recipient. Explicitly disable other wallet
+capabilities. OutLayer cumulative counters are gateway-supplied and best-effort
+under concurrency; the original project writer remains the atomic task/wallet
+budget authority, serializing each agent's financial sends across tasks.
+
+Readiness requires independently verified FINAL native spendable NEAR, correct
+network/payer/key, no asset-account binding, effective policy/controller and
+project reservations. Intents, wNEAR and registration trial calls are insufficient.
+The adapter normalizes address hex key, NEP-413 base58 key/signature and canonical
+nonce into existing MPP v1 encodings. Verify the exact original message and domain
+cryptographically, including when the response does not echo them.
 
 After the original transfer hash is durably recovered, sign the exact binding
 message described in the [package README](../../services/mpp-near-direct/README.md).
@@ -147,7 +155,7 @@ an explicit payer assignment, not an on-chain invoice. Enforce global consumptio
 in the same original money transaction. Malicious double assignments compete
 for that one consumption; they never authorize two services.
 
-G1 establishes the original API operation and agent authorization, exact native
+G1 establishes the original OutLayer operation and agent policy/authorization, exact native
 Transfer, merchant receipt, complete FINAL receipt graph and actual agent gas.
 NEP-366 and gas-key prototype evidence cannot qualify this route. A server FAILED
 label, missing tx or timeout is not proof of zero principal: unresolved sends stay
@@ -155,7 +163,7 @@ held. Positive failure closure needs original-chain evidence and proof the API
 operation cannot later make another valid send. A locally sealed operation that
 was never dispatched is the only simple known-unsent release.
 
-Native sender operation unknown -> recover original key/correlation/tx; never
+Native sender operation unknown -> reconcile original key/request_id/tx; never
 generate another operation key. Signature failure after money moved -> keep the
 payment liability and recover the original signature or refund after chain
 reconciliation; do not pay again. Expired credential recovery is separate from
@@ -187,17 +195,25 @@ expiry alone does not prove cancellation or justify a second refund.
 ## Current G1: native API and real-payment qualification
 
 The previous project-sponsored contract is superseded by the user's explicit
-agent-paid principal/gas decision. This is not a new gas-cap feature in SDK 0.9.1.
+agent-paid principal/gas decision. The custody migration does not create a chain-enforced native gas-fee ceiling.
 Service principal caps remain hard constraints; payment-gas reserve and actual
 expense are explicit, separate buyer accounting.
 
-G1 must demonstrate the existing wallet's native permissions and owner grant,
-original idempotency/correlation recovery, exact FINAL native payment and gas,
+G1 must demonstrate the OutLayer wallet policy/controller, exact NEP-413 interoperability,
+original idempotency/request_id recovery, exact FINAL native payment and gas,
 independent global consumption, late/unknown behavior and merchant-funded refund.
 The controlled P1/P2 NEP-366 fixture's economics remain incorrect for real NEAR.
 Historical snapshots are retained, not relabeled as G1 evidence.
 
-## Official contracts checked
+## Current provider contract and historical sources
+
+The [OutLayer migration specification](2026-11-14-outlayer-custody-migration.md)
+and [testnet primitive evidence](../acceptance/2026-11-14-outlayer-wallet-policy-evidence.json)
+are current. Five primitives passed; exact MPP signing, native fault recovery,
+user-wallet onboarding, refunds and P3 remain unaccepted. Agent API sources
+below document the previous route only; they do not constrain OutLayer payloads.
+
+### Retained protocol references (Agent API entry is historical)
 
 - [MPP custom methods](https://mpp.dev/payment-methods/custom): Method, client,
   verification and Receipt extension. Pinned actual package: mppx 0.17.0.

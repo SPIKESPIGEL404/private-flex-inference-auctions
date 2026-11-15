@@ -148,7 +148,10 @@ try {
         qualificationStillRequired: true,
       }),
     );
-  } else if (["run", "run-b"].includes(command) && args.length === 4) {
+  } else if (
+    ["run", "run-b", "recover"].includes(command) &&
+    args.length === 4
+  ) {
     const [configFile, planFile, reviewedHash, outputFile] = args,
       config = await privateConfig(configFile),
       plan = await read(planFile);
@@ -161,13 +164,18 @@ try {
       const report = publicReport(
         command === "run-b"
           ? {
-              version: 1,
+              version: 2,
               planHash: plan.planHash,
               requestHash: plan.requestHash,
               mode: plan.mode,
-              arms: { B: await runner.runArm(validateComparison(plan), "B") },
+              arms: {
+                B: await runner.enrich(
+                  plan,
+                  await runner.runArm(validateComparison(plan), "B"),
+                ),
+              },
             }
-          : await runner.run(plan, reviewedHash),
+          : await runner[command](plan, reviewedHash),
       );
       await output.writeFile(JSON.stringify(report, null, 2) + "\n");
       console.log(

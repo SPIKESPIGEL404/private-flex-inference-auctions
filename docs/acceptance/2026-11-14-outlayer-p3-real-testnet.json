@@ -1,0 +1,53 @@
+{
+  "scope": "real-testnet-outlayer-native-NEP413-and-refund-component",
+  "mainnet": false,
+  "providerCalls": 0,
+  "browserOwner": false,
+  "marketIntegration": false,
+  "amountYocto": "10000000000000000000",
+  "runId": "0734a7dcbfa1510bd488cfa4394e90d45397d98e007834fb809b5e42894e58b0",
+  "unfreezeTx": "2J9G57ghYbKad1kbWc7VvTTSbZ6oGDyBznxqLbZvmbB7",
+  "payment": {
+    "txHash": "CyB14zNHurvC9rq1G83EyVkpqw8GTiZWXcfmJGfXiVCv",
+    "requestId": "5063157a-97ce-4ba7-8c18-c47e53c629e4",
+    "proof": {
+      "movementKey": "near:testnet:CyB14zNHurvC9rq1G83EyVkpqw8GTiZWXcfmJGfXiVCv:CvQwMDGsPi2ZqworZHxEfQm6UB3MJFFhKEUhNz1ipspe:0",
+      "network": "testnet",
+      "payer": "40d5ad414e8bfd02633aa11f79294265bb110f1ded4de3a53ecbca1642ecf32f",
+      "recipient": "6dbde8240743824f75295d4054ed5b9f25599789e6c0a70739ef5013c65b3537",
+      "amount": "10000000000000000000",
+      "orderRef": "0734a7dcbfa1510bd488cfa4394e90d45397d98e007834fb809b5e42894e58b0",
+      "challengeId": "FNH0RLKN5GCqUD2oqr-g9XwphfULdrre2098blqM-ms",
+      "receiptId": "CvQwMDGsPi2ZqworZHxEfQm6UB3MJFFhKEUhNz1ipspe",
+      "txHash": "CyB14zNHurvC9rq1G83EyVkpqw8GTiZWXcfmJGfXiVCv",
+      "paidAtMs": 1794689243438,
+      "paidAtNs": "1794689243438278617",
+      "late": false,
+      "asset": "native:NEAR",
+      "decimals": 24
+    },
+    "gas": "834989537500000000000",
+    "nep413": "exact caller nonce/message/recipient verified",
+    "credentialRoundTrip": true
+  },
+  "freezeTx": "D4qGu5LSHwpxVaFf67TuLC6bhQhBkeiJKjUb2uT37jSu",
+  "refund": {
+    "movementKey": "near:testnet:GjE9opAW56Q82WHeCEoH6uFfgTE3LjcXS6txLQKdnTZZ:DXLZdLnfSaioZdo1AXyri4WvoSZQSkG9pBhvkwEiXvuK:0",
+    "network": "testnet",
+    "payer": "6dbde8240743824f75295d4054ed5b9f25599789e6c0a70739ef5013c65b3537",
+    "recipient": "40d5ad414e8bfd02633aa11f79294265bb110f1ded4de3a53ecbca1642ecf32f",
+    "amount": "10000000000000000000",
+    "orderRef": "0734a7dcbfa1510bd488cfa4394e90d45397d98e007834fb809b5e42894e58b0",
+    "challengeId": "canary-refund-0734a7dcbfa1510bd488cfa4394e90d45397d98e007834fb809b5e42894e58b0",
+    "receiptId": "DXLZdLnfSaioZdo1AXyri4WvoSZQSkG9pBhvkwEiXvuK",
+    "txHash": "GjE9opAW56Q82WHeCEoH6uFfgTE3LjcXS6txLQKdnTZZ",
+    "paidAtMs": 1794689287644,
+    "paidAtNs": "1794689287644049393",
+    "late": false,
+    "asset": "native:NEAR",
+    "decimals": 24
+  },
+  "frozenAgentReceivedRefund": true,
+  "passed": true,
+  "finalFrozen": true
+}

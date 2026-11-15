@@ -1,0 +1,128 @@
+{
+  "fund-agent": {
+    "tx_hash": "3qNjWhwMzRQ7ov1SZrEDzJTteYcHxtVPmEez5QBq1BAs",
+    "final_execution_status": "FINAL",
+    "status": {
+      "SuccessValue": ""
+    },
+    "signer": "6dbde8240743824f75295d4054ed5b9f25599789e6c0a70739ef5013c65b3537",
+    "receiver": "40d5ad414e8bfd02633aa11f79294265bb110f1ded4de3a53ecbca1642ecf32f",
+    "actions": [
+      {
+        "Transfer": {
+          "deposit": "100000000000000000000000"
+        }
+      }
+    ],
+    "tokens_burnt": "7114989537500000000000"
+  },
+  "store-policy": {
+    "tx_hash": "7yxwVh4aUg28kdiE9DCQSENNBUe3yZfRrSiosYkFGLFZ",
+    "final_execution_status": "FINAL",
+    "status": {
+      "SuccessValue": ""
+    },
+    "signer": "6dbde8240743824f75295d4054ed5b9f25599789e6c0a70739ef5013c65b3537",
+    "receiver": "outlayer.testnet",
+    "actions": [
+      {
+        "FunctionCall": {
+          "deposit": "11460000000000000000000",
+          "gas": 30000000000000,
+          "method_name": "store_wallet_policy"
+        }
+      }
+    ],
+    "tokens_burnt": "437563191656300000000"
+  },
+  "allowed": {
+    "tx_hash": "BP4fqM6dqbwG7Jpb3vwT1MV3crjbu55FTRQ1jP4DzoKn",
+    "final_execution_status": "FINAL",
+    "status": {
+      "SuccessValue": ""
+    },
+    "signer": "40d5ad414e8bfd02633aa11f79294265bb110f1ded4de3a53ecbca1642ecf32f",
+    "receiver": "6dbde8240743824f75295d4054ed5b9f25599789e6c0a70739ef5013c65b3537",
+    "actions": [
+      {
+        "Transfer": {
+          "deposit": "100000000000000000000"
+        }
+      }
+    ],
+    "tokens_burnt": "834989537500000000000"
+  },
+  "freeze": {
+    "tx_hash": "7WFVtGNAFEF41Jf9wiAFgrJp8BhUZ6bLniDTzK7pGR8K",
+    "final_execution_status": "FINAL",
+    "status": {
+      "SuccessValue": ""
+    },
+    "signer": "6dbde8240743824f75295d4054ed5b9f25599789e6c0a70739ef5013c65b3537",
+    "receiver": "outlayer.testnet",
+    "actions": [
+      {
+        "FunctionCall": {
+          "deposit": "0",
+          "gas": 30000000000000,
+          "method_name": "freeze_wallet"
+        }
+      }
+    ],
+    "tokens_burnt": "288133525168200000000"
+  },
+  "agent_final_account": {
+    "jsonrpc": "2.0",
+    "result": {
+      "amount": "99065010462500000000000",
+      "block_hash": "dCKQJJQM1n8ViXBMXnfiRpZopv6rsdBXavEqv45xGDs",
+      "block_height": 277701257,
+      "code_hash": "11111111111111111111111111111111",
+      "locked": "0",
+      "storage_paid_at": 0,
+      "storage_usage": 182
+    },
+    "id": "verify"
+  },
+  "tests": {
+    "overlimit": {
+      "http_status": 403,
+      "body": {
+        "error": "policy_denied",
+        "message": "Per-transaction limit exceeded for native: 2000000000000000000000 > 1000000000000000000000"
+      }
+    },
+    "nonwhite": {
+      "http_status": 403,
+      "body": {
+        "error": "policy_denied",
+        "message": "Address 'ol-verify-20261114-1440.testnet' is not in whitelist"
+      }
+    },
+    "frozen-rejection": {
+      "http_status": 403,
+      "body": {
+        "error": "wallet_frozen",
+        "message": "Wallet is frozen by controller"
+      }
+    }
+  },
+  "frozen": true,
+  "agent_balance_accounting": {
+    "initial_funding_yocto": "100000000000000000000000",
+    "principal_yocto": "100000000000000000000",
+    "gas_yocto": "834989537500000000000",
+    "final_yocto": "99065010462500000000000",
+    "matches": true
+  },
+  "scope": {
+    "network": "testnet",
+    "controller_mode": "separate custody wallet",
+    "browser_owner_flow": false,
+    "mpp_nep413": false,
+    "mpp_inference": false,
+    "merchant_refund": false,
+    "idempotency_fault_injection": false,
+    "mainnet": false
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "reviewedMain": "583ccd9c2897fdb127bc891f2c5e114aa9c28030",
+  "pr20Head": "df0ba403abcc270516021bac083a6ba9eda332b1",
+  "pr24Head": "7c7adc81653a80c918cf727e0889d3b35effbb7f",
+  "mechanicalMerge": "both merge cleanly in isolated local branch",
+  "selectedTarget": "real Testnet tasks, payments and refunds on a separate Testnet entry",
+  "testResults": {
+    "paymentWalletCloudAuctionClient": 67,
+    "frontend": 10,
+    "buyerGatewayComparison": 50,
+    "totalPassed": 127,
+    "localFrontendBuild": "passed",
+    "dockerFrontendBefore": "failed TS2307: shared client/task module excluded",
+    "dockerFrontendAfter": "assets stage passed after explicit COPY and dockerignore inclusion"
+  },
+  "changesMade": [
+    "local integration contract",
+    "frontend Docker build context fix"
+  ],
+  "productionMutationsPerformed": false,
+  "paymentsBroadcast": 0,
+  "providerCalls": 0,
+  "remainingIntegration": [
+    "fresh frontend and Rust image publication from merged source",
+    "shared owner/auth/capability interface for live Testnet",
+    "auction financial authority with OutLayer operation adapters and verified provider execution",
+    "multiowner setup, policy confirmation and funding",
+    "prepayment input qualification and gas-overrun refund handling",
+    "owning PG and real-chain/provider/tool restart acceptance",
+    "additive independent Testnet deployment with original wallet/ledger retention"
+  ],
+  "scope": "source and isolated regression review, not approval of a live integrated payment deployment"
+}

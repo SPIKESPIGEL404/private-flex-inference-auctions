@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "scope": "real-near-ai-cloud-via-mpp-testnet",
+  "model": "Qwen/Qwen3.8-27B",
+  "network": "testnet",
+  "realInference": true,
+  "simulatedMetering": false,
+  "browserWalletIntegration": false,
+  "serviceChargeBasis": "verified-token-usage-at-frozen-cloud-tariff",
+  "providerInvoiceVerified": false,
+  "requestHash": "0af7c40e0c5e43a689c75407e8586ee8551ec4b8ed59c5cb9b42bd57636f44ca",
+  "rawResponseSha256": "307681acb027c210ba6c77d3c70b44909fbbb7c027e397460fea5c08ad8d1c4f",
+  "usage": {
+    "prompt_tokens": 61,
+    "total_tokens": 91,
+    "completion_tokens": 30,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "reasoning_tokens": 27,
+    "completion_tokens_details": {
+      "reasoning_tokens": 27
+    }
+  },
+  "upstreamInvocationAttempts": 1,
+  "totalProviderAttempts": 2,
+  "retainedUpstreamReserveMicro": "1002",
+  "providerInvocationsThisProcess": 0,
+  "replaySameResponse": true,
+  "agentPaymentCount": 1,
+  "mainnetTransactions": 0,
+  "chutesInvocations": 0,
+  "visibleAnswer": "4",
+  "orderId": "d785410c83426eb174fa70691c3c095c3f6c7eafd7c21de9a0040ccc01acfdbe",
+  "providerResponseId": "4ee3c787fe764573b84c08bb49334f45",
+  "providerSignatureKind": "provider_tee",
+  "financialReceipt": {
+    "document": {
+      "version": 1,
+      "revision": 1,
+      "orderRef": "d785410c83426eb174fa70691c3c095c3f6c7eafd7c21de9a0040ccc01acfdbe",
+      "requestHash": "0af7c40e0c5e43a689c75407e8586ee8551ec4b8ed59c5cb9b42bd57636f44ca",
+      "termsHash": "e4e25fe22c1dd113d9994c82db6fbc04353cbaf49f208ded10e2df4c58bda8a2",
+      "provider": "near-ai-cloud",
+      "responseId": "4ee3c787fe764573b84c08bb49334f45",
+      "responseHash": "4c715d7d67b767ea8a5be40c204f8862d95886564a68b2fadbdd6b43ab1088c6",
+      "usage": {
+        "prompt_tokens": 61,
+        "total_tokens": 91,
+        "completion_tokens": 30,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "reasoning_tokens": 27,
+        "completion_tokens_details": {
+          "reasoning_tokens": 27
+        }
+      },
+      "tariffVersion": "c17fe47ad7511f2751f4e69b2d73b6ba7b94992ea83fbbc02c99f21b9c3fb8a0",
+      "actualServiceMicroUsd": "43",
+      "fx": {
+        "kind": "testnet-accounting-convention",
+        "nanoUsdPerNear": "1000000000",
+        "note": "One test NEAR represents one USD for protocol testing; this is not a market exchange rate."
+      },
+      "principal": {
+        "P": "501000000000000000000",
+        "C": "43000000000000000000",
+        "H": "0",
+        "W": "458000000000000000000",
+        "R": "0"
+      },
+      "paymentTxHash": "CrLCjpvHboCNKrEQNzDEFsqzaBSMtgxnzxxEhzc7XrLJ",
+      "agentGasYocto": "44636512500000000000",
+      "verificationDigest": "8886a6a1345e5075f4a82094799272cdf9eb9ef0ab1ca64069f374b831958eca"
+    },
+    "digest": "27ebacc9a6803035b7a33171a85529aaf5dfbfd99275643c3b99ea9d9bf10ebf",
+    "publicKey": "ed25519:2wDo4hgsNAW9784y7d2tW8TLmrSNpg6Yn7ReJY52pvpW",
+    "signature": "uN+1qy0nbi2kf6yPRb84M53LZWx4DcUxN5pvuSzUSY284wzbKUfw1oR9JdYgHuVyGHWDBmOdr1WBrsnvs0KdCw=="
+  },
+  "refundReceipt": {
+    "document": {
+      "version": 1,
+      "revision": 2,
+      "orderRef": "d785410c83426eb174fa70691c3c095c3f6c7eafd7c21de9a0040ccc01acfdbe",
+      "principal": {
+        "P": "501000000000000000000",
+        "C": "43000000000000000000",
+        "H": "0",
+        "W": "0",
+        "R": "458000000000000000000"
+      },
+      "serviceWaiver": null,
+      "refundTxHash": "9DH6aDEcnr9LdMA1aCQCrtCs5nuJ2GPVNhDwqkRsQwfP",
+      "paymentTxHash": "CrLCjpvHboCNKrEQNzDEFsqzaBSMtgxnzxxEhzc7XrLJ",
+      "merchantGasYocto": "44636512500000000000"
+    },
+    "digest": "40abeb998e0bddb21217e966ea6fc4b6c8a84d4e852d42a3510d8c4afb3ff247",
+    "publicKey": "ed25519:2wDo4hgsNAW9784y7d2tW8TLmrSNpg6Yn7ReJY52pvpW",
+    "signature": "9bL979b9Uto4ycqB18Uw2CEDaIP5seu3GSGR2snwkB2VMwy/Ktt/hnl6qAPS04k1/kiBhpoXDbBoz+lM4A9WDQ=="
+  },
+  "chainAudit": {
+    "version": 1,
+    "scope": "independent-read-only-chain-and-financial-audit",
+    "network": "testnet",
+    "orderId": "d785410c83426eb174fa70691c3c095c3f6c7eafd7c21de9a0040ccc01acfdbe",
+    "paymentTxHash": "CrLCjpvHboCNKrEQNzDEFsqzaBSMtgxnzxxEhzc7XrLJ",
+    "refundTxHash": "9DH6aDEcnr9LdMA1aCQCrtCs5nuJ2GPVNhDwqkRsQwfP",
+    "finalTransfers": 2,
+    "financialSignaturesValid": true,
+    "actualServiceMicroUsd": "43",
+    "principal": {
+      "P": "501000000000000000000",
+      "C": "43000000000000000000",
+      "H": "0",
+      "W": "0",
+      "R": "458000000000000000000"
+    },
+    "agentGasActualYocto": "44636512500000000000",
+    "merchantGasActualYocto": "44636512500000000000",
+    "providerVerification": "recorded-official-SDK-runtime-provider_tee",
+    "providerSignatureRecorded": true,
+    "modelEncryptedWireReverifiedOffline": false,
+    "broadcasts": 0,
+    "providerCalls": 0
+  },
+  "originalWaivedOrder": {
+    "id": "919413669c6bfb968b812944099b62603ca421bfc572dbfe292be979afc6a165",
+    "state": "refunded",
+    "principal": {
+      "P": "501000000000000000000",
+      "C": "0",
+      "H": "0",
+      "W": "0",
+      "R": "501000000000000000000"
+    },
+    "paymentTxHash": "7wYjZvRKrXLHFhPtCLryMwQMtQPebdTYbU5VMnF8M4P7",
+    "refundTxHash": "CFxSgNf11UWXu7oJjsphAePAzyN4S3cqj6cUoHjK47DV",
+    "upstreamExpenseStillReservedMicro": "501"
+  }
+}

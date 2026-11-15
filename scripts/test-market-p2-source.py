@@ -12,7 +12,7 @@ try:
  subprocess.run([sys.executable,str(root/'scripts/materialize-market-p2.py')],check=True,capture_output=True)
  assert file.read_bytes()==original,'materialized source was not repaired'
  assert json.loads(manifest.read_text())==before,'repair changed pinned inputs'
- inputs=sorted([p for d in ['p1','p2'] for p in (root/'crates/private-market-host/upstream'/d).iterdir() if p.is_file()]+[root/'scripts/materialize-market-p2.py'])
+ inputs=sorted([p for d in ['p1','p2','auction'] for p in (root/'crates/private-market-host/upstream'/d).iterdir() if p.is_file()]+[root/'scripts/materialize-market-p2.py'])
  digest=hashlib.sha256(json.dumps({str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},sort_keys=True).encode()).hexdigest()
  assert before['patch_sha256']==digest,'materializer transformation is not fingerprinted'
  assert before['base']=='244177cafa26e8c8b001e61297cf4e7f89ac8de9'

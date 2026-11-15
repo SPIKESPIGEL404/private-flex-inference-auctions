@@ -7,6 +7,7 @@ WORKDIR /app/services/mpp-near-direct
 COPY services/mpp-near-direct/package*.json ./
 RUN npm ci --ignore-scripts
 COPY services/mpp-near-direct/p2 ./p2
+COPY services/mpp-near-direct/client ./client
 WORKDIR /app/clients/market-playground
 COPY clients/market-playground/package*.json ./
 RUN npm ci --ignore-scripts

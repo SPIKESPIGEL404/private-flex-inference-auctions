@@ -61,7 +61,7 @@ pub async fn create(
         std::env::var("PRIVATE_MARKET_P2_PREVIEW_TTL_MS")
             .ok()
             .as_deref(),
-        std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled"),
+        std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") || std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref() == Ok("controlled"),
     )?;
     create_with_schedule(
         db,
@@ -119,7 +119,7 @@ async fn create_with_schedule(
 ) -> Result<Value> {
     bitrouter_cloud::market::pg::install(&db).await?;
     let p2 = allow_agent_fixture
-        && std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled");
+        && (std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") || std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref() == Ok("controlled"));
     let work = Workload {
         token_ids: if p2 { (0..512).collect() } else { vec![42, 43] },
     };

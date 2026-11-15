@@ -1,0 +1,91 @@
+--- a/crates/bitrouter-market/formal_order.rs
++++ b/crates/bitrouter-market/formal_order.rs
+@@ -148,0 +149,2 @@
++fn is_false(value: &bool) -> bool { !*value }
++
+@@ -153,0 +156,3 @@
++    /// Append members without changing the physical scope or its authority/quota.
++    #[serde(default, skip_serializing_if = "is_false")]
++    pub append_to_existing: bool,
+--- a/crates/bitrouter-market/exchange/capacity.rs
++++ b/crates/bitrouter-market/exchange/capacity.rs
+@@ -79,0 +80,24 @@
++        let mut next = Self::new(markets, scopes)?;
++        next.reports = self.reports.clone();
++        next.entries = self.entries.clone();
++        *self = next;
++        Ok(())
++    }
++
++    pub(super) fn extend_scope(
++        &mut self,
++        markets: &BTreeMap<String, MarketSpec>,
++        additions: PhysicalScope,
++    ) -> Result<(), ExchangeError> {
++        let old = self.scope(additions.id)?;
++        if additions.authority_id != old.authority_id
++            || additions.max_unresolved_requests != old.max_unresolved_requests
++            || additions.members.is_empty()
++            || old.members.len() + additions.members.len() > 128
++        {
++            return Err(ExchangeError::InvalidScope);
++        }
++        let mut scopes: Vec<_> = self.scopes.values().cloned().collect();
++        scopes.iter_mut().find(|s| s.id == additions.id).unwrap()
++            .members.extend(additions.members);
++        // Revalidate all backend/offer identities, then retain physical occupancy.
+@@ -351 +375,4 @@
+-                    .is_some_and(|old| self.scopes.get(id) != Some(old))
++                    .is_some_and(|old| self.scopes.get(id).is_none_or(|new|
++                        new.id != old.id || new.authority_id != old.authority_id
++                        || new.max_unresolved_requests != old.max_unresolved_requests
++                        || !new.members.starts_with(&old.members) || new.members.len() > 128))
+--- a/crates/bitrouter-market/exchange/formal.rs
++++ b/crates/bitrouter-market/exchange/formal.rs
+@@ -84 +84,5 @@
+-        self.capacity.append_scope(&markets, i.scope.clone())?;
++        if i.append_to_existing {
++            self.capacity.extend_scope(&markets, i.scope.clone())?;
++        } else {
++            self.capacity.append_scope(&markets, i.scope.clone())?;
++        }
+--- a/crates/bitrouter-market/tests/formal_orders.rs
++++ b/crates/bitrouter-market/tests/formal_orders.rs
+@@ -169,0 +170 @@
++            append_to_existing: false,
+@@ -731,0 +733,35 @@
++
++#[test]
++fn append_profile_preserves_busy_physical_capacity_and_rejects_registry_changes() {
++    use bitrouter_market::{admission::*, execution_authorization::FrozenIdentity};
++    let (mut h, _) = pf::setup(false, false);
++    let p = input("busy-profile", 1);
++    place(&mut h, &p); quotes(&mut h, &p); drive(&mut h, 32);
++    let before = serde_json::to_value(h.snapshot()).unwrap();
++    let mut member = fx::member("a", "backend-a");
++    member.offering.offering_id = 1000;
++    let input = RegisterSupplyScope {
++        append_to_existing: true, idempotency_key: "append-profile".into(),
++        scope: PhysicalScope { id: AdmissionScopeId(30), authority_id: fx::AUTH,
++            max_unresolved_requests: 1, members: vec![member] },
++        identities: std::collections::BTreeMap::from([("backend-a".into(), FrozenIdentity {
++            source_epoch: 4, backend_incarnation: "instance-1".into() })]),
++    };
++    h.execute(input.idempotency_key.clone(), ExchangeCommand::RegisterSupplyScope(Box::new(input.clone()))).unwrap();
++    let after = serde_json::to_value(h.snapshot()).unwrap();
++    assert!(!before["state"]["capacity"]["entries"].as_array().unwrap().is_empty());
++    for key in ["entries", "reports"] {
++        assert_eq!(before["state"]["capacity"][key], after["state"]["capacity"][key]);
++    }
++    assert_eq!(h.snapshot().scopes().len(), 2);
++    assert_eq!(h.snapshot().scopes()[&AdmissionScopeId(30)].members.len(), 2);
++    // Identical command replay is harmless; fresh-key duplicate catalog is rejected.
++    h.execute(input.idempotency_key.clone(), ExchangeCommand::RegisterSupplyScope(Box::new(input.clone()))).unwrap();
++    for n in 0..3 {
++        let mut bad = input.clone(); bad.idempotency_key = format!("bad-profile-{n}");
++        if n == 0 { bad.scope.max_unresolved_requests = 2; }
++        if n == 1 { bad.scope.authority_id = ReportAuthorityId(99); }
++        assert!(h.execute(bad.idempotency_key.clone(), ExchangeCommand::RegisterSupplyScope(Box::new(bad))).is_err());
++    }
++    assert_eq!(h.snapshot().scopes()[&AdmissionScopeId(30)].members.len(), 2);
++}

@@ -1,5 +1,11 @@
 # Ordinary-wallet P3 components
 
+These local-key protocol tools coexist with the selected OutLayer custody route.
+`outlayer-native-verification.mjs` and `outlayer-preflight.mjs` serve that route;
+`native-verification.mjs` and `preflight.mjs` retain the local-key tooling API.
+See the [OutLayer runtime](../../../docs/agent-mpp-p3.md) and the separately
+accepted [real Cloud MPP CLI loop](../../../docs/near-cloud-outlayer-mpp.md).
+
 Status: **testnet protocol accepted; native-funded B/browser integration NOT_ACCEPTED.**
 
 `native-verification.mjs` independently verifies an ordinary agent's original

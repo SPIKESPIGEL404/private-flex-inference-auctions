@@ -50,6 +50,10 @@ pub struct Registration {
     pub offer_valid_until_ms: u64,
     pub upstream_budget_micro_usd: u64,
     pub maximum_upstream_calls: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_slot: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub root_request_sha256: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -130,6 +134,9 @@ fn verify_stream(registration: &Registration, measurement: &Measurement, raw: &[
                     .is_none_or(str::is_empty),
                 "calibration was refused"
             );
+            if std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref()==Ok("bounded") {
+                visible |= choice["delta"]["tool_calls"].as_array().is_some_and(|calls| !calls.is_empty());
+            }
             if let Some(reason) = choice["finish_reason"].as_str() {
                 finish = Some(reason.to_owned());
             }
@@ -150,6 +157,9 @@ fn verify_stream(registration: &Registration, measurement: &Measurement, raw: &[
 }
 
 impl Registration {
+    fn offering_ids(&self) -> Vec<u64> { self.profile_slot.map(|n| vec![n]).unwrap_or_else(|| (11..=13).collect()) }
+    fn scope_id(&self) -> u64 { 30 }
+    fn command_key(&self, name: &str) -> String { self.profile_slot.map(|n| format!("p3/{n}/{name}")).unwrap_or_else(|| name.to_owned()) }
     pub fn native_model(&self) -> &str {
         self.native_model.as_deref().unwrap_or(&self.model)
     }
@@ -159,6 +169,8 @@ impl Registration {
     }
 
     pub fn validate(&self) -> Result<()> {
+        ensure!(self.profile_slot.is_none() || (std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref()==Ok("bounded")
+            && self.profile_slot.is_some_and(|n| (1000..1032).contains(&n)) && self.root_request_sha256.as_ref().is_some_and(|h| digest(h))),"invalid P3 request profile slot");
         let origin = url::Url::parse(&self.origin).context("invalid registered HTTPS origin")?;
         let local = url::Url::parse(&self.tokenizer_url).context("invalid local tokenizer URL")?;
         ensure!(
@@ -168,7 +180,8 @@ impl Registration {
             "live seller requires explicit project responsibility for its market terms and upstream costs"
         );
         ensure!(
-            origin.scheme() == "https"
+            (origin.scheme() == "https" || (std::env::var("PRIVATE_MARKET_P3_DIAGNOSTICS").as_deref()==Ok("controlled")
+                && origin.scheme()=="http" && origin.host_str()==Some("127.0.0.1")))
                 && origin.host_str().is_some()
                 && origin.username().is_empty()
                 && origin.password().is_none()
@@ -273,7 +286,7 @@ impl Registration {
         let mut spec = catalog::spec("chat_completions");
         spec.reference.market_id = self.market_id.clone();
         spec.model_ref = self.model.clone();
-        spec.throughput_profile_ref = format!("live/{}", self.request_sha256);
+        spec.throughput_profile_ref = format!("live/{}", self.root_request_sha256.as_ref().unwrap_or(&self.request_sha256));
         spec.request_limits.context_window_tokens = self.context_window_tokens;
         spec.request_limits.max_output_tokens = self.max_output_tokens;
         spec
@@ -303,7 +316,7 @@ impl Registration {
             seller_payables: BTreeMap::from([(7, self.seller_principal.clone())]),
             offer_service_types: BTreeMap::from([(
                 self.market_id.clone(),
-                (11..=13)
+                (11..=13).chain(if std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref()==Ok("bounded") {1000..1032} else {1000..1000})
                     .map(|id| (id, InferenceServiceType::OnDemand))
                     .collect(),
             )]),
@@ -320,7 +333,8 @@ impl Registration {
         );
         config.exchange_id = self.market_id.clone();
         config.specs = vec![self.spec()];
-        config.scopes[0].members = (11..=13)
+        config.scopes[0].id = bitrouter_market::admission::AdmissionScopeId(self.scope_id());
+        config.scopes[0].members = self.offering_ids().into_iter()
             .map(|id| bitrouter_market::exchange::ScopeMember {
                 market_spec_ref: self.spec().reference,
                 profile: self.profile(),
@@ -349,8 +363,17 @@ pub async fn register(db: sea_orm::DatabaseConnection, registration: &Registrati
     let at = UnixMillis(ms());
     let until = UnixMillis(registration.offer_valid_until_ms);
     let config = registration.bootstrap(at);
-    let mut market = PgMarket::create(db, registration.config(), config.bootstrap()?).await?;
-    for id in 11..=13 {
+    let mut market = if registration.profile_slot.is_some() {
+        let mut market=PgMarket::open(db,registration.config()).await?;
+        market.publish_supply(registration.command_key("register-clock"),ExchangeCommand::AdvanceTime(at)).await?;
+        let key=registration.command_key("append-scope");
+        market.publish_supply(key.clone(),ExchangeCommand::RegisterSupplyScope(Box::new(bitrouter_market::formal_order::RegisterSupplyScope {
+            idempotency_key:key,scope:config.scopes[0].clone(),identities:config.identities.clone(),
+            #[cfg(feature = "outlayer-p3")]
+            append_to_existing:true,
+        }))).await.context("P3 append original physical scope")?;market
+    } else { PgMarket::create(db, registration.config(), config.bootstrap()?).await? };
+    for id in registration.offering_ids() {
         let mut seller = catalog::seller(
             id,
             7,
@@ -379,7 +402,7 @@ pub async fn register(db: sea_orm::DatabaseConnection, registration: &Registrati
                 seller.idempotency_key.clone(),
                 ExchangeCommand::SubmitManualSellerOrder(Box::new(seller)),
             )
-            .await?;
+            .await.context("register native seller order")?;
         market
             .publish_supply(
                 format!("live-ready/{id}"),
@@ -431,7 +454,7 @@ pub async fn qualify(
             && ms() - measurement.ended_at_ms <= 300_000
             && measurement.ended_at_ms - measurement.started_at_ms <= 90_000
             && measurement.response_model == registration.native_model()
-            && matches!(measurement.finish_reason.as_str(), "stop" | "length")
+            && (matches!(measurement.finish_reason.as_str(), "stop" | "length") || (std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref()==Ok("bounded") && measurement.finish_reason=="tool_calls"))
             && measurement.prompt_tokens == registration.token_ids.len() as u64
             && measurement.completion_tokens > 0
             && measurement.completion_tokens <= registration.max_output_tokens
@@ -443,15 +466,15 @@ pub async fn qualify(
     // The external collector validates the original SSE. Retain its bytes and
     // hash with the private run; this is trusted collector evidence, not a TEE proof.
     let mut market = PgMarket::open(db, registration.config()).await?;
-    let observed = UnixMillis(ms());
+    let observed = UnixMillis(if registration.profile_slot.is_some() {measurement.ended_at_ms} else {ms()});
     let until = UnixMillis(registration.offer_valid_until_ms);
     market
         .publish_supply(
-            "live-observation-clock".into(),
+            registration.command_key("live-observation-clock"),
             ExchangeCommand::AdvanceTime(observed),
         )
         .await?;
-    for id in 11..=13 {
+    for id in registration.offering_ids() {
         let offering = market.host().snapshot_ref().books()[&registration.market_id]
             .get_offering(id)
             .and_then(|o| o.offering())
@@ -478,11 +501,11 @@ pub async fn qualify(
             .await?;
     }
     let scope: GlobalScopeReport = serde_json::from_value(json!({
-        "metadata":{"scope_id":30,"authority_id":7,"version":{"generation":1,"sequence":1},"observed_at":observed,"valid_until":until},
+        "metadata":{"scope_id":registration.scope_id(),"authority_id":7,"version":{"generation":1,"sequence":registration.profile_slot.unwrap_or(1)},"observed_at":observed,"valid_until":until},
         "open":true,"responsibilities":[]
     }))?;
     market
-        .publish_supply("live-scope".into(), ExchangeCommand::ScopeReport(scope))
+        .publish_supply(registration.command_key("live-scope"), ExchangeCommand::ScopeReport(scope))
         .await?;
     let request = RequestSpec {
         request_ref: "live-template".into(),
@@ -497,7 +520,7 @@ pub async fn qualify(
     };
     let snapshot = market.host().snapshot_ref();
     let mut candidates = Vec::new();
-    for id in 11..=13 {
+    for id in registration.offering_ids() {
         let key = OfferingKey {
             market_id: registration.market_id.clone(),
             offering_id: id,
@@ -560,7 +583,7 @@ pub async fn qualify(
                     cache: CacheIndex::new(book.spec(), cache_scope, observed)?.snapshot(),
                     load: LoadSnapshot {
                         reference: format!("live-load-{id}"),
-                        version: 1,
+                        version: report.metadata.version.sequence,
                         source_ref: "project-authorized-market-quota".into(),
                         agent_config_ref: registration.model_revision_ref.clone(),
                         backend_ref: registration.backend(),
@@ -584,10 +607,10 @@ pub async fn qualify(
             output_meter: OUTPUT_METER_VERSION.into(),
             output_limit: registration.max_output_tokens,
             schema_profile: None,
-            client_tools: false,
+            client_tools: std::env::var("PRIVATE_MARKET_AGENT_P3").as_deref() == Ok("bounded"),
         });
     }
-    let routes: Vec<_> = (11..=13).map(|id| json!({"backend":registration.backend(),"incarnation":registration.model_revision_ref,"offering_id":id,
+    let routes: Vec<_> = registration.offering_ids().into_iter().map(|id| json!({"backend":registration.backend(),"incarnation":registration.model_revision_ref,"offering_id":id,
         "native_model":registration.native_model(),"base_url":registration.route_origin(),"credential_env":"PRIVATE_MARKET_SELLER_KEY"})).collect();
     let order_time = registration
         .bootstrap(UnixMillis(ms()))

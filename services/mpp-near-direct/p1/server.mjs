@@ -41,13 +41,15 @@ export function completion(sse) {
   return {id:first.id,object:'chat.completion',created:first.created,model:first.model,
     choices:[{index:0,message:{role:'assistant',content:content||null,...(refusal?{refusal}:{}),...(calls.size?{tool_calls:[...calls.entries()].sort((a,b)=>a[0]-b[0]).map(x=>x[1])}:{})},finish_reason:finish}],usage};
 }
-export async function start(config, {AuthorityClass=Authority}={}) {
-  validateConfig(config);
+export async function start(config, {AuthorityClass=Authority,validate=validateConfig,createRoute,rpc:providedRpc}={}) {
+  validate(config);
   const pool=new pg.Pool({connectionString:config.databaseUrl,max:8,connectionTimeoutMillis:5000});
   pool.on('error',()=>{ /* Recover idle connection loss without changing operation identity. */ });
-  const rpc=new NearRpc({url:config.rpcUrl,network:config.network,controlled:true});
-  const authority=new AuthorityClass({pool,rpc,config}); await authority.pin();
-  const mpp=Mppx.create({realm:config.realm,secretKey:config.secret,credentialHeader:'Payment-Authorization',methods:[sponsoredServer({rpc,authority})]});
+  const rpc=providedRpc??new NearRpc({url:config.rpcUrl,network:config.network,controlled:true});
+  const paymentRoute=createRoute?await createRoute({pool,rpc,config}):undefined;
+  const authority=new AuthorityClass({pool,rpc,config,paymentRoute}); await authority.pin();
+  const mpp=Mppx.create({realm:config.realm,secretKey:config.secret,credentialHeader:'Payment-Authorization',methods:[paymentRoute?.server?paymentRoute.server({rpc,authority}):sponsoredServer({rpc,authority})]});
+  const walletFetch=paymentRoute?.services?.fetch??fetch;
   let stopped=false,refundBusy=false;
   async function refunds() {
     if(refundBusy||stopped)return;refundBusy=true;
@@ -59,7 +61,7 @@ export async function start(config, {AuthorityClass=Authority}={}) {
       for(const o of pending){try{
         await pool.query("INSERT INTO mpp_direct_recovery_attempts(order_id,kind) VALUES($1,'payment') ON CONFLICT(order_id,kind) DO UPDATE SET attempted_at=clock_timestamp()",[o.id]);
         if(!o.received){
-          const response=await fetch(config.walletFixtureUrl+'/wallet/status',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),headers:{'content-type':'application/json','x-fixture-key':config.buyerWalletKey},body:JSON.stringify({orderRef:o.id})});
+          const response=await walletFetch(config.walletFixtureUrl+'/wallet/status',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),headers:{'content-type':'application/json','x-fixture-key':config.buyerWalletKey},body:JSON.stringify({orderRef:o.id})});
           if(response.ok){const status=await response.json();if(status.credential){await authority.journalPresentation(Credential.deserialize(status.credential));await authority.reconcile(o.id,o.user_id);}
             else if(Date.now()>=Number(o.expires_ms)){await closeOriginal(o);}}
         }
@@ -76,7 +78,7 @@ export async function start(config, {AuthorityClass=Authority}={}) {
           if(!original){
             // The controlled wallet owns durable idempotency, not the HTTP
             // acknowledgement. It returns the original transaction on replay.
-            const response=await fetch(config.walletFixtureUrl+'/merchant/refund',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
+            const response=await walletFetch(config.walletFixtureUrl+'/merchant/refund',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
               headers:{'content-type':'application/json','x-fixture-key':config.walletFixtureKey},body:JSON.stringify({plan:r.plan})});
             requireThat(response.ok,'refund_sender_unknown'); original=await response.json();
             await authority.recordRefundSend(r.id,original);
@@ -90,7 +92,7 @@ export async function start(config, {AuthorityClass=Authority}={}) {
   }
   const timer=setInterval(()=>{if(config.refundAuto)void refunds().catch(()=>{ /* PG/network outages retain durable responsibilities for retry. */ });},100);
   async function closeOriginal(o){
-    const response=await fetch(config.walletFixtureUrl+'/wallet/cancel',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
+    const response=await walletFetch(config.walletFixtureUrl+'/wallet/cancel',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
       headers:{'content-type':'application/json','x-fixture-key':config.buyerWalletKey},body:JSON.stringify({orderRef:o.id})});
     requireThat(response.ok,'original_wallet_outcome_unknown');return authority.cancel(o,await response.json());
   }
@@ -126,7 +128,7 @@ export async function start(config, {AuthorityClass=Authority}={}) {
           if(prior){try{await authority.reconcile(order.id,agent.user_id);}catch{}order=await authority.getOrder(order.id,agent.user_id);
             if(!order.received)return json(res,503,{error:{code:'original_payment_pending'},orderId:order.id});}
           else {
-            const response=await fetch(config.walletFixtureUrl+'/wallet/status',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
+            const response=await walletFetch(config.walletFixtureUrl+'/wallet/status',{method:'POST',redirect:'error',signal:AbortSignal.timeout(2500),
               headers:{'content-type':'application/json','x-fixture-key':config.buyerWalletKey},body:JSON.stringify({orderRef:order.id})});
             requireThat(response.ok,'original_wallet_outcome_unknown');const status=await response.json();
             if(status.credential){await authority.journalPresentation(Credential.deserialize(status.credential));try{await authority.reconcile(order.id,agent.user_id);}catch{}
@@ -140,7 +142,7 @@ export async function start(config, {AuthorityClass=Authority}={}) {
         const recorded=(await pool.query(`SELECT m.proof,EXISTS(SELECT FROM redis_balance_mutations WHERE ledger_entry_id=o.credit_ledger AND state='applied') AS ready
           FROM mpp_direct_orders o JOIN mpp_direct_movements m ON m.order_id=o.id AND m.purpose='payment' WHERE o.id=$1`,[order.id])).rows[0];
         requireThat(recorded?.ready,'payment_projection_pending');
-        receipt=order.payment_receipt??Receipt.from({method:SPONSORED,status:'success',reference:recorded.proof.movementKey,timestamp:new Date(recorded.proof.paidAtMs).toISOString()});
+        receipt=order.payment_receipt??Receipt.from({method:authority.paymentRoute.method,status:'success',reference:recorded.proof.movementKey,timestamp:new Date(recorded.proof.paidAtMs).toISOString()});
       } else if(credential){
         try {receipt=await mpp.broadcastCredential(String(credential));}
         catch(e){
@@ -162,7 +164,7 @@ export async function start(config, {AuthorityClass=Authority}={}) {
       // Market transaction. Lost ACK retries recover that original command.
       const nativeBody={...order.internal_body,bitrouter_purchase:{service_type:'on_demand',provider_cap_micro_usd:Number(order.provider_cap_micro),total_cap_micro_usd:Number(order.service_micro),max_attempts:1}};
       await authority.timing(order.id,'native_admission_requested');
-      const upstream=await fetch(config.upstream+'/market/v1/chat/completions',{method:'POST',redirect:'error',signal:AbortSignal.timeout(20_000),
+      const upstream=authority.fetchNative?await authority.fetchNative(order,{token,body:nativeBody}):await fetch(config.upstream+'/market/v1/chat/completions',{method:'POST',redirect:'error',signal:AbortSignal.timeout(config.nativeTimeoutMs??20_000),
         headers:{authorization:'Bearer '+token,'content-type':'application/json','idempotency-key':order.dispatch_key},body:JSON.stringify(nativeBody)});
       if(!upstream.ok){await upstream.body?.cancel();const current=await authority.getOrder(order.id,agent.user_id);
         return json(res,current.financial?409:503,{error:{code:current.financial?'original_execution_closed':'original_admission_pending'},orderId:order.id});}

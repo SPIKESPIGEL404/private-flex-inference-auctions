@@ -1,0 +1,405 @@
+{
+  "version": 1,
+  "scope": "combined-PR20-current-main-OutLayer-and-real-Cloud-MPP-integration",
+  "baseMain": "b3f6dc098a141cb68bba4c7dc97b1644315196c5",
+  "previousPrHead": "e4a47017578b7da807845b6fdf6e2dc35b24ac09",
+  "validatedSourceCommit": "cca06f6eaf64a569c48309b76f97323e25efd107",
+  "initialLiveAcceptanceCommit": "803ceeac99b5e029822bc034342157aa19bb224d",
+  "sourceFilesSha256": {
+    ".gitignore": "4f0b05475191b113a00c441cabd9feb5c839cc625ac96e8f9601e577f8c7e122",
+    "README.md": "f1dc59ab5df2a66a70f3f192611edaf05f5000a125b02dc1500aa02cc14b997c",
+    "clients/agent-playground/README.md": "794d998cbb228ced6f80d73db6b627cfcafc91226ecab2f7062b2a6c79b266e1",
+    "clients/agent-playground/p3.html": "81b9434321cb5d07e91465ac0d9f9e2114390ad8144cab9b2af6d0f690e40b06",
+    "clients/agent-playground/package-lock.json": "c8389df29743616899616a7f371dbf5b7048d3bd624687a7b5f48c1a9b622e69",
+    "clients/agent-playground/package.json": "b3f895cdb4fca14e9b2b9411aa198378c2059bfd22c6b266bf27bf2aba9580c1",
+    "clients/agent-playground/src/p3.css": "dd9264cbf22f985892d13631804aab1faa1d29d1babf62e3a9cffa17aabeb1ea",
+    "clients/agent-playground/src/p3.ts": "f9328ac14620b1217765197a042ef90ccd1ec2a9d1f86674808aeaebc28d95a6",
+    "clients/agent-playground/test/p3.test.mjs": "f317b0da967c440c26bdd643653d64fef1097047c8a2608464e22d2aaf994620",
+    "clients/agent-playground/tsconfig.p3.json": "26b122ae6f604a44e8ab8af11ff1cc43618e8a22484d0cc2607d11386053f7db",
+    "clients/agent-playground/vite.p3.config.ts": "b571f932a0d042e308aec4e83e5ce3dc919028b9c968f861fba87ff0307e41d9",
+    "crates/private-market-host/src/live.rs": "fb5b4e0220fb1c51ca3cc2c894fa666e5bdd156170e411e04a93ee6a866ecf00",
+    "crates/private-market-host/src/main.rs": "aeb6a25b20f8f957ff5e2c527601e845c1974e8d93b3d048f7a5646bc4ecc28d",
+    "crates/private-market-host/src/provision.rs": "c3759a24f92c94866d917117e0d15c3b68f55c9ef2df7159170016d8e45d0826",
+    "crates/private-market-host/upstream/p3/paid_real.sql": "a557e62b33b70cbc018d035b2e2e8d9fb3148a5eeedcff68dafeaaeaf341b0d0",
+    "crates/private-market-host/upstream/p3/qualification-diagnostics.patch": "d831d78dc65d11a4a4d784f4220370648dcf550a9b7052ad409152b96d16ee55",
+    "crates/private-market-host/upstream/p3/scope-members.patch": "c7a20f5d032eb387aff6e903b1016bf45539d46cabac672273b6dade82d0e212",
+    "crates/private-market-p3/Cargo.lock": "127afddd81fa91d1649fe36024d33cad55615fd244197e9cceaeda1e54c3187a",
+    "crates/private-market-p3/Cargo.toml": "6d2ce81c327b07785a43e6f28574be160568357a85b236e4dd25eb9b6525259f",
+    "docs/acceptance/2026-11-14-near-cloud-mpp.json": "ab07f40c8390969301d98d217e508b2faa93b9197670bd07b567c84fa7e3d142",
+    "docs/acceptance/2026-11-14-near-cloud-mpp.md": "54b798ceb642720f9bf057a2eebd8b363c8049ab7016c7ea7333249fcc83906f",
+    "docs/acceptance/2026-11-14-outlayer-cloud-mpp.json": "7d7f1087a283480aa8ac24c3163438ed2ac0d27c6d903fc15b2ded800f071892",
+    "docs/acceptance/2026-11-14-outlayer-cloud-mpp.md": "f080cea03403bb81ec4cb5e49e787e42c5ce52192c4e769a0eab56a8c7590436",
+    "docs/acceptance/2026-11-14-outlayer-p3-matrix.json": "c8ca6569c5c47a61c4a38b24000e76f24f5d0cd5e05270f8c0afdebad896a745",
+    "docs/acceptance/2026-11-14-outlayer-p3-native.json": "9c346417751d3a2765255e69beaa70e8df86f6733291116d271616e00cea09b3",
+    "docs/acceptance/2026-11-14-outlayer-p3-p1-regression.json": "5d92d43bea180b045c6d4b2d19301f31f4120c5f2d2760a86a633695fc6d47e8",
+    "docs/acceptance/2026-11-14-outlayer-p3-p2-regression.json": "40cede67757b60e3c42e0b4beb56fe1ea9cf0d46bb160cbfc2002054ef4ba351",
+    "docs/acceptance/2026-11-14-outlayer-p3-real-testnet.json": "e7437f2aa905fcff257dfb80953e1659969077c8749863e8be1d403cd4382844",
+    "docs/acceptance/2026-11-14-outlayer-p3-review-fixes.json": "6644f7b97703f16ac9d35e06718c359b5749b1b85b41cb6612e872e85e0dbe2c",
+    "docs/acceptance/2026-11-14-outlayer-p3-setup.json": "4430a1c2ee7786092873b6843bee0e14e64d2569b0e2aa38827426be66acd5ce",
+    "docs/acceptance/2026-11-14-outlayer-p3-validation.json": "b602c8254bbd51f1cf0e7c265d31b1fd4190108a57aa866acab3316355a9533e",
+    "docs/acceptance/2026-11-14-outlayer-wallet-policy-evidence.json": "ddadef15fd6242ca01cc4966c0ab81cac5ea589242f12658b449fbcbcd923cb5",
+    "docs/agent-mpp-p3.md": "d421580d7543744dbba2409b9f0798b59215894d09174736622000523a4ba2a4",
+    "docs/near-cloud-mpp.md": "da264ae51f901aabb198ffcf426c88fb9a8b463871cbb156fbc2f92dc41f9200",
+    "docs/near-cloud-outlayer-mpp.md": "f696399e3e1dd9595c2e9b578742852b52ff491cf89cf25ce11939831a25b573",
+    "docs/specs/2026-11-14-agent-mpp-inference-integration.md": "799e1d0c14d480de406c942410b76eb40b619754af94c2e4500327b102f1064c",
+    "docs/specs/2026-11-14-agent-mpp-p0-contract.md": "45d2491f4693d2ac7f7e2967bed36fca1088c1ad720f23fa197c92b477dc522c",
+    "docs/specs/2026-11-14-agent-mpp-p0-owning-interfaces.md": "36f12bca84ce860bd318f4681a1565718d9e06f0f724d529bce53cccb79ba112",
+    "docs/specs/2026-11-14-agent-mpp-p3-run-plan.md": "25bd2676aa4ca0fc20f5008db5e43dc06c80ee1815b3e00ce5ef92a7ddd0f005",
+    "docs/specs/2026-11-14-outlayer-custody-migration.md": "b312b49799f2e38e29fc7f7d832057a7507cbea905e96744d0f354394c813563",
+    "scripts/accept-agent-mpp-p3-native.py": "998fdd38000465f096e40981c061b158b3bdbbf012a738db401dff183b271c3a",
+    "scripts/accept-agent-mpp-p3-setup.py": "2d64453b63354cddb541ac3d1d7c9d61258dd8eb65e3622d9b5ff3141b17d508",
+    "scripts/accept-agent-mpp-p3-testnet.mjs": "b2166a0e655c53cfdfd1d489a2954c0f26f04be69ffef92025cfed81dd813ee3",
+    "scripts/accept-agent-mpp-p3.py": "0927da61c454081a44c4df649696db3d529b5e4f7cdf34ad73e51aad28a56a24",
+    "scripts/accept-agent-mpp-p3.sh": "1d8c307dbdc1808371348f1a8b1e645f30847505192406220b548b024ffb74f7",
+    "scripts/materialize-market-p3.py": "012e40b75b42d77df05b77a02543a2b1bfc727925df329c999e115571a9dfbf2",
+    "scripts/prepare-agent-mpp-p3.mjs": "b2e9317155e80a6dd04a277843614f83e27a78297e21aa61711fd932a0e398de",
+    "services/inference-comparison/near-bridge.mjs": "9ff150972e470013dc77ee39df9a0b002918fe05deac0142b71dc45605bbdd7f",
+    "services/inference-comparison/package-lock.json": "7b12812f6524c386d75bb55e6cc72435b129a7c1616017d97d27db207de6acaf",
+    "services/inference-comparison/package.json": "630452576a38d1f60e8a87bfed7130b3f83bfa07e38258566ab2ff2996519d5e",
+    "services/inference-comparison/test/stream-usage.test.mjs": "a4f63a1abae49b4f4a74adc21b12b4aca63dddd046999136e14b81fd875a65ba",
+    "services/mpp-near-direct/contract.mjs": "1f325fba57983ee297e1b22772f22ef1930cbe0350e47329c30663b276389b7c",
+    "services/mpp-near-direct/method.mjs": "8ff37900a2cfb6aeb19b6c841f6a6be091681f0e5cdf61bea2e57e72116d1348",
+    "services/mpp-near-direct/near-cloud/accept-outlayer.mjs": "c6d0906e43ef568a64b2cfeff6d2b808b9a160129af2f54846dfc75fabb38e18",
+    "services/mpp-near-direct/near-cloud/accept.mjs": "00ef29cd62a951d433bfcddfdb3c14fd061e52538681ad67abb62d40dcf191bc",
+    "services/mpp-near-direct/near-cloud/authority.mjs": "ae822eb5eb1def0b0d15250d5f0147496860d7f4301265d250200e3b098246ab",
+    "services/mpp-near-direct/near-cloud/client.mjs": "905d2aa7608510d34b120e0748d881f4ae4feaec49641041d5778a7aed25dc9c",
+    "services/mpp-near-direct/near-cloud/outlayer-client.mjs": "14f8193f17420bae9a8a0de83b29a4362a279bdf5df65cdc7673e106858e2e4a",
+    "services/mpp-near-direct/near-cloud/server.mjs": "9afed03230fffe3e1f3e20f4e1c559fc479b3d1dea611baeff32ca929e54c3bc",
+    "services/mpp-near-direct/near-cloud/test/integration.test.mjs": "f148f14e57a1da789166af2087f25f84a54ef40aec13783e101259829c258fea",
+    "services/mpp-near-direct/near-cloud/test/outlayer.test.mjs": "c26aa14a33b7357b937b7044a5f6dff626950ec80b70ce34fa874442d8638a0f",
+    "services/mpp-near-direct/near-cloud/verify-evidence.mjs": "fcb118119a476d7304960f3c7ab0b500ca12691b53ae254322aa6b2d7afe96ef",
+    "services/mpp-near-direct/near-cloud/verify-outlayer-evidence.mjs": "e97c949866723008afbb8fc4000313341eab0255acaee5657757dd43a6abff03",
+    "services/mpp-near-direct/near-cloud/waive-integration.mjs": "0753031ebf323ad7b1cca8d09ed6ef7f1f1db6b5d30190f5afa9cb472d490d70",
+    "services/mpp-near-direct/near.mjs": "5e68d4f5cea2e6c2a530638d971617e6f66f82f8d642f1e9ad7c2357b01d457b",
+    "services/mpp-near-direct/p1/authority.mjs": "18a5f866778631bc25ee779edaadcc010c531e648cf53132bbeded70990ac9cb",
+    "services/mpp-near-direct/p1/server.mjs": "611de11314575eba90fd24dd07cf4612ebe5cef7701f88880a8ce110b9dca660",
+    "services/mpp-near-direct/p2/authority.mjs": "5b79776285268e5b5c916f09c56057a2277810d6b553334a805a80d0e9a66334",
+    "services/mpp-near-direct/p2/fx-runtime.mjs": "23dad419295337882dd12867e8a2497ad013229a8b929eaa84a750291dbc3779",
+    "services/mpp-near-direct/p3/README.md": "93bb7047ecd1c8aeefa0ed439227db49792c825771213917d86ceb0fcd388373",
+    "services/mpp-near-direct/p3/auth.mjs": "d361cdaa8a19f940dd4ed917204dec290d52027b83f1fff0fd7023b22a942e8a",
+    "services/mpp-near-direct/p3/authority.mjs": "cb98a4c44274fdcb862c536b84d06e8f97307be3f3945af627856859237f34b2",
+    "services/mpp-near-direct/p3/funding.mjs": "9eae32b69bffe0555edfef88e2c4d274ab12699a7c234c87fe8f7b986ca6ff9c",
+    "services/mpp-near-direct/p3/launch.mjs": "1a623eee3d132df8559c4ff0418b7f4cee5df9be25e95e4c59175bc946a77699",
+    "services/mpp-near-direct/p3/native-profiles.mjs": "cff4577a26b609b744fa75e5e3a23795ed4cd3c24885c1acc1e0a839c56c0d57",
+    "services/mpp-near-direct/p3/onboarding.mjs": "16973bc68eb7e543832e27a6731871525151ffc7dd3c94ac08578332cb79d7dd",
+    "services/mpp-near-direct/p3/outlayer-native-verification.mjs": "3ee5566a71d2bfcf2a75ad18e51ea133bd66e50cd0ce186c09407b1693b9ec51",
+    "services/mpp-near-direct/p3/outlayer-preflight.mjs": "fcf78ecb1a671a5c1d6f9861c2b9d9616f32b241ac53764b65e15028c9fc5249",
+    "services/mpp-near-direct/p3/outlayer.mjs": "a59e822f2ca0eb5983fc33f7161a40cfc8a9bf23913bab712b8c49d95c1ef99d",
+    "services/mpp-near-direct/p3/plan.mjs": "cb89cfb31c24826e79665a6bb95a401a5398cf0ddb4294d73affd99f48c091ac",
+    "services/mpp-near-direct/p3/profiles.mjs": "2d9017a0ef4d8536e8b37e68f938638ef8768788f70538df03657e84f367fa95",
+    "services/mpp-near-direct/p3/proxy.mjs": "fb09df7a9f82b7da5b08f85c5f1f5ed4d421daeef3cdea5c17f49e2707662aa8",
+    "services/mpp-near-direct/p3/route.mjs": "b97b988fa3623a2eb6e00965df0707305a1fab31f56ee996a726627ca71e044d",
+    "services/mpp-near-direct/p3/server.mjs": "7abad7a2ad04564013f42117860923a02a050ce6495cf9dc8288a5f9124c8483",
+    "services/mpp-near-direct/p3/setup.mjs": "5001b1b196126e2395489e9e521978d237ccb6d67c93cede22fe01ed6356159d",
+    "services/mpp-near-direct/p3/store.mjs": "b64576b95bcf2682e8038c877b01fea416e23af621dbf85d5064031413d74910",
+    "services/mpp-near-direct/p3/tasks.mjs": "ad6e5b47140c871cf96ba315bcdf198250b5722053da2ed04e5aebc0aede2e58",
+    "services/mpp-near-direct/p3/test/run-fx.mjs": "dbba9c9510134e28bf4a6313d281dd69e88bb22222e7756c3fbd7a1225ec1cab",
+    "services/mpp-near-direct/p3/test/wallet-fixture.mjs": "648e5c7ea4ebec0f0a01210e748fdd4571b6e1d9b563572c254f93e4ff69f3df",
+    "services/mpp-near-direct/p3/test/wallet.test.mjs": "c190541d923c9a6b7fcf004dde3ef7cf1fb030c6b6a217de3f2d0fa921b29983",
+    "services/mpp-near-direct/p3/wallet.mjs": "539fc299b0dc2a76270acd21e73b8c1f845099cddeec74b53e786e63309f4a0f",
+    "services/mpp-near-direct/package-lock.json": "c22452d9cf02375c0af19f85851487dbd9e3e6eb488e0af57ccdf6e427014714",
+    "services/mpp-near-direct/package.json": "63ab3ac254442ae19f5a26e728d495367693f5f32d3e7912164ed048ddd5d4d6"
+  },
+  "binarySha256": "765d939fa3c56e2b340112557687b5fa913006a0aabdde3b7883950a84618c1c",
+  "local": {
+    "mppP1P2P3WalletCloudTests": 112,
+    "inferenceComparisonTests": 28,
+    "p3UiHandlerTests": 4,
+    "existingBuyerUiTests": 16,
+    "rustHostUnitTests": 13,
+    "originalMarketScopeTests": 15,
+    "totalUnitTests": 188,
+    "failed": 0,
+    "rustBuild": "passed",
+    "p3BrowserBuild": "passed",
+    "canonicalMonoBuild": "passed",
+    "acceptanceScriptSyntax": "passed"
+  },
+  "controlledIntegration": {
+    "realProvider": false,
+    "realChain": false,
+    "matrix": [
+      {
+        "case": "two-fx-native-outlayer-principal-gas-refunds-restart",
+        "passed": true,
+        "counts": {
+          "tools": 2,
+          "refunds": 4,
+          "payments": 4,
+          "executions": 4,
+          "chainTransfers": 8
+        }
+      },
+      {
+        "case": "paid-signature-failure-refunds-without-admission-or-repay",
+        "passed": true,
+        "counts": {
+          "tools": 0,
+          "refunds": 1,
+          "payments": 1,
+          "executions": 0,
+          "chainTransfers": 2
+        }
+      },
+      {
+        "case": "lost-native-ack-survives-restart-without-second-post-or-release",
+        "passed": true
+      },
+      {
+        "case": "owner-revocation-stops-new-effects-keeps-read-recovery",
+        "passed": true
+      },
+      {
+        "case": "project-cost-revocation-fences-both-agents-private-plan-owner-only",
+        "passed": true
+      },
+      {
+        "case": "pause-revoke-reauthorize-resume-original-fx-tool-turn",
+        "passed": true,
+        "counts": {
+          "tools": 1,
+          "refunds": 2,
+          "payments": 2,
+          "executions": 2,
+          "chainTransfers": 4
+        }
+      }
+    ],
+    "nativeProfiles": [
+      {
+        "case": "request-specific-real-token-count-native-qualification-two-fx-tasks",
+        "passed": true,
+        "counts": {
+          "tools": 2,
+          "refunds": 4,
+          "payments": 4,
+          "executions": 4,
+          "chainTransfers": 8
+        },
+        "providerDoubleCalls": [
+          {
+            "calibration": true,
+            "inputTokens": 106,
+            "hasToolResult": false
+          },
+          {
+            "calibration": false,
+            "inputTokens": 106,
+            "hasToolResult": false
+          },
+          {
+            "calibration": true,
+            "inputTokens": 175,
+            "hasToolResult": true
+          },
+          {
+            "calibration": false,
+            "inputTokens": 175,
+            "hasToolResult": true
+          },
+          {
+            "calibration": true,
+            "inputTokens": 106,
+            "hasToolResult": false
+          },
+          {
+            "calibration": false,
+            "inputTokens": 106,
+            "hasToolResult": false
+          },
+          {
+            "calibration": true,
+            "inputTokens": 175,
+            "hasToolResult": true
+          },
+          {
+            "calibration": false,
+            "inputTokens": 175,
+            "hasToolResult": true
+          }
+        ],
+        "oneOriginalHost": true
+      },
+      {
+        "case": "calibration-ack-loss-keeps-project-reservation-no-agent-payment-or-repost",
+        "passed": true
+      },
+      {
+        "case": "paid-response-replay-after-profile-switch-and-restart",
+        "passed": true,
+        "providerDoubleCalls": 4,
+        "payments": 2
+      },
+      {
+        "case": "paid-response-replay-after-unknown-calibration-and-restart",
+        "passed": true,
+        "providerDoubleCalls": 3,
+        "payments": 1
+      },
+      {
+        "case": "qualification-retries-preserve-slots-for-next-agent",
+        "passed": true,
+        "minimumRetries": 40,
+        "slots": [
+          1,
+          2
+        ],
+        "providerDoubleCalls": 4
+      }
+    ],
+    "ownerHttpSetup": [
+      {
+        "case": "owner-login-create-policy-native-funding-activate-grants-task-logout",
+        "passed": true,
+        "wallets": 2,
+        "fundingTransfers": 2,
+        "policyAckRecovery": true,
+        "duplicateFundingRefused": true,
+        "csrfRefused": true
+      }
+    ],
+    "totalPassed": 12
+  },
+  "realTestnetCloud": {
+    "initialProviderAttempts": 2,
+    "initialAgentPaymentPosts": 2,
+    "actualServiceMicroUsd": "90",
+    "providerInvoiceVerified": false,
+    "finalSourceRestartProviderInvocations": 0,
+    "finalSourceRestartNewTransfers": 0,
+    "sameOriginalPaymentsAndRefunds": true,
+    "bothWalletsFinallyFrozen": true,
+    "browserWalletIntegration": false,
+    "marketAutobidderIntegration": false,
+    "freshReadOnlyAudit": {
+      "version": 1,
+      "scope": "fresh-read-only-outlayer-cloud-chain-financial-and-task-audit",
+      "passed": true,
+      "network": "testnet",
+      "rpcUrl": "https://archival-rpc.testnet.fastnear.com",
+      "persistentRpcCache": false,
+      "agentPrivateKeysRead": 0,
+      "apiKeysRead": 0,
+      "broadcasts": 0,
+      "providerCalls": 0,
+      "providerInvoiceVerified": false,
+      "browserWalletIntegration": false,
+      "cases": [
+        {
+          "agentId": "agent-a",
+          "accountId": "9c617cabf4db57e7f11dc6b3d668108ab7104dc689bd6c3dff7469c9cbf2ee73",
+          "walletId": "0f999c75-37da-40c3-9d17-0ff1111b1827",
+          "answer": "4",
+          "taskCompleted": true,
+          "usage": {
+            "prompt_tokens": 61,
+            "total_tokens": 92,
+            "completion_tokens": 31,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "reasoning_tokens": 28,
+            "completion_tokens_details": {
+              "reasoning_tokens": 28
+            }
+          },
+          "version": 1,
+          "scope": "independent-read-only-chain-and-financial-audit",
+          "network": "testnet",
+          "orderId": "66705d2afc9b45418d27b521b20dd56d1e3a3ed317ea3c3a383b024b329b3cdb",
+          "paymentTxHash": "DQM3iBSoct5ASiMZJUwHLn6ugCf3bixQf96FWJFAhgDU",
+          "refundTxHash": "ARwebJKhfBW2zPPdq65USwrpwjpE1tqkKBUNuNDSXC9w",
+          "finalTransfers": 2,
+          "financialSignaturesValid": true,
+          "actualServiceMicroUsd": "45",
+          "principal": {
+            "P": "501000000000000000000",
+            "C": "45000000000000000000",
+            "H": "0",
+            "W": "0",
+            "R": "456000000000000000000"
+          },
+          "agentGasActualYocto": "44636512500000000000",
+          "merchantGasActualYocto": "834989537500000000000",
+          "providerVerification": "recorded-official-SDK-runtime-provider_tee",
+          "providerSignatureRecorded": true,
+          "modelEncryptedWireReverifiedOffline": false,
+          "broadcasts": 0,
+          "providerCalls": 0,
+          "budgetYocto": "20000000000000000000000",
+          "frozenPolicyVerified": true
+        },
+        {
+          "agentId": "agent-b",
+          "accountId": "ddd6d65c1e6e9f8ea5b52ac46e14bc776d6e6f9d511303c4f3f19b17b541f5a4",
+          "walletId": "ff54892f-c46d-44d1-8c85-b1dba90b649b",
+          "answer": "4",
+          "taskCompleted": true,
+          "usage": {
+            "prompt_tokens": 61,
+            "total_tokens": 92,
+            "completion_tokens": 31,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            },
+            "reasoning_tokens": 28,
+            "completion_tokens_details": {
+              "reasoning_tokens": 28
+            }
+          },
+          "version": 1,
+          "scope": "independent-read-only-chain-and-financial-audit",
+          "network": "testnet",
+          "orderId": "64dd36c74a2ffefcf5a8ac0a61594ad3ca5e480b804a6466ee6cf97396b8f990",
+          "paymentTxHash": "31VYsUZnaG4FMgEjRM7wKeyM1xwd5faH8DzZWAa9F3Pd",
+          "refundTxHash": "An8iidkkXNpM2ADFrfasPMUvXaEKwjyVGcJNq87wUXwF",
+          "finalTransfers": 2,
+          "financialSignaturesValid": true,
+          "actualServiceMicroUsd": "45",
+          "principal": {
+            "P": "501000000000000000000",
+            "C": "45000000000000000000",
+            "H": "0",
+            "W": "0",
+            "R": "456000000000000000000"
+          },
+          "agentGasActualYocto": "44636512500000000000",
+          "merchantGasActualYocto": "834989537500000000000",
+          "providerVerification": "recorded-official-SDK-runtime-provider_tee",
+          "providerSignatureRecorded": true,
+          "modelEncryptedWireReverifiedOffline": false,
+          "broadcasts": 0,
+          "providerCalls": 0,
+          "budgetYocto": "30000000000000000000000",
+          "frozenPolicyVerified": true
+        }
+      ]
+    }
+  },
+  "compatibility": {
+    "mainOrdinaryKeyVerifier": "services/mpp-near-direct/p3/native-verification.mjs",
+    "outlayerVerifier": "services/mpp-near-direct/p3/outlayer-native-verification.mjs",
+    "mainFundingPreflight": "services/mpp-near-direct/p3/preflight.mjs",
+    "outlayerPreflight": "services/mpp-near-direct/p3/outlayer-preflight.mjs",
+    "nativeModelAndBridgeRoutesPreserved": true,
+    "requestProfileOfferingSlotsPreserved": true
+  },
+  "notAccepted": [
+    "real browser owner wallet",
+    "original Market/autobidder/tools with real provider and real chain jointly",
+    "mainnet funding or inference",
+    "hosted native ACK/idempotency fault injection",
+    "independent hosted OutLayer attestation",
+    "production deployment"
+  ],
+  "independentSubagentReview": false,
+  "deploymentAttempted": false,
+  "hostedCiClaimed": false,
+  "validationNotes": [
+    "All dependencies freshly installed from lockfiles in an isolated integration worktree.",
+    "Rust host rebuilt after combining request-profile slots with main native-model/verified-bridge support.",
+    "Original acceptance source hashes remain bound to initialAcceptanceCommit; this manifest hashes the combined source.",
+    "No new provider or chain send was needed during final-source replay; the same original successful orders and fresh RPC audits were checked.",
+    "Generated E2EE test vectors were restored to their committed values after tests."
+  ]
+}

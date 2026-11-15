@@ -1,0 +1,198 @@
+{
+  "reviewedHead": "ab6ea3f40d99b9ccb00e1edb5d5e2329d0770868",
+  "sourceFilesSha256": {
+    "clients/agent-playground/package.json": "b3f895cdb4fca14e9b2b9411aa198378c2059bfd22c6b266bf27bf2aba9580c1",
+    "clients/agent-playground/src/p3.ts": "f9328ac14620b1217765197a042ef90ccd1ec2a9d1f86674808aeaebc28d95a6",
+    "clients/agent-playground/test/p3.test.mjs": "f317b0da967c440c26bdd643653d64fef1097047c8a2608464e22d2aaf994620",
+    "scripts/accept-agent-mpp-p3-native.py": "998fdd38000465f096e40981c061b158b3bdbbf012a738db401dff183b271c3a",
+    "scripts/accept-agent-mpp-p3.py": "0927da61c454081a44c4df649696db3d529b5e4f7cdf34ad73e51aad28a56a24",
+    "scripts/accept-agent-mpp-p3.sh": "161ccb9a9a1c22a4388d595454c951e4f3c11152b3d64a7f11afbc37381bcc5f",
+    "services/mpp-near-direct/p1/server.mjs": "611de11314575eba90fd24dd07cf4612ebe5cef7701f88880a8ce110b9dca660",
+    "services/mpp-near-direct/p3/authority.mjs": "f00f2f176a5aee7c675c8ee61cdd2cc2c1586ba50920e6209123a9432778bee6",
+    "services/mpp-near-direct/p3/native-profiles.mjs": "cff4577a26b609b744fa75e5e3a23795ed4cd3c24885c1acc1e0a839c56c0d57"
+  },
+  "binarySha256": "362837ae770845b7d09e8f0cd008b8f09178e218e59519826f736a716788bc10",
+  "runtime": "Node 24.22.1",
+  "validation": {
+    "nodeTests": {
+      "passed": 84,
+      "failed": 0
+    },
+    "p3UiHandlerTests": {
+      "passed": 4,
+      "failed": 0
+    },
+    "p3BrowserBuild": "passed",
+    "p3IntegrationScenarios": {
+      "passed": 12,
+      "failed": 0
+    }
+  },
+  "integration": [
+    {
+      "scope": "local-original-market-and-outlayer-shaped-doubles",
+      "realChain": false,
+      "realProvider": false,
+      "cases": [
+        {
+          "case": "two-fx-native-outlayer-principal-gas-refunds-restart",
+          "passed": true,
+          "counts": {
+            "tools": 2,
+            "refunds": 4,
+            "payments": 4,
+            "executions": 4,
+            "chainTransfers": 8
+          }
+        },
+        {
+          "case": "paid-signature-failure-refunds-without-admission-or-repay",
+          "passed": true,
+          "counts": {
+            "tools": 0,
+            "refunds": 1,
+            "payments": 1,
+            "executions": 0,
+            "chainTransfers": 2
+          }
+        },
+        {
+          "case": "lost-native-ack-survives-restart-without-second-post-or-release",
+          "passed": true
+        },
+        {
+          "case": "owner-revocation-stops-new-effects-keeps-read-recovery",
+          "passed": true
+        },
+        {
+          "case": "project-cost-revocation-fences-both-agents-private-plan-owner-only",
+          "passed": true
+        },
+        {
+          "case": "pause-revoke-reauthorize-resume-original-fx-tool-turn",
+          "passed": true,
+          "counts": {
+            "tools": 1,
+            "refunds": 2,
+            "payments": 2,
+            "executions": 2,
+            "chainTransfers": 4
+          }
+        }
+      ]
+    },
+    {
+      "realChain": false,
+      "realProvider": false,
+      "scope": "original-native-source-qualification-with-loopback-provider-double",
+      "cases": [
+        {
+          "case": "request-specific-real-token-count-native-qualification-two-fx-tasks",
+          "passed": true,
+          "counts": {
+            "tools": 2,
+            "refunds": 4,
+            "payments": 4,
+            "executions": 4,
+            "chainTransfers": 8
+          },
+          "providerDoubleCalls": [
+            {
+              "calibration": true,
+              "inputTokens": 106,
+              "hasToolResult": false
+            },
+            {
+              "calibration": false,
+              "inputTokens": 106,
+              "hasToolResult": false
+            },
+            {
+              "calibration": true,
+              "inputTokens": 175,
+              "hasToolResult": true
+            },
+            {
+              "calibration": false,
+              "inputTokens": 175,
+              "hasToolResult": true
+            },
+            {
+              "calibration": true,
+              "inputTokens": 106,
+              "hasToolResult": false
+            },
+            {
+              "calibration": false,
+              "inputTokens": 106,
+              "hasToolResult": false
+            },
+            {
+              "calibration": true,
+              "inputTokens": 175,
+              "hasToolResult": true
+            },
+            {
+              "calibration": false,
+              "inputTokens": 175,
+              "hasToolResult": true
+            }
+          ],
+          "oneOriginalHost": true
+        },
+        {
+          "case": "calibration-ack-loss-keeps-project-reservation-no-agent-payment-or-repost",
+          "passed": true
+        },
+        {
+          "case": "paid-response-replay-after-profile-switch-and-restart",
+          "passed": true,
+          "providerDoubleCalls": 4,
+          "payments": 2
+        },
+        {
+          "case": "paid-response-replay-after-unknown-calibration-and-restart",
+          "passed": true,
+          "providerDoubleCalls": 3,
+          "payments": 1
+        },
+        {
+          "case": "qualification-retries-preserve-slots-for-next-agent",
+          "passed": true,
+          "minimumRetries": 40,
+          "slots": [
+            1,
+            2
+          ],
+          "providerDoubleCalls": 4
+        }
+      ]
+    },
+    {
+      "scope": "controlled-wallet-owner-http-integration-not-browser-or-chain-acceptance",
+      "realChain": false,
+      "cases": [
+        {
+          "case": "owner-login-create-policy-native-funding-activate-grants-task-logout",
+          "passed": true,
+          "wallets": 2,
+          "fundingTransfers": 2,
+          "policyAckRecovery": true,
+          "duplicateFundingRefused": true,
+          "csrfRefused": true
+        }
+      ]
+    }
+  ],
+  "realChain": false,
+  "realProvider": false,
+  "browserOwnerWalletAcceptance": false,
+  "environmentNotes": [
+    "Two matrix launches stopped before scenario initialization because the prebuilt target directory had been relocated. The full matrix passed after locating and hashing the byte-identical binary."
+  ],
+  "notRerun": [
+    "Rust unit tests (Rust source and binary unchanged)",
+    "Full historical P1/P2 integration suites",
+    "Real-chain component canary"
+  ]
+}

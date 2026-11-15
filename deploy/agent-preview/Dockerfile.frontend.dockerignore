@@ -12,6 +12,8 @@
 !services/mpp-near-direct/package*.json
 !services/mpp-near-direct/p2/
 !services/mpp-near-direct/p2/**
+!services/mpp-near-direct/client/
+!services/mpp-near-direct/client/**
 **/node_modules
 **/dist
 **/.env*

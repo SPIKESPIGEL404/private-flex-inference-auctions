@@ -202,6 +202,8 @@ export function prepareComparison({
   budgetPerArmMicro,
   deadlineMs,
   ownerAccount,
+  taskDurationMs = 30000,
+  sequenceIndex = 0,
   now = Date.now(),
 }) {
   const common = comparisonRequest(request),
@@ -229,8 +231,20 @@ export function prepareComparison({
       /^[a-z0-9._-]{2,64}$/.test(ownerAccount),
     "owner_account_required",
   );
+  check(
+    Number.isSafeInteger(taskDurationMs) &&
+      taskDurationMs > 0 &&
+      taskDurationMs <= 3600000 &&
+      Number.isSafeInteger(sequenceIndex) &&
+      sequenceIndex >= 0,
+    "invalid_comparison_schedule",
+  );
+  check(
+    now + 2 * taskDurationMs <= deadlineMs,
+    "insufficient_authorization_window",
+  );
   const body = {
-    version: 1,
+    version: 2,
     phase: "fixed-supply-comparison",
     mode: "operator-market",
     ownerAccount,
@@ -240,7 +254,9 @@ export function prepareComparison({
     request: common,
     requestHash: digest(common),
     budgetPerArmMicro,
-    executionOrder: ["A", "B"],
+    taskDurationMs,
+    sequenceIndex,
+    executionOrder: sequenceIndex % 2 === 0 ? ["A", "B"] : ["B", "A"],
     cachePolicy: "provider-managed-observe-reported-hits",
     arms: {
       A: {
@@ -273,6 +289,8 @@ export function validateComparison(plan, now = Date.now()) {
     budgetPerArmMicro: plan.budgetPerArmMicro,
     deadlineMs: plan.deadlineMs,
     ownerAccount: plan.ownerAccount,
+    taskDurationMs: plan.taskDurationMs,
+    sequenceIndex: plan.sequenceIndex,
     now: plan.createdAtMs,
   });
   check(

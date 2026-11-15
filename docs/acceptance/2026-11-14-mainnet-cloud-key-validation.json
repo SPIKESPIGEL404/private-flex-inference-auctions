@@ -1,0 +1,39 @@
+{
+  "scope": "single-paid-cloud-key-validation-only",
+  "model": "Qwen/Qwen3.8-27B",
+  "state": "verified",
+  "httpStatus": 200,
+  "requestHash": "b4ac2d7ad1e92c745b1d21915a682122fa7a76de1d4eacbb5503f3a189452bf6",
+  "responseSha256": "f2466bccfda9acf83264a96a19c0aa85aff51583d4541cc5e5c49c0dfdbca51a",
+  "responseId": "f4e1ad203f1348fa882dae39c656bf77",
+  "usage": {
+    "prompt_tokens": 61,
+    "total_tokens": 91,
+    "completion_tokens": 30,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "reasoning_tokens": 27,
+    "completion_tokens_details": {
+      "reasoning_tokens": 27
+    }
+  },
+  "signatureKind": "provider_tee",
+  "maximumProjectMicroUsd": "501",
+  "actualAtFrozenTariffMicroUsd": "43",
+  "postsThisProcess": 1,
+  "maximumPosts": 1,
+  "mainnetTransactions": 0,
+  "walletsCreated": 0,
+  "providerInvoiceVerified": false,
+  "observedAt": "2026-11-15T02:36:48.420Z",
+  "encryptedOriginalJournalRestartReplay": {
+    "network": "none",
+    "posts": 0,
+    "sameResponseSha256": true,
+    "sameUsage": true
+  },
+  "realInference": true,
+  "mppAuctionTaskAcceptance": false,
+  "ownerBrowserAcceptance": false
+}
