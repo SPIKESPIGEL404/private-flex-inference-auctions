@@ -22,6 +22,7 @@ test("CLI prepares reviewable private files and rejects wrong hash before verify
         ownerAccount: "controlled.near",
         budgetPerArmMicro: "10000",
         deadlineMs: now + 60000,
+        taskDurationMs: 20000,
         request,
         selfHostedTariff: {
           rates: tariff.rates,

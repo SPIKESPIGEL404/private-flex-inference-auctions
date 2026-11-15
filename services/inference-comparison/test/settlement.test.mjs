@@ -62,12 +62,13 @@ test("late settlement reconciles after expiry with zero new dispatches", async (
     },
     {
       now: () => (settled ? time + 100000 : time),
-      executor: async (_, { arm }) => ({
+      executor: async (_, { arm, readOnly }) => ({
         identity: { marketVerified: true },
         async supply() {
           return { state: "ready", expiresAtMs: time + 100000 };
         },
         async dispatch() {
+          assert.notEqual(readOnly, true);
           dispatches++;
           return new Response(stream(arm.model), {
             headers: {
@@ -80,6 +81,7 @@ test("late settlement reconciles after expiry with zero new dispatches", async (
           return {};
         },
         async receipt(id, key) {
+          assert.equal(readOnly, true);
           if (!settled) throw Error("pending");
           return receipt(id, key);
         },
