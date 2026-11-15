@@ -23,7 +23,9 @@ readiness, secret delivery or live payment behavior.
 Public NEAR AI model listing and strict SDK 0.3.0 UpToDate attestation were checked
 read-only. These public interfaces do not validate billing credit. The runtime
 now requires a bounded, project-funded paid probe before opening agent purchases.
-No real probe, inference or Mainnet transfer was made during this integration.
+A subsequent one-call Cloud key test passed with a real verified response (see the
+adjacent key-validation evidence). It does not establish a Mainnet MPP task or
+the integrated runtime probe. No Mainnet transfer was made.
 
 The screenshot below uses controlled API responses with every wallet mutation
 disabled. It verifies layout and distinct principal/gas/refund information; it

@@ -72,7 +72,7 @@
   "realInference": false,
   "cvmModified": false,
   "releaseGates": [
-    "private valid Cloud key file",
+    "private key delivery in the hosted runtime",
     "reviewed exact funded canary and total allowance",
     "fresh sourced FX",
     "real owner wallet policy/funding",
@@ -115,5 +115,13 @@
     "realChainPaymentsTested": false,
     "realInferenceTested": false,
     "anonymousDigestPullVerified": true
+  },
+  "cloudKeyValidation": {
+    "evidence": "2026-11-14-mainnet-cloud-key-validation.json",
+    "realInference": true,
+    "paidSdkPosts": 1,
+    "usageVerified": true,
+    "mainnetTransactions": 0,
+    "integratedMppTask": false
   }
 }
