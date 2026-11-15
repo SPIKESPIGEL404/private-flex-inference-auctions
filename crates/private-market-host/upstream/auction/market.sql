@@ -8,8 +8,8 @@ CREATE TABLE public.mpp_direct_auction_state(singleton boolean PRIMARY KEY CHECK
  next_cutoff_ms bigint NOT NULL,sequence bigint NOT NULL DEFAULT 0,capacity_allocation text);
 CREATE TABLE public.mpp_direct_auction_budgets(id text PRIMARY KEY,kind text NOT NULL CHECK(kind IN('owner','agent','task')),
  owner_id text NOT NULL,agent_id text,cap_nano bigint NOT NULL CHECK(cap_nano>0),reserved_nano bigint NOT NULL DEFAULT 0 CHECK(reserved_nano>=0),
- spent_nano bigint NOT NULL DEFAULT 0 CHECK(spent_nano>=0),revision bigint NOT NULL DEFAULT 0,active boolean NOT NULL DEFAULT true,
- deadline_ms bigint NOT NULL,CHECK(reserved_nano+spent_nano<=cap_nano));
+ spent_nano bigint NOT NULL DEFAULT 0 CHECK(spent_nano>=0),overrun_nano bigint NOT NULL DEFAULT 0 CHECK(overrun_nano>=0),revision bigint NOT NULL DEFAULT 0,active boolean NOT NULL DEFAULT true,
+ deadline_ms bigint NOT NULL,CHECK(reserved_nano+spent_nano<=cap_nano+overrun_nano));
 CREATE TABLE public.mpp_direct_auction_agents(id text PRIMARY KEY,owner_id text NOT NULL,credential_hash text UNIQUE NOT NULL,
  payer text UNIQUE NOT NULL,binding_version text NOT NULL,owner_budget text NOT NULL REFERENCES public.mpp_direct_auction_budgets,
  agent_budget text NOT NULL REFERENCES public.mpp_direct_auction_budgets,balance jsonb NOT NULL,
@@ -82,7 +82,7 @@ BEGIN
  ignored:=CASE TG_TABLE_NAME
   WHEN 'mpp_direct_auction_agents' THEN ARRAY['active','balance','native_reserved']
   WHEN 'mpp_direct_auction_grants' THEN ARRAY['active','revision']
-  WHEN 'mpp_direct_auction_budgets' THEN ARRAY['active','revision','cap_nano','reserved_nano','spent_nano']
+  WHEN 'mpp_direct_auction_budgets' THEN ARRAY['active','revision','cap_nano','reserved_nano','spent_nano','overrun_nano']
   WHEN 'mpp_direct_auction_bids' THEN ARRAY['state','revision','bid_multiplier','accepted_sequence','accepted_ms']
   ELSE ARRAY['state','result'] END;
  IF TG_OP='DELETE' OR (to_jsonb(OLD)-ignored) IS DISTINCT FROM (to_jsonb(NEW)-ignored)

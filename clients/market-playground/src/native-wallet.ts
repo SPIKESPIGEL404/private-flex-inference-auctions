@@ -189,13 +189,23 @@ export class NativeWalletController {
   ) {}
   private authNetwork: "mainnet" | "testnet" = "mainnet";
   private ownerOnly = false;
-  configureAuthentication(network: "mainnet" | "testnet", ownerOnly = false) {
-    if (this.authNetwork !== network || this.ownerOnly !== ownerOnly) {
+  private outlayer = false;
+  configureAuthentication(
+    network: "mainnet" | "testnet",
+    ownerOnly = false,
+    outlayer = false,
+  ) {
+    if (
+      this.authNetwork !== network ||
+      this.ownerOnly !== ownerOnly ||
+      this.outlayer !== outlayer
+    ) {
       this.lock();
       this.connector = undefined;
     }
     this.authNetwork = network;
     this.ownerOnly = ownerOnly;
+    this.outlayer = outlayer;
   }
   private provider() {
     return this.dependencies.provider?.() ?? new JsonRpcProvider({ url: RPC });
@@ -348,7 +358,7 @@ export class NativeWalletController {
         features: {
           signInAndSignMessage: true,
           signMessage: true,
-          signAndSendTransactions: !this.ownerOnly,
+          signAndSendTransactions: !this.ownerOnly || this.outlayer,
         },
       });
       this.connector.on("wallet:signOut", () => {
@@ -368,6 +378,70 @@ export class NativeWalletController {
       });
     }
     return this.connector;
+  }
+  async signOwnerTransaction(
+    transaction: {
+      signerId: string;
+      receiverId: string;
+      actions: Array<{ type: string; params: Record<string, unknown> }>;
+    },
+    payer: string,
+    purpose: "payment" | "withdrawal" = "payment",
+  ) {
+    const owner = this.state.owner?.account_id,
+      e = this.epoch;
+    if (
+      !this.outlayer ||
+      this.authNetwork !== "mainnet" ||
+      !owner ||
+      transaction.signerId !== owner ||
+      !/^[a-f0-9]{64}$/.test(payer) ||
+      transaction.actions.length !== 1
+    )
+      throw Error("Mainnet owner transaction binding mismatch.");
+    const action = transaction.actions[0],
+      p = action.params;
+    if (purpose === "withdrawal" && action.type !== "FunctionCall")
+      throw Error("Owner exit requires an owner-only policy transaction.");
+    if (action.type === "Transfer") {
+      if (
+        transaction.receiverId !== payer ||
+        typeof p.deposit !== "string" ||
+        !/^[1-9]\d*$/.test(p.deposit) ||
+        BigInt(p.deposit) > 10n ** 23n
+      )
+        throw Error("Funding exceeds the bounded Mainnet flow.");
+    } else if (action.type === "FunctionCall") {
+      const args = p.args as Record<string, unknown>;
+      if (
+        transaction.receiverId !== "outlayer.near" ||
+        !["store_wallet_policy", "freeze_wallet"].includes(
+          String(p.methodName),
+        ) ||
+        args?.wallet_pubkey !== "ed25519:" + payer ||
+        p.gas !== "30000000000000" ||
+        typeof p.deposit !== "string" ||
+        !/^\d+$/.test(p.deposit) ||
+        BigInt(p.deposit) > 10n ** 22n ||
+        (p.methodName === "store_wallet_policy" &&
+          (args.storage_refund_to !== null ||
+            args.locked !== false ||
+            (purpose === "withdrawal"
+              ? !Number.isSafeInteger(args.version) || Number(args.version) < 2
+              : args.version !== 1)))
+      )
+        throw Error("Unexpected OutLayer policy transaction.");
+    } else throw Error("Unsupported owner transaction.");
+    const connector = await this.getConnector(),
+      wallet = await connector.wallet();
+    if (!(await wallet.getAccounts()).some((a) => a.accountId === owner))
+      throw Error("Select the connected owner account in your wallet.");
+    this.assertOwner(owner, e);
+    const result = await wallet.signAndSendTransaction(
+      transaction as Parameters<typeof wallet.signAndSendTransaction>[0],
+    );
+    this.assertOwner(owner, e);
+    return result?.transaction?.hash;
   }
   async connect() {
     const loginEpoch = this.epoch;

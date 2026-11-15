@@ -37,6 +37,10 @@ export class FileCredentials {
     requireThat(((await stat(this.directory)).mode&0o077)===0,'wallet_credential_directory_must_be_private');
     const file=await open(resolve(this.directory,ref+'.json'),'wx',0o600);
     try { await file.writeFile(JSON.stringify(value));await file.sync(); } finally { await file.close(); }
+    // Registration may become fundable after this returns. Persist the new
+    // directory entry too, before committing its ready binding in PostgreSQL.
+    const directory=await open(this.directory,'r');
+    try {await directory.sync();} finally {await directory.close();}
   }
   async get(ref) {
     requireThat(typeof ref === 'string' && /^[a-zA-Z0-9_-]{1,96}$/.test(ref), 'invalid_credential_reference');

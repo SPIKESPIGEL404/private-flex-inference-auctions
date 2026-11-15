@@ -283,6 +283,7 @@ export async function createMemoryTask({
 
 export function procurementTransport({
   url,
+  nativeChat = false,
   authorizationId,
   agentId,
   bidMultiplier = "1000000",
@@ -296,18 +297,20 @@ export function procurementTransport({
 }) {
   return {
     async invoke({ body, runId, logicalCallId, requestHash, signal }) {
-      const payload = JSON.stringify({
-        authorizationId,
-        agentId,
-        bidMultiplier,
-        maxTotalMicro,
-        expiryMs,
-        runId,
-        logicalCallId,
-        requestHash,
-        body,
-      });
-      let originalChallenge;
+      const payload = nativeChat
+        ? body
+        : JSON.stringify({
+            authorizationId,
+            agentId,
+            bidMultiplier,
+            maxTotalMicro,
+            expiryMs,
+            runId,
+            logicalCallId,
+            requestHash,
+            body,
+          });
+      let originalChallenge, paymentAuthorization;
       for (let attempt = 0; ; attempt++) {
         signal?.throwIfAborted();
         try {
@@ -320,6 +323,19 @@ export function procurementTransport({
             headers: {
               "content-type": "application/json",
               "idempotency-key": logicalCallId,
+              ...(paymentAuthorization
+                ? { authorization: paymentAuthorization }
+                : {}),
+              ...(nativeChat
+                ? {
+                    "x-agent-id": agentId,
+                    "x-auction-grant": authorizationId,
+                    "x-auction-bid": bidMultiplier,
+                    "x-auction-call-cap-micro": maxTotalMicro,
+                    "x-auction-expiry-ms": String(expiryMs),
+                    "x-native-request-sha256": requestHash,
+                  }
+                : {}),
             },
             body: payload,
           });
@@ -332,7 +348,9 @@ export function procurementTransport({
             if (originalChallenge && originalChallenge !== status.challenge.id)
               throw Error("replacement_payment_forbidden");
             originalChallenge = status.challenge.id;
-            await onPaymentChallenge(status, signal);
+            const paid = await onPaymentChallenge(status, signal);
+            if (paid?.paymentAuthorization)
+              paymentAuthorization = paid.paymentAuthorization;
           } else if (
             ![202, 503].includes(response.status) ||
             attempt >= maxRetries

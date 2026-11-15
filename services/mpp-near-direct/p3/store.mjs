@@ -5,7 +5,7 @@ export class OperationStore {
   async create(row, db = this.pool) {
     requireThat(row.fingerprint === hash(row.frozen), 'operation_fingerprint_mismatch');
     await db.query(`INSERT INTO mpp_direct_p3_operations(id,order_ref,kind,user_id,task_id,payer,frozen,fingerprint,state,document)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO NOTHING`,
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT DO NOTHING`,
     [row.id,row.orderRef,row.frozen.kind,row.frozen.userId,row.frozen.taskId,row.frozen.binding.payer,row.frozen,row.fingerprint,row.state,row]);
     const old = (await db.query('SELECT document FROM mpp_direct_p3_operations WHERE id=$1',[row.id])).rows[0]?.document;
     requireThat(old?.fingerprint === row.fingerprint, 'original_operation_conflict');

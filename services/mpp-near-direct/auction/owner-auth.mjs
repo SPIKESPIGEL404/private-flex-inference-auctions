@@ -3,12 +3,7 @@ import { NearRpc } from "../../../clients/buyer-gateway/src/near.mjs";
 import { requireThat as check } from "../contract.mjs";
 // Reuse ordinary NEP-413 owner login. This volatile store contains authentication
 // challenges/cookies only; no agent turns, task instructions or workspaces.
-export function ownerAuth({
-  origin,
-  network = "testnet",
-  rpcUrl = "https://rpc.testnet.near.org",
-  rpc,
-}) {
+export function ownerAuth({ origin, network = "testnet", rpcUrl, rpc }) {
   const records = new Map();
   const store = {
     get(kind, id) {
@@ -26,7 +21,8 @@ export function ownerAuth({
         .map((v) => v.value);
     },
   };
-  const reader = rpc ?? new NearRpc(rpcUrl);
+  const reader =
+    rpc ?? new NearRpc(rpcUrl ?? `https://rpc.${network}.near.org`);
   const verified = {
     async fullAccess(accountId, publicKey) {
       if (!rpc) {

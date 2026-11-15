@@ -856,6 +856,15 @@ async fn main() -> Result<()> {
             println!("native request passes the fixed platform meter and output contract");
             Ok(())
         }
+        ("verify-auction-schema", 3) => {
+            let state: State = live::read(Path::new(&args[2]).join("state.json").as_path())?;
+            let (database, _) = targets()?;
+            ensure!(state.database == database, "owning database identity changed");
+            let conn = Database::connect(database).await?;
+            bitrouter_cloud::market::pg::paid_orders::verify(&conn).await?;
+            println!("owning native-auction financial schema verified");
+            Ok(())
+        }
         ("serve", 3) => serve(Path::new(&args[2])).await,
         _ => anyhow::bail!("expected init, init-deploy, serve, or emit-deploy-catalog"),
     }

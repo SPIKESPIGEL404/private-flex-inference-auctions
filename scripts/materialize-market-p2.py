@@ -40,21 +40,21 @@ assert original.count('let hash = fingerprint(db).await?;')==1,'owning install a
 module.write_text(original.replace('let hash = fingerprint(db).await?;', '''if std::env::var("PRIVATE_MARKET_AGENT_P2").as_deref() == Ok("controlled") {
             db.execute_unprepared(include_str!("paid_tasks.sql")).await?;
         }
-        if std::env::var("PRIVATE_MARKET_AUCTION").as_deref() == Ok("controlled") {
+        if matches!(std::env::var("PRIVATE_MARKET_AUCTION").as_deref(), Ok("controlled" | "bounded-mainnet-v1")) {
             db.execute_unprepared(include_str!("auction.sql")).await?;
         }
         let hash = fingerprint(db).await?;'''))
-patched=module.read_text()
-verify_anchor='pub(super) async fn verify(db: &impl ConnectionTrait) -> Result<()> {'
+patched=module.read_text().replace('pub(super) async fn verify(', 'pub async fn verify(')
+verify_anchor='pub async fn verify(db: &impl ConnectionTrait) -> Result<()> {'
 assert patched.count(verify_anchor)==1
 module.write_text(patched.replace(verify_anchor, verify_anchor+'''
     let auction = db.query_one(sql(
         "SELECT to_regclass('public.mpp_direct_auction_state') IS NOT NULL AS found", vec![]
     )).await?.context("auction mode probe")?.try_get::<bool>("", "found")?;
-    ensure!(auction == (std::env::var("PRIVATE_MARKET_AUCTION").as_deref() == Ok("controlled")),
+    ensure!(auction == (matches!(std::env::var("PRIVATE_MARKET_AUCTION").as_deref(), Ok("controlled" | "bounded-mainnet-v1"))),
         "native auction mode differs from owning schema");
 '''))
 shutil.copyfile(source_dir/'paid_tasks.sql',target/'src/market/pg/paid_tasks.sql')
-shutil.copyfile(auction_dir/'market.sql',target/'src/market/pg/auction.sql')
+(target/'src/market/pg/auction.sql').write_bytes((auction_dir/'market.sql').read_bytes()+(auction_dir/'live.sql').read_bytes())
 marker.write_text(json.dumps({'base':PIN,'patch_sha256':digest,'source_sha256':tree_hash()},indent=2)+'\n')
 print(str(target))

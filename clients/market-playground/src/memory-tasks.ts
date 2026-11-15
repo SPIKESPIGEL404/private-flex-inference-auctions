@@ -70,6 +70,8 @@ interface Order {
   financial?: { totalMicro?: string };
 }
 interface MarketData {
+  inferenceEndpoint?: string;
+  roots?: Grant[];
   grants: Grant[];
   bids: Bid[];
   service: Service;
@@ -217,7 +219,7 @@ export class MemoryTaskController {
   }
   private publish() {
     const limits = new Map<string, AgentLimit>();
-    for (const g of this.data?.grants ?? [])
+    for (const g of this.data?.roots ?? this.data?.grants ?? [])
       limits.set(g.agent_id, {
         agent_id: g.agent_id,
         budget_nano: g.agent_cap_nano,
@@ -319,7 +321,7 @@ export class MemoryTaskController {
     this.value = { ...this.value, ownerScope };
     this.data = data;
     this.orders = financial.orders;
-    for (const grant of data.grants)
+    for (const grant of data.roots ?? data.grants)
       if (
         ![...this.rows.values()].some(
           (r) => r.session.agent_id === grant.agent_id,
@@ -341,7 +343,9 @@ export class MemoryTaskController {
     preference: Preference,
     auction: AuctionSettings,
   ) {
-    const root = this.data?.grants.find((g) => g.agent_id === agentId);
+    const root = (this.data?.roots ?? this.data?.grants)?.find(
+      (g) => g.agent_id === agentId,
+    );
     if (!root) throw Error("Agent authorization is unavailable.");
     const id = crypto.randomUUID(),
       numbers = agentId.endsWith("b") ? [5, 5, 9] : [3, 7, 32];
@@ -399,7 +403,9 @@ export class MemoryTaskController {
     budgetNano: string,
     auction: AuctionSettings,
   ) {
-    const root = this.data?.grants.find((g) => g.agent_id === agentId);
+    const root = (this.data?.roots ?? this.data?.grants)?.find(
+      (g) => g.agent_id === agentId,
+    );
     if (
       !root ||
       !prompt.trim() ||
@@ -468,7 +474,7 @@ export class MemoryTaskController {
     row.abort = new AbortController();
     this.progress(row, "Preparing authorization");
     try {
-      const root = this.data!.grants.find(
+      const root = (this.data!.roots ?? this.data!.grants).find(
         (g) => g.agent_id === row.session.agent_id,
       )!;
       const deadlineMs = Math.min(
@@ -564,7 +570,8 @@ export class MemoryTaskController {
         );
         alive();
         const transport = procurementTransport({
-          url: "/buyer-api/procure",
+          url: this.data?.inferenceEndpoint ?? "/buyer-api/procure",
+          nativeChat: this.data?.inferenceEndpoint !== undefined,
           agentId: row.session.agent_id,
           authorizationId: row.grant!.id,
           bidMultiplier: local.bidMultiplier,
@@ -648,7 +655,7 @@ export class MemoryTaskController {
               `Model call ${local!.ordinal} · allocated · paying original order`,
             );
             try {
-              await this.api(
+              return await this.api<{ paymentAuthorization?: string | null }>(
                 "orders/" + status.allocationId + "/pay",
                 {
                   challengeId: status.challenge.id,

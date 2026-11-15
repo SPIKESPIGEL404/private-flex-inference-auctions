@@ -476,7 +476,8 @@ test("two independent client agents: real fx/tools through HTTP auction, stable 
           headers: { ...init.headers, authorization: "Bearer token-" + id },
         });
       const transport = procurementTransport({
-        url: app.url + "/market-api/procure",
+        url: app.url + "/market-api/v1/chat/completions",
+        nativeChat: true,
         authorizationId: "grant-" + id,
         agentId: id,
         bidMultiplier: id === "a" ? "1100000" : "1400000",

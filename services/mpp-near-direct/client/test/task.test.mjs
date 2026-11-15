@@ -5,6 +5,7 @@ import {
   sumTask,
   verifyArtifact,
   procurementTransport,
+  sha256,
 } from "../task.mjs";
 const completion = (message, finish_reason = "stop") => {
   const id = crypto.randomUUID();
@@ -151,4 +152,124 @@ test("new page runtime starts no model calls, tool files or persistent task rest
   } finally {
     await runtime.close();
   }
+});
+
+test("native MPP chat transport preserves exact OpenAI body and isolates bid metadata in headers", async () => {
+  const body =
+      '{"model":"Qwen/Qwen3.8-27B", "messages":[{"role":"user","content":"hello"}]}',
+    calls = [];
+  const transport = procurementTransport({
+    url: "https://auction.example/v1/chat/completions",
+    nativeChat: true,
+    agentId: "agent-a",
+    authorizationId: "grant-a",
+    bidMultiplier: "1200000",
+    maxTotalMicro: "5000",
+    expiryMs: 1800000000000,
+    fetcher: async (url, options) => {
+      calls.push({ url, options });
+      return new Response("data: [DONE]\n\n", {
+        headers: { "content-type": "text/event-stream" },
+      });
+    },
+  });
+  await transport.invoke({
+    body,
+    runId: "page-only",
+    logicalCallId: "logical-1",
+    requestHash: await sha256(body),
+  });
+  assert.equal(calls[0].options.body, body);
+  assert.equal(calls[0].options.headers["x-auction-grant"], "grant-a");
+  assert.equal(calls[0].options.headers["idempotency-key"], "logical-1");
+  assert.equal(calls[0].options.credentials, "same-origin");
+  assert.ok(!calls[0].options.body.includes("authorizationId"));
+});
+
+test("real fx text/bash requests pass live admission on both initial and tool-continuation calls", async () => {
+  const { qualify } = await import("../../auction/live/admission.mjs");
+  let n = 0;
+  const runtime = await createMemoryTask({
+    task: sumTask([3, 7, 32]),
+    model: "Qwen/Qwen3.8-27B",
+    deadlineMs: Date.now() + 20000,
+    backend: "native",
+    transport: {
+      async invoke(call) {
+        qualify(JSON.parse(call.body), call.body, {
+          model: "Qwen/Qwen3.8-27B",
+          minInputTokens: 0,
+          maxInputTokens: 32000,
+          tokenizer: "qwen-conservative-input-v1",
+        });
+        n++;
+        const message =
+          n === 1
+            ? {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    id: "bash-1",
+                    type: "function",
+                    function: {
+                      name: "bash",
+                      arguments: JSON.stringify({
+                        command:
+                          'cat /workspace/numbers.txt; printf \'{"sum":42,"count":3}\' > /workspace/result.json; cat /workspace/result.json',
+                      }),
+                    },
+                  },
+                ],
+              }
+            : { role: "assistant", content: "verified" };
+        const response = completion(message, n === 1 ? "tool_calls" : "stop");
+        return new Response(
+          (await response.text()).replaceAll("m/external", "Qwen/Qwen3.8-27B"),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      },
+    },
+  });
+  try {
+    const result = await runtime.run();
+    assert.equal(n, 2);
+    assert.equal(result.verification.outcome, "correct");
+  } finally {
+    await runtime.close();
+  }
+});
+
+test("native chat retries the original body with the bound Payment authorization after 402", async () => {
+  const headers = [];
+  let n = 0;
+  const transport = procurementTransport({
+    url: "https://auction.example/v1/chat/completions",
+    nativeChat: true,
+    authorizationId: "grant",
+    agentId: "agent",
+    expiryMs: 1800000000000,
+    retryDelayMs: 1,
+    maxRetries: 2,
+    onPaymentChallenge: async () => ({
+      paymentAuthorization: "Payment original-bound-proof",
+    }),
+    fetcher: async (_url, init) => {
+      headers.push(init.headers);
+      return ++n === 1
+        ? new Response(
+            JSON.stringify({ challenge: { id: "original-challenge" } }),
+            { status: 402 },
+          )
+        : new Response("data: [DONE]\n\n");
+    },
+  });
+  await transport.invoke({
+    body: "{}",
+    logicalCallId: "logical",
+    runId: "run",
+    requestHash: await sha256("{}"),
+  });
+  assert.equal(headers[0].authorization, undefined);
+  assert.equal(headers[1].authorization, "Payment original-bound-proof");
+  assert.equal(headers[1]["idempotency-key"], "logical");
 });

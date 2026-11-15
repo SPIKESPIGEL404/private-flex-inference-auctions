@@ -1,4 +1,6 @@
 import http from "node:http";
+import { LIVE_MODE } from "./live/policy.mjs";
+import { bounded } from "./live/timeouts.mjs";
 import { Challenge } from "mppx";
 import { ownerAuth as createOwnerAuth } from "./owner-auth.mjs";
 import { hash, requireThat as check } from "../contract.mjs";
@@ -11,7 +13,7 @@ const json = (res, status, value, headers = {}) => {
   });
   res.end(JSON.stringify(value));
 };
-async function read(req) {
+async function read(req, raw = false) {
   let size = 0;
   const chunks = [];
   for await (const b of req) {
@@ -19,29 +21,54 @@ async function read(req) {
     check(size <= 128 * 1024, "body_too_large");
     chunks.push(b);
   }
-  return JSON.parse(Buffer.concat(chunks).toString() || "{}");
+  const value = Buffer.concat(chunks).toString();
+  return raw ? value : JSON.parse(value || "{}");
 }
-export async function startAuctionServer({
+export const startAuctionServer = (options) =>
+  runServer({ ...options, mainnet: false });
+export const startMainnetAuctionServer = (options) =>
+  runServer({ ...options, mainnet: true });
+async function runServer({
   market,
   wallet,
   provider,
+  setup,
+  mainnet = false,
   ownerTokens = [],
   ownerAuth,
   ownerBindings = {},
   port = 0,
   uiOrigin = "http://127.0.0.1:4173",
 }) {
-  check(
-    market.config.mode === "controlled" &&
-      market.config.realBroadcastEnabled === false &&
-      wallet.scope === "controlled-fixture" &&
-      wallet.durableOriginalOperations === true &&
-      provider.scope === "controlled-fixture",
-    "real_auction_gate_closed",
-  );
+  if (mainnet)
+    check(
+      market.config.mode === LIVE_MODE &&
+        market.config.network === "mainnet" &&
+        market.config.realBroadcastEnabled === true &&
+        wallet.scope === LIVE_MODE &&
+        provider.scope === LIVE_MODE &&
+        wallet.durableOriginalOperations === true &&
+        setup &&
+        !ownerAuth &&
+        !ownerTokens.length &&
+        !Object.keys(ownerBindings).length &&
+        uiOrigin === market.config.livePlan.origin,
+      "reviewed_mainnet_server_required",
+    );
+  else
+    check(
+      market.config.mode === "controlled" &&
+        market.config.realBroadcastEnabled === false &&
+        wallet.scope === "controlled-fixture" &&
+        wallet.durableOriginalOperations === true &&
+        provider.scope === "controlled-fixture",
+      "real_auction_gate_closed",
+    );
   const ui = new URL(uiOrigin);
   check(
-    ui.protocol === "http:" && ui.hostname === "127.0.0.1",
+    mainnet
+      ? ui.protocol === "https:"
+      : ui.protocol === "http:" && ui.hostname === "127.0.0.1",
     "controlled_ui_loopback_required",
   );
   const auth =
@@ -59,12 +86,20 @@ export async function startAuctionServer({
     key +
     "=" +
     encodeURIComponent(value) +
-    "; HttpOnly; SameSite=Strict; Path=/";
+    "; HttpOnly; SameSite=Strict; Path=/" +
+    (mainnet ? "; Secure" : "");
   const ownerId = (owner) =>
     ownerBindings[owner.account_id] ??
     market.config.network + ":" + owner.account_id;
   let stopping = false,
     busy = false;
+  const balanceAt = new Map();
+  const complete = (id, permit, outcome) =>
+    outcome?.failure
+      ? market.failExecution(id, { ...permit, reason: outcome.failure })
+      : outcome
+        ? market.finishExecution(id, { ...permit, ...outcome })
+        : Promise.resolve();
   async function worker() {
     if (busy || stopping) return;
     busy = true;
@@ -105,18 +140,18 @@ export async function startAuctionServer({
             const permit = await market.claimExecution(a.id);
             try {
               const result = await provider.executeOriginal(permit);
-              await market.finishExecution(a.id, { ...permit, ...result });
+              await complete(a.id, permit, result);
             } catch {
               await market.executionUnknown(a.id, permit.claim);
             }
           } else {
             const original = await provider.recoverOriginal(a.execution_id);
             if (original)
-              await market.finishExecution(a.id, {
-                claim: a.dispatch_claim,
-                generation: String(a.generation),
-                ...original,
-              });
+              await complete(
+                a.id,
+                { claim: a.dispatch_claim, generation: String(a.generation) },
+                original,
+              );
           }
         } catch {
           /* Original execution liability stays reserved. */
@@ -129,17 +164,32 @@ export async function startAuctionServer({
       for (const a of refunds)
         try {
           const plan = await market.beginOperation(a.id, "refund"),
-            proof = await wallet.refundOriginal(plan.operation);
+            proof = await bounded(
+              wallet.refundOriginal(plan.operation),
+              mainnet ? 30000 : 10000,
+            );
           if (proof) await market.acceptVerifiedRefund(a.id, proof);
         } catch {
           await market.operationUnknown(a.id, "refund").catch(() => {});
         }
+      if (mainnet)
+        for (const r of (
+          await market.pool.query(
+            "SELECT id,owner_id FROM mpp_direct_live_withdrawals WHERE state IN('sending','unknown')",
+          )
+        ).rows)
+          try {
+            await bounded(setup.withdrawals.recover(r.owner_id, r.id), 30000);
+          } catch {}
       for (const a of (
         await market.pool.query(
           "SELECT id FROM mpp_direct_auction_agents WHERE active",
         )
       ).rows)
         try {
+          if (mainnet && Date.now() - (balanceAt.get(a.id) ?? 0) < 15000)
+            continue;
+          balanceAt.set(a.id, Date.now());
           await market.observeFinalBalance(a.id, (payer) =>
             wallet.balance(payer),
           );
@@ -156,10 +206,11 @@ export async function startAuctionServer({
     if (signedOwner)
       return (
         await market.pool.query(
-          "SELECT id FROM mpp_direct_auction_agents WHERE owner_id=$1 AND active ORDER BY id",
+          "SELECT id FROM mpp_direct_auction_agents WHERE owner_id=$1 ORDER BY id",
           [ownerId(signedOwner)],
         )
       ).rows.map((r) => r.id);
+    check(!mainnet, "unauthorized");
     const bearer = String(req.headers.authorization ?? "").replace(
       /^Bearer /,
       "",
@@ -186,33 +237,43 @@ export async function startAuctionServer({
       req.url = req.url.replace(/^\/buyer-api(?=\/)/, "/market-api");
       // Loopback-only controlled server. Reject cross-origin mutations and never
       // send credentials or native task bytes to a caller-selected URL.
+      if (mainnet && !["GET", "HEAD"].includes(req.method))
+        check(req.headers.origin === uiOrigin, "origin_required");
       if (req.headers.origin)
         check(
-          req.headers.origin === `http://127.0.0.1:${server.address().port}` ||
+          (!mainnet &&
+            req.headers.origin ===
+              `http://127.0.0.1:${server.address().port}`) ||
             req.headers.origin === uiOrigin,
           "origin_denied",
         );
       if (req.url === "/market-api/capabilities" && req.method === "GET")
         return json(res, 200, {
           version: 1,
-          mode: "controlled",
+          mode: mainnet ? LIVE_MODE : "controlled",
           taskRuntime: "client-memory-v1",
           network: market.config.network,
           tasks: true,
           walletSetup: false,
           ownerAuth: "nep413",
           nativeWallets: true,
-          nativeFunding: false,
-          realInferencePayments: false,
+          nativeFunding: mainnet,
+          inferenceEndpoint: mainnet
+            ? "/buyer-api/v1/chat/completions"
+            : undefined,
+          walletProvider: mainnet ? "outlayer" : "controlled",
+          realInferencePayments: mainnet,
           maxTasksPerAgent: 8,
           taskWindowMs: 180000,
-          realChainPayments: false,
-          realInference: false,
+          realChainPayments: mainnet,
+          realInference: mainnet,
         });
       if (req.url === "/market-api/attestation" && req.method === "GET")
         // This server is gated to local fixtures above, never a verified deployment.
         return json(res, 200, {
-          status: "controlled_local",
+          status: mainnet
+            ? "not_verified_by_this_endpoint"
+            : "controlled_local",
           compose_hash: null,
           catalog_policy_digest: null,
           workload_keyset_digest: null,
@@ -293,6 +354,26 @@ export async function startAuctionServer({
           },
         );
       }
+      if (
+        mainnet &&
+        /^\/market-api\/live-(wallets|funding|withdrawals)(\/|$)/.test(req.url)
+      ) {
+        let owner;
+        try {
+          owner = auth.owner(cookies(req).near_owner);
+        } catch {}
+        check(owner, "unauthorized");
+        return json(
+          res,
+          200,
+          await setup.handle(
+            owner.account_id,
+            req.url,
+            req.method,
+            req.method === "POST" ? await read(req) : undefined,
+          ),
+        );
+      }
       const ids = await agents(req);
       if (req.url === "/market-api/authorizations" && req.method === "GET") {
         const grants = (
@@ -308,12 +389,35 @@ export async function startAuctionServer({
             [ids],
           )
         ).rows;
+        const roots = mainnet
+          ? (
+              await market.pool.query(
+                `SELECT 'root-'||a.id AS id,a.id AS agent_id,a.payer,
+          '0'::text AS revision,false AS active,b.deadline_ms::text,b.deadline_ms::text AS agent_deadline_ms,
+          $2::text AS call_cap_micro,$2::text AS agent_call_cap_micro,$3::text AS gas_cap_yocto,
+          b.cap_nano::text,b.reserved_nano::text,b.spent_nano::text,b.cap_nano::text AS agent_cap_nano,
+          b.reserved_nano::text AS agent_reserved_nano,b.spent_nano::text AS agent_spent_nano
+          FROM mpp_direct_auction_agents a JOIN mpp_direct_auction_budgets b ON b.id=a.agent_budget WHERE a.id=ANY($1)`,
+                [
+                  ids,
+                  market.config.livePlan.callCapMicro,
+                  market.config.livePlan.gasReserveYocto,
+                ],
+              )
+            ).rows
+          : undefined;
         return json(res, 200, {
           bids,
           grants,
+          ...(mainnet
+            ? { inferenceEndpoint: "/buyer-api/v1/chat/completions" }
+            : {}),
+          ...(mainnet ? { roots } : {}),
           service: market.config.service,
           pricing: {
-            fx: market.config.fx,
+            fx: mainnet
+              ? await market.live.fx(market.pool, Date.now())
+              : market.config.fx,
             paymentWindowMs: market.config.paymentWindowMs,
             admissionWindowMs: market.config.admissionWindowMs,
           },
@@ -379,7 +483,16 @@ export async function startAuctionServer({
         check(proof, "original_payment_unknown");
         await market.acceptVerifiedPayment(row.id, proof);
         void worker();
-        return json(res, 200, { originalOperation: plan.operation.id });
+        return json(res, 200, {
+          originalOperation: plan.operation.id,
+          ...(mainnet
+            ? {
+                paymentAuthorization: await wallet.authorizationFor(
+                  row.order_id,
+                ),
+              }
+            : {}),
+        });
       }
       const revoke = req.url.match(
         /^\/market-api\/authorizations\/([a-zA-Z0-9_-]{1,128})\/revoke$/,
@@ -419,8 +532,26 @@ export async function startAuctionServer({
           await market.revise(b.agent_id, revise[1], await read(req)),
         );
       }
-      if (req.url === "/market-api/procure" && req.method === "POST") {
-        const input = await read(req);
+      const nativeChat = [
+        "/market-api/v1/chat/completions",
+        "/v1/chat/completions",
+      ].includes(req.url);
+      if (
+        (req.url === "/market-api/procure" || nativeChat) &&
+        req.method === "POST"
+      ) {
+        const input = nativeChat
+          ? {
+              agentId: req.headers["x-agent-id"],
+              authorizationId: req.headers["x-auction-grant"],
+              logicalCallId: req.headers["idempotency-key"],
+              body: await read(req, true),
+              requestHash: req.headers["x-native-request-sha256"],
+              bidMultiplier: req.headers["x-auction-bid"],
+              maxTotalMicro: req.headers["x-auction-call-cap-micro"],
+              expiryMs: Number(req.headers["x-auction-expiry-ms"]),
+            }
+          : await read(req);
         check(ids.includes(input.agentId), "unknown_agent");
         check(
           req.headers["idempotency-key"] === input.logicalCallId,
@@ -438,18 +569,39 @@ export async function startAuctionServer({
         });
         const status = await market.bidStatus(input.agentId, bid.bidId);
         if (!status.allocationId) return json(res, 202, status);
-        if (status.result)
-          return void (
-            res.writeHead(200, {
-              "content-type": "text/event-stream",
-              "cache-control": "no-store",
-              "x-order-id": status.orderId,
-            }),
-            res.end(status.result.sse)
+        if (
+          mainnet &&
+          nativeChat &&
+          status.paymentState === "confirmed" &&
+          !["fenced", "failed"].includes(status.executionState)
+        ) {
+          if (!req.headers.authorization)
+            return json(
+              res,
+              402,
+              { ...status, result: null },
+              { "www-authenticate": Challenge.serialize(status.challenge) },
+            );
+          await wallet.verifyPresentation(
+            status.orderId,
+            req.headers.authorization,
           );
-        if (status.executionState === "fenced")
+        }
+        if (status.result)
+          return void (res.writeHead(200, {
+            "content-type": "text/event-stream",
+            "cache-control": "no-store",
+            "x-order-id": status.orderId,
+          }),
+          res.end(status.result.sse));
+        if (["fenced", "failed"].includes(status.executionState))
           return json(res, 409, {
-            error: { code: "original_execution_fenced" },
+            error: {
+              code:
+                status.executionState === "failed"
+                  ? "original_execution_failed"
+                  : "original_execution_fenced",
+            },
             orderId: status.orderId,
           });
         if (status.paymentState !== "confirmed")
@@ -465,7 +617,7 @@ export async function startAuctionServer({
         : "original_operation_unknown";
       json(
         res,
-        code === "unauthorized"
+        ["unauthorized", "login_required"].includes(code)
           ? 401
           : /^unknown_|not_found/.test(code)
             ? 404
@@ -478,8 +630,13 @@ export async function startAuctionServer({
       );
     }
   });
+  server.requestTimeout = 15000;
+  server.headersTimeout = 10000;
   await new Promise((r) => server.listen(port, "127.0.0.1", r));
-  const timer = setInterval(() => void worker().catch(() => {}), 25);
+  const timer = setInterval(
+    () => void worker().catch(() => {}),
+    mainnet ? 1000 : 25,
+  );
   return {
     url: "http://127.0.0.1:" + server.address().port,
     worker,

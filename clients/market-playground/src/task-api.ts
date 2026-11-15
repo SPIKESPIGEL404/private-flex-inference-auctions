@@ -12,10 +12,11 @@ export interface Capabilities {
   nativeFunding?: boolean;
   nativeWallets?: boolean;
   ownerAuth?: "nep413" | "code";
-  mode: "controlled" | "wallet-setup";
+  mode: "controlled" | "wallet-setup" | "bounded-mainnet-v1";
+  walletProvider?: "outlayer" | "controlled";
   tasks: boolean;
   walletSetup: boolean;
-  realInferencePayments: false;
+  realInferencePayments: boolean;
   maxTasksPerAgent?: number;
   taskWindowMs?: number;
 }

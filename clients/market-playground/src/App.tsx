@@ -16,6 +16,7 @@ import { TaskActivity } from "./TaskActivity";
 import { SupplyAvailability } from "./SupplyAvailability";
 import { NativeWalletController } from "./native-wallet";
 import { NativeWallets } from "./NativeWallets";
+import { OutlayerWallets } from "./OutlayerWallets";
 import { WalletController } from "./wallet-api";
 import { WalletSetup } from "./WalletSetup";
 import { loadBrowserSession, resizeSession, tilePanes } from "./model";
@@ -50,6 +51,7 @@ export default function App({ active = true }: { active?: boolean }) {
     memoryController.subscribe,
     memoryController.snapshot,
   );
+  const mainnet = capabilities?.mode === "bounded-mainnet-v1";
   const memory = capabilities?.taskRuntime === "client-memory-v1";
   const [hosted, setHosted] = useState<Hosted | null>(null);
   const [nativeController] = useState(() => new NativeWalletController());
@@ -206,6 +208,8 @@ export default function App({ active = true }: { active?: boolean }) {
         setSelected(chosen);
       }
       setHosted(value);
+      if (memory)
+        setVisible((old) => (old.length ? old : value.agents.map((s) => s.id)));
       setError("");
     } catch (e) {
       if (requestEpoch !== epoch.current || switching.current) return;
@@ -228,16 +232,25 @@ export default function App({ active = true }: { active?: boolean }) {
       const value = await taskApi<Capabilities>("capabilities");
       if (
         value.version !== 1 ||
-        value.realInferencePayments !== false ||
+        value.realInferencePayments !== (value.mode === "bounded-mainnet-v1") ||
         !(
           (value.mode === "controlled" && value.tasks && !value.walletSetup) ||
-          (value.mode === "wallet-setup" && !value.tasks && value.walletSetup)
+          (value.mode === "wallet-setup" &&
+            !value.tasks &&
+            value.walletSetup) ||
+          (value.mode === "bounded-mainnet-v1" &&
+            value.network === "mainnet" &&
+            value.walletProvider === "outlayer" &&
+            value.taskRuntime === "client-memory-v1" &&
+            value.tasks &&
+            !value.walletSetup)
         )
       )
         throw new Error("unsupported workspace");
       nativeController.configureAuthentication(
         value.network ?? "mainnet",
         value.taskRuntime === "client-memory-v1",
+        value.walletProvider === "outlayer",
       );
       setCapabilities(value);
       setConnection("ready");
@@ -661,7 +674,9 @@ export default function App({ active = true }: { active?: boolean }) {
         <SiteHeader view="try">
           <button className="preview-link" onClick={() => setDialog("mode")}>
             {memory
-              ? "testnet · controlled"
+              ? mainnet
+                ? "mainnet · real payments"
+                : "testnet · controlled"
               : tasks
                 ? "controlled"
                 : capabilities
@@ -800,13 +815,15 @@ export default function App({ active = true }: { active?: boolean }) {
       </header>
       <div className="gateway-status" role="status">
         <button onClick={() => setDialog("mode")}>
-          {memory
-            ? "Testnet · controlled inference and settlement · no real payments"
-            : tasks
-              ? capabilities?.nativeWallets
-                ? "Controlled inference · virtual settlement · wallet funding is real NEAR"
-                : "Controlled inference · virtual settlement · no real inference payments"
-              : "Wallet preparation · inference procurement not enabled"}
+          {mainnet
+            ? "Mainnet · real inference payments · agent pays principal and gas"
+            : memory
+              ? "Testnet · controlled inference and settlement · no real payments"
+              : tasks
+                ? capabilities?.nativeWallets
+                  ? "Controlled inference · virtual settlement · wallet funding is real NEAR"
+                  : "Controlled inference · virtual settlement · no real inference payments"
+                : "Wallet preparation · inference procurement not enabled"}
         </button>
         <span>
           {tasks
@@ -814,7 +831,7 @@ export default function App({ active = true }: { active?: boolean }) {
             : "owner authorization required"}
         </span>
       </div>
-      {!memory && <SupplyAvailability />}
+      {capabilities && !memory && <SupplyAvailability />}
       {error && (
         <div className="workspace-error" role="alert">
           {error}
@@ -847,9 +864,11 @@ export default function App({ active = true }: { active?: boolean }) {
               access code. Sign-in is a message signature, with no on-chain fee.
             </p>
             <p>
-              {memory
-                ? "Run the task, inspect its bids and orders, and verify the generated artifact. Testnet funding is not enabled in this controlled build."
-                : "Run controlled agent tasks for free, or create and fund independent agent wallets. Real inference payments are not enabled in this release."}
+              {mainnet
+                ? "Install a merchant-only policy, fund each agent, and run tasks with real Mainnet MPP payments. Review the spending caps before funding."
+                : memory
+                  ? "Run the task, inspect its bids and orders, and verify the generated artifact. Testnet funding is not enabled in this controlled build."
+                  : "Run controlled agent tasks for free, or create and fund independent agent wallets. Real inference payments are not enabled in this release."}
             </p>
             {native.error && <p role="alert">{native.error}</p>}
             <button
@@ -864,7 +883,16 @@ export default function App({ active = true }: { active?: boolean }) {
         {memory && hosted && !sessions.length && (
           <div className="workspace-empty">
             <p>No agent authorizations are available for this wallet.</p>
-            <p>Native funding is not enabled for this controlled build.</p>
+            {mainnet ? (
+              <button
+                className="outline-button"
+                onClick={() => setDialog("wallet")}
+              >
+                create &amp; fund agent wallets
+              </button>
+            ) : (
+              <p>Native funding is not enabled for this controlled build.</p>
+            )}
           </div>
         )}
         {shown.map((session, i) => {
@@ -916,6 +944,7 @@ export default function App({ active = true }: { active?: boolean }) {
       </main>
       {authenticated && tasks && (
         <TaskActivity
+          clientOwned={memory}
           open={activity}
           session={current}
           status={current ? displayedDetails[current.id] : undefined}
@@ -958,7 +987,14 @@ export default function App({ active = true }: { active?: boolean }) {
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === "wallet" && capabilities?.nativeWallets && (
+      {dialog === "wallet" && mainnet && (
+        <OutlayerWallets
+          controller={nativeController}
+          onClose={() => setDialog(null)}
+          onUpdated={refresh}
+        />
+      )}
+      {dialog === "wallet" && capabilities?.nativeWallets && !mainnet && (
         <NativeWallets
           controller={nativeController}
           ids={sessions.map((s) => s.agent_id)}
@@ -987,15 +1023,23 @@ export default function App({ active = true }: { active?: boolean }) {
         )}
       {dialog === "mode" && (
         <Modal
-          title={tasks ? "controlled workspace" : "wallet preparation"}
+          title={
+            mainnet
+              ? "bounded Mainnet workspace"
+              : tasks
+                ? "controlled workspace"
+                : "wallet preparation"
+          }
           onClose={() => setDialog(null)}
         >
           <p className="dialog-note">
-            {memory
-              ? "Each task runs in this page. Market owns authorizations, bids, orders, payments and refunds. Switching or hiding panes keeps the current task. Reloading clears local conversation and files; original orders remain available in Activity. This build uses controlled model and wallet fixtures on the Testnet configuration."
-              : tasks
-                ? "Independent fx sessions call the MPP proxy. The server owns procurement, budget reservations, durable workspaces and refund reconciliation. Inference model replies and settlement receipts are local fixtures. Ordinary agent wallet funding is a separate real NEAR mainnet transfer; it does not pay for these controlled tasks."
-                : "This backend supports owner wallet authorization and agent preparation. Task procurement is not enabled. Funding availability follows the host configuration and owner approval."}
+            {mainnet
+              ? "Real NEAR Mainnet funds. Each agent has an OutLayer wallet, pays its own principal and gas through MPP, and receives unused principal back in NEAR. The owner installs the merchant-only policy and funds each wallet explicitly. Tasks and bash run in this page; reloading clears conversation/files and only recovers existing financial operations. Unknown payments or model calls are never purchased again automatically. The displayed authorization caps and run deadline limit new purchases."
+              : memory
+                ? "Each task runs in this page. Market owns authorizations, bids, orders, payments and refunds. Switching or hiding panes keeps the current task. Reloading clears local conversation and files; original orders remain available in Activity. This build uses controlled model and wallet fixtures on the Testnet configuration."
+                : tasks
+                  ? "Independent fx sessions call the MPP proxy. The server owns procurement, budget reservations, durable workspaces and refund reconciliation. Inference model replies and settlement receipts are local fixtures. Ordinary agent wallet funding is a separate real NEAR mainnet transfer; it does not pay for these controlled tasks."
+                  : "This backend supports owner wallet authorization and agent preparation. Task procurement is not enabled. Funding availability follows the host configuration and owner approval."}
           </p>
         </Modal>
       )}

@@ -9,6 +9,7 @@ import {
   uint,
 } from "../contract.mjs";
 import { verifyPayment } from "../near.mjs";
+import { LIVE_MODE, validateLivePlan } from "./live/policy.mjs";
 import { TOOL } from "../p2/tool-schema.mjs";
 import {
   clearRound,
@@ -22,13 +23,28 @@ import {
 // All bid membership, grants, native liability, pool ownership, contracts and
 // operation intents commit in the owning Market PG transaction. No RPC in tx.
 export class AuctionMarket {
-  constructor({ pool, config, fault = () => {} }) {
-    check(
-      config.mode === "controlled" &&
-        config.network === "testnet" &&
-        config.realBroadcastEnabled === false,
-      "real_auction_gate_closed",
-    );
+  constructor({ pool, config, fault = () => {}, live }) {
+    if (config.mode === LIVE_MODE) {
+      const { planHash } = validateLivePlan(config.livePlan, {
+        allowExpired: true,
+      });
+      check(
+        config.reviewedPlanHash === planHash &&
+          live?.scope === LIVE_MODE &&
+          config.network === "mainnet" &&
+          config.realBroadcastEnabled === true &&
+          config.merchant === config.livePlan.merchant &&
+          config.realm === config.livePlan.realm &&
+          hash(config.service) === hash(config.livePlan.service),
+        "reviewed_mainnet_adapters_required",
+      );
+    } else
+      check(
+        config.mode === "controlled" &&
+          config.network === "testnet" &&
+          config.realBroadcastEnabled === false,
+        "real_auction_gate_closed",
+      );
     validateClass(config.service);
     check(
       config.service.capacityPoolId === "single-seller-1" &&
@@ -53,7 +69,7 @@ export class AuctionMarket {
         config.admissionWindowMs <= 180000,
       "invalid_payment_windows",
     );
-    Object.assign(this, { pool, config, fault });
+    Object.assign(this, { pool, config, fault, live });
   }
   async initialize() {
     const { secret, ...publicConfig } = this.config;
@@ -138,6 +154,7 @@ export class AuctionMarket {
     );
   }
   async snapshot(db, at, cutoff) {
+    const supplyReady = !this.live || (await this.live.ready(db, at));
     const rows = (
       await db.query(
         `SELECT b.*,g.active AS grant_active,g.revision AS grant_revision,g.deadline_ms AS grant_deadline,g.gas_cap_yocto::text,
@@ -163,7 +180,8 @@ export class AuctionMarket {
     const bids = rows.map((b) => {
       const balance = b.balance;
       const fresh =
-        balance?.source === "controlled-native-final-v1" &&
+        balance?.source ===
+          (this.live ? "near-rpc-final-v1" : "controlled-native-final-v1") &&
         balance.network === this.config.network &&
         balance.payer === b.payer &&
         balance.observedAtMs <= at &&
@@ -175,6 +193,13 @@ export class AuctionMarket {
               : 0n,
           )
         : "0";
+      if (this.live) {
+        const limit =
+          BigInt(this.config.livePlan.principalCapYocto) +
+          BigInt(b.gas_cap_yocto);
+        if (BigInt(balances["wallet:" + b.agent_id]) > limit)
+          balances["wallet:" + b.agent_id] = String(limit);
+      }
       const keys = [b.owner_budget, b.agent_budget, b.task_budget];
       return {
         id: b.id,
@@ -191,6 +216,8 @@ export class AuctionMarket {
         budgetKeys: keys,
         walletKey: "wallet:" + b.agent_id,
         authorized:
+          supplyReady &&
+          (!this.live || at < this.config.livePlan.deadlineMs) &&
           b.grant_active &&
           b.agent_active &&
           Number(b.grant_deadline) > at &&
@@ -214,7 +241,7 @@ export class AuctionMarket {
       clearedAtMs: at,
       capacity: state.capacity_allocation ? 0 : 1,
       service: this.config.service,
-      fx: this.config.fx,
+      fx: this.live ? await this.live.fx(db, at) : this.config.fx,
       paymentWindowMs: this.config.paymentWindowMs,
       admissionWindowMs: this.config.admissionWindowMs,
       rule: this.config.rule,
@@ -403,6 +430,7 @@ export class AuctionMarket {
           hash(b.tools[0].function.parameters) === hash(TOOL.inputSchema)),
       "unsupported_tools",
     );
+    if (this.live) this.live.qualify(b, raw);
     return b;
   }
   async submit(agentId, input) {
@@ -653,6 +681,7 @@ export class AuctionMarket {
     for (const a of ids) await this.fence(a.id);
   }
   async grantPermits(db, a, at) {
+    if (this.live && !(await this.live.ready(db, at))) return false;
     const g = (
       await db.query(
         "SELECT g.*,x.owner_budget,x.agent_budget,x.active AS agent_active FROM mpp_direct_auction_grants g JOIN mpp_direct_auction_agents x ON x.id=g.agent_id WHERE g.id=$1",
@@ -660,6 +689,7 @@ export class AuctionMarket {
       )
     ).rows[0];
     if (
+      (this.live && at >= this.config.livePlan.deadlineMs) ||
       !g?.active ||
       !g.agent_active ||
       String(g.revision) !== String(a.grant_revision) ||
@@ -721,6 +751,15 @@ export class AuctionMarket {
             (await this.grantPermits(db, a, at)),
           "payment_authorization_closed",
         );
+        if (this.live)
+          check(
+            (
+              await db.query(
+                "UPDATE mpp_direct_live_payment_budget SET calls=calls+1 WHERE singleton AND calls<maximum_calls RETURNING calls",
+              )
+            ).rowCount === 1,
+            "mainnet_payment_count_exhausted",
+          );
         await db.query(
           "UPDATE mpp_direct_auction_allocations SET payment='pending' WHERE id=$1",
           [id],
@@ -779,6 +818,38 @@ export class AuctionMarket {
     });
   }
   // Trusted chain verifier / owned controlled adapter only. Never accepts public JSON as proof.
+  async recordPaymentFee(id, e) {
+    return this.transaction(async (db, _state, at) => {
+      const a = await this.allocation(db, id);
+      check(
+        e.orderRef === a.order_id && e.gasPayer === a.challenge.request.payer,
+        "payment_fee_binding_mismatch",
+      );
+      uint(e.gasActualYocto);
+      check(
+        a.gas_actual == null || String(a.gas_actual) === e.gasActualYocto,
+        "original_payment_fee_conflict",
+      );
+      if (a.gas_actual != null) return;
+      await db.query(
+        "UPDATE mpp_direct_auction_allocations SET gas_actual=$2 WHERE id=$1",
+        [id, e.gasActualYocto],
+      );
+      if (uint(e.gasActualYocto) > uint(a.contract.gasCapYocto)) {
+        await db.query(
+          `UPDATE mpp_direct_auction_budgets SET active=false WHERE id IN
+          (SELECT owner_budget FROM mpp_direct_auction_agents WHERE id=$1 UNION ALL
+           SELECT agent_budget FROM mpp_direct_auction_agents WHERE id=$1 UNION ALL
+           SELECT task_budget FROM mpp_direct_auction_grants WHERE id=$2)`,
+          [a.agent_id, a.grant_id],
+        );
+      }
+      await this.event(db, id, "payment_fee_observed", at, {
+        gasActualYocto: e.gasActualYocto,
+        principal: "unresolved_by_fee_proof",
+      });
+    });
+  }
   async acceptVerifiedPayment(id, e) {
     return this.transaction(async (db, _state, at) => {
       const a = await this.allocation(db, id),
@@ -792,9 +863,10 @@ export class AuctionMarket {
           e.challengeId === a.challenge.id,
         "payment_binding_mismatch",
       );
+      const gasOverrun = uint(e.gasActualYocto) > uint(a.contract.gasCapYocto);
       check(
-        uint(e.gasActualYocto) <= uint(a.contract.gasCapYocto),
-        "payment_gas_above_authorization",
+        a.gas_actual == null || String(a.gas_actual) === e.gasActualYocto,
+        "original_payment_fee_conflict",
       );
       const old = (
         await db.query(
@@ -820,6 +892,7 @@ export class AuctionMarket {
         ])
       ).rows[0];
       const runnable =
+        !gasOverrun &&
         a.execution === "reserved" &&
         !e.late &&
         at < a.contract.admissionBeforeMs &&
@@ -837,6 +910,19 @@ export class AuctionMarket {
         "UPDATE mpp_direct_auction_operations SET state='confirmed',result=$2 WHERE id=$1",
         [a.payment_operation, e],
       );
+      if (gasOverrun) {
+        await db.query(
+          `UPDATE mpp_direct_auction_budgets SET active=false WHERE id IN
+          (SELECT a.owner_budget FROM mpp_direct_auction_agents a WHERE a.id=$1 UNION ALL
+           SELECT a.agent_budget FROM mpp_direct_auction_agents a WHERE a.id=$1 UNION ALL
+           SELECT g.task_budget FROM mpp_direct_auction_grants g WHERE g.id=$2)`,
+          [a.agent_id, a.grant_id],
+        );
+        await this.event(db, id, "gas_overrun_frozen", at, {
+          actual: e.gasActualYocto,
+          reserved: a.contract.gasCapYocto,
+        });
+      }
       if (!runnable) {
         await this.releaseCapacity(db, a);
         await this.prepareRefund(db, a, at, String(a.principal));
@@ -985,6 +1071,35 @@ export class AuctionMarket {
       return this.status(a.agent_id, id, db);
     });
   }
+  async failExecution(id, { claim, generation, reason }) {
+    // Trusted provider adapter only: a durably closed, never-dispatched intent,
+    // or a verified response outside the frozen contract. Never a timeout.
+    check(
+      ["provider_never_sent", "verified_contract_breach"].includes(reason),
+      "definite_execution_failure_required",
+    );
+    return this.transaction(async (db, _state, at) => {
+      const a = await this.allocation(db, id);
+      check(
+        a.dispatch_claim === claim && String(a.generation) === generation,
+        "execution_fenced",
+      );
+      if (a.execution === "failed") return this.view(a);
+      check(["executing", "unknown"].includes(a.execution), "execution_fenced");
+      await db.query(
+        "UPDATE mpp_direct_auction_allocations SET execution='failed',refundable=principal WHERE id=$1",
+        [id],
+      );
+      await db.query(
+        "UPDATE mpp_direct_auction_operations SET state='confirmed',result=$2 WHERE id=$1",
+        [a.execution_id, { failure: reason }],
+      );
+      await this.releaseCapacity(db, a);
+      await this.prepareRefund(db, a, at, String(a.principal));
+      await this.event(db, id, reason, at, {});
+      return this.status(a.agent_id, id, db);
+    });
+  }
   async prepareRefund(db, a, at, amount) {
     if (BigInt(amount) === 0n) return;
     const binding = {
@@ -1068,7 +1183,10 @@ export class AuctionMarket {
         uint(a.contract.fx.nanoUsdPerNear),
       YOCTO,
     );
-    check(spent <= BigInt(a.reserve_nano), "actual_liability_exceeds_reserve");
+    // A chain effect cannot be undone by rejecting its accounting. Unexpected
+    // gas is recorded as an overrun; it never increases future authorization.
+    const overrun =
+      spent > BigInt(a.reserve_nano) ? spent - BigInt(a.reserve_nano) : 0n;
     const keys = (
       await db.query(
         "SELECT g.task_budget,a.owner_budget,a.agent_budget FROM mpp_direct_auction_grants g JOIN mpp_direct_auction_agents a ON a.id=g.agent_id WHERE g.id=$1",
@@ -1077,8 +1195,8 @@ export class AuctionMarket {
     ).rows[0];
     for (const key of Object.values(keys))
       await db.query(
-        "UPDATE mpp_direct_auction_budgets SET reserved_nano=reserved_nano-$2,spent_nano=spent_nano+$3 WHERE id=$1",
-        [key, a.reserve_nano, String(spent)],
+        "UPDATE mpp_direct_auction_budgets SET reserved_nano=reserved_nano-$2,spent_nano=spent_nano+$3,overrun_nano=overrun_nano+$4,active=active AND $4::bigint=0 WHERE id=$1",
+        [key, a.reserve_nano, String(spent), String(overrun)],
       );
     await db.query(
       "UPDATE mpp_direct_auction_allocations SET budget_finalized=true WHERE id=$1",
@@ -1107,7 +1225,8 @@ export class AuctionMarket {
     const started = Date.now(),
       balance = await reader(agent.payer);
     check(
-      balance.source === "controlled-native-final-v1" &&
+      balance.source ===
+        (this.live ? "near-rpc-final-v1" : "controlled-native-final-v1") &&
         balance.network === this.config.network &&
         balance.payer === agent.payer &&
         balance.observedAtMs >= started &&
@@ -1172,6 +1291,11 @@ export class AuctionMarket {
     });
   }
   async createGrant(agentId, input) {
+    if (this.live)
+      check(
+        uint(input.callCapMicro) <= uint(this.config.livePlan.callCapMicro),
+        "mainnet_call_cap_exceeded",
+      );
     check(/^[a-zA-Z0-9_-]{1,128}$/.test(input.operation), "invalid_operation");
     check(
       Object.keys(input).every((k) =>
@@ -1261,7 +1385,9 @@ export class AuctionMarket {
           agentId,
           taskBudget,
           input.callCapMicro,
-          "1000000000000000000",
+          this.live
+            ? this.config.livePlan.gasReserveYocto
+            : "1000000000000000000",
           input.deadlineMs,
         ],
       );

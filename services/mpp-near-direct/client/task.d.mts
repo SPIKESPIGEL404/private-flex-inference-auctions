@@ -39,6 +39,7 @@ export function createMemoryTask(options: {
 }): Promise<MemoryTask>;
 export function procurementTransport(options: {
   url: string;
+  nativeChat?: boolean;
   authorizationId: string;
   agentId?: string;
   bidMultiplier?: string;
@@ -69,5 +70,5 @@ export function procurementTransport(options: {
       contract: { contractHash: string };
     },
     signal?: AbortSignal,
-  ) => Promise<void>;
+  ) => Promise<void | { paymentAuthorization?: string | null }>;
 }): unknown;

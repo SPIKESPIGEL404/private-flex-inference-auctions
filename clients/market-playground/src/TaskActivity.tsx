@@ -83,8 +83,10 @@ export function TaskActivity({
   toggle,
   change,
   exportEvidence,
+  clientOwned = false,
 }: {
   open: boolean;
+  clientOwned?: boolean;
   session?: AgentSession;
   status?: TaskStatus;
   toggle(): void;
@@ -92,7 +94,7 @@ export function TaskActivity({
   exportEvidence?: () => void;
 }) {
   const [view, setView] = useState<"orders" | "workspace">("orders");
-  const memory = status?.source === "client-memory";
+  const memory = clientOwned || status?.source === "client-memory";
   return (
     <section
       className={`provider-stats task-activity ${open ? "stats-expanded" : ""}`}
@@ -108,7 +110,7 @@ export function TaskActivity({
         </button>
         <span className="stats-provider-name">
           {session?.agent_id ?? "workspace"} ·{" "}
-          {session?.state ?? "not connected"}
+          {session?.state ?? "no active task"}
         </span>
         <span className="stats-source">
           {memory
