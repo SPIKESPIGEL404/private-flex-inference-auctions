@@ -60,6 +60,6 @@ if __name__=='__main__':
     after,report=prepare(json.loads(args.before.read_bytes()),json.loads(args.images.read_bytes()))
     args.output.mkdir(parents=True,exist_ok=True)
     for name,value in [('manifest.json',json.dumps(after,indent=2)+'\n'),('compose.yaml',after['docker_compose_file']),
-        ('empty-pre-launch.sh',''),('report.json',json.dumps(report,indent=2)+'\n')]:
+        ('report.json',json.dumps(report,indent=2)+'\n')]:
         (args.output/name).write_text(value)
     print(json.dumps(report))

@@ -21,7 +21,9 @@ uses a new named volume; its old host diagnostic output is not migrated.
 Render with `scripts/prepare-packaged-phala.py`. The output explicitly sets
 `pre_launch_script` to an empty string and preserves VM settings and allowed
 sealed environment keys. Compare the live manifest immediately before applying,
-then verify the exact returned manifest and hosted endpoints afterward.
+then verify the exact returned manifest and hosted endpoints afterward. Use the
+Phala CLI `--no-pre-launch-script` flag explicitly: passing an empty script file
+selects the platform default and does not mean that pre-launch is disabled.
 
 The public workspace remains controlled P2. This packaging does not enable
 native-funded B/browser inference. The earlier Phala policy rejection does not
