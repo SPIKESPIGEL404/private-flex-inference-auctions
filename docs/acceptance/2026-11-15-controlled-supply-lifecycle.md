@@ -53,3 +53,37 @@ The publishing workflow requires a native binary SHA256 and a release bound
 to its exact source commit. Deployment and final Linux-image validation
 receipts are recorded separately after publishing. The update must preserve
 all existing volume bindings and all other service images and configuration.
+
+## Deployed runtime
+
+- Runtime source: `364264085636bb79c2ae7c01a24ef1ad8dc6f78d`.
+- CI publishing run: `43678771991` (passed).
+- Preview image: `ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:9fec33917d55903f1c3d53fe967ac1f8520b02b032ef27a0b3bb59aa87e72deb`.
+- Native binary SHA256: `662ccb26dacc39d1967e033a0835619d4c095a9dae3734b574daa2c13b446a97`.
+- CVM compose hash: `be73cd94f0fe837c341749be4ae8b732814dbf7426a230793cd88ced9606aa0b`.
+- Linux staged runtime passed 24 inferences / 12 task attempts, including the
+  restart after inference 16. First-run deadlines, lost payment/refund replies
+  and unknown execution custody also passed. The published image's native
+  bytes were independently compared to that tested binary.
+- The public health endpoint reports the exact runtime revision, controlled
+  mode and `realPayment: false`.
+- Full fetched manifest comparison passed: only the preview image and its
+  revision environment value changed. All ten volume definitions, bindings,
+  other service images and manifest metadata were preserved. No pre-launch
+  or initialization script was introduced.
+
+## Hosted browser acceptance
+
+Verified in the existing authenticated browser session after deployment:
+
+1. The original two `no_supply` attempts and their transcripts survived the
+   CVM update. They displayed expiration and retained their previous records.
+2. Reset all replaced both visible attempts with fresh ready workspaces.
+3. Run all completed both tasks with `end_turn`, verified `result.txt: 42`
+   and $0.001575 spend per attempt. Temporary supply waiting was visible.
+4. Clicking Run all again from those completed panes installed two different
+   attempt IDs, automatically started them and completed both with the same
+   verified fixture result. The final visible state is two completed panes.
+
+The hosted checks exercised virtual controlled procurement only. They did
+not initiate wallet funding, withdraw NEAR or enable real inference payments.
