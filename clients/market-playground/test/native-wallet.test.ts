@@ -5,6 +5,7 @@ import {
   NativeWalletController,
   parseNear,
   nearAmount,
+  OWNER_POLICY_DEPOSIT_CAP_YOCTO,
 } from "../src/native-wallet";
 Object.assign(globalThis, {
   indexedDB,
@@ -290,6 +291,46 @@ test("OutLayer owner mode signs only bounded owner transfers and does not open a
   );
   assert.equal(calls, 1);
   assert.equal(c.snapshot().agents.length, 0);
+});
+test("OutLayer owner policy accepts the observed storage deposit while enforcing a separate owner deposit cap", async () => {
+  const c = controller();
+  c.configureAuthentication("mainnet", true, true);
+  await c.load();
+  const payer = "a".repeat(64);
+  const transaction = (deposit: string) => ({
+    signerId: owner,
+    receiverId: "outlayer.near",
+    actions: [
+      {
+        type: "FunctionCall",
+        params: {
+          methodName: "store_wallet_policy",
+          gas: "30000000000000",
+          deposit,
+          args: {
+            wallet_pubkey: "ed25519:" + payer,
+            storage_refund_to: null,
+            locked: false,
+            version: 1,
+          },
+        },
+      },
+    ],
+  });
+  // Actual prior policy evidence: 0.01146 NEAR. This exceeds the old 0.01 guard.
+  await assert.rejects(
+    c.signOwnerTransaction(transaction("11460000000000000000000"), payer),
+    /lost acknowledgement/,
+  );
+  assert.equal(calls, 1);
+  await assert.rejects(
+    c.signOwnerTransaction(
+      transaction(String(BigInt(OWNER_POLICY_DEPOSIT_CAP_YOCTO) + 1n)),
+      payer,
+    ),
+    /Unexpected OutLayer policy transaction/,
+  );
+  assert.equal(calls, 1);
 });
 test("OutLayer owner withdrawal needs explicit exit purpose for a policy version above one", async () => {
   const c = controller();

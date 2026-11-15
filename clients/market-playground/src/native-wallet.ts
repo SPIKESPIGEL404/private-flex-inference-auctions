@@ -16,6 +16,7 @@ import type {
 } from "@hot-labs/near-connect";
 import { taskApi } from "./task-api";
 export const RPC = "https://rpc.mainnet.near.org";
+export const OWNER_POLICY_DEPOSIT_CAP_YOCTO = "20000000000000000000000";
 export const nearAmount = (raw: string) => {
   const n = BigInt(raw);
   return (
@@ -422,7 +423,7 @@ export class NativeWalletController {
         p.gas !== "30000000000000" ||
         typeof p.deposit !== "string" ||
         !/^\d+$/.test(p.deposit) ||
-        BigInt(p.deposit) > 10n ** 22n ||
+        BigInt(p.deposit) > BigInt(OWNER_POLICY_DEPOSIT_CAP_YOCTO) ||
         (p.methodName === "store_wallet_policy" &&
           (args.storage_refund_to !== null ||
             args.locked !== false ||

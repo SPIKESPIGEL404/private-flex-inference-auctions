@@ -1,7 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { Modal } from "./WorkspaceDialogs";
 import { taskApi, nanoUsd } from "./task-api";
-import { NativeWalletController, nearAmount, parseNear } from "./native-wallet";
+import {
+  NativeWalletController,
+  nearAmount,
+  parseNear,
+  OWNER_POLICY_DEPOSIT_CAP_YOCTO,
+} from "./native-wallet";
 type Transaction = Parameters<
   NativeWalletController["signOwnerTransaction"]
 >[0];
@@ -109,6 +114,11 @@ export function OutlayerWallets({
         approves funding. Agents then pay their own inference principal and gas.
         Refunds return to the same agent wallet. Wallet credentials stay on the
         server; the model never receives them.
+      </p>
+      <p className="dialog-note">
+        Policy setup or update may require a storage deposit of up to{" "}
+        {nearAmount(OWNER_POLICY_DEPOSIT_CAP_YOCTO)} NEAR, paid by the owner and
+        shown in the wallet before signing.
       </p>
       {error && (
         <p role="alert" className="wallet-error">
