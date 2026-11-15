@@ -73,8 +73,13 @@ manifest: all four existing services, ten volumes and five sealed environment
 names are preserved. It adds only `mainnet-auction`, its private network/data
 volume, and one sealed Mainnet credential envelope. No pre-launch script is used.
 The prior candidate source was `69a2a40eeefd642a851111f9e79abb4d0ab8059a`;
-the final canary image must include the packaged reference reader and its new
-source revision/digest before activation.
+the final candidate source is `379ced72b4af8ad18c7db4ed5beebd9811f01e19`,
+published as `ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:d3f3f6e45858a7f20be10dd090fc95464ac865fc57c3b398b1ea0e2c5ebf26c2`.
+[Publication CI](https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43672778947)
+verified unchanged Rust inputs/binary bytes and offline bootstrap. Only current
+Node/UI components were repackaged over the accepted immutable Mainnet base.
+Existing sealed values were retained verbatim in a private deployment envelope;
+the owner private key is excluded from the service envelope.
 
 The exact generated deadline, plan hash and rendered deployment diff are stored
 in the private deployment directory. Recheck expiry and the live manifest before

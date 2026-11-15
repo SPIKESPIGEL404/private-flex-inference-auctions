@@ -52,3 +52,20 @@ GitHub Actions independently repeated the final image bootstrap and published th
 immutable GHCR candidate successfully: [run 43667319025](https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43667319025).
 Published image: `ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:856227b912c42c927d04312218a6873aa98dcf0d6a209d7d0286c6d7418f761c`.
 No CVM or funds were involved in that job.
+
+The subsequent candidate adds a packaged, provider-timestamp-bound reference-FX
+reader (three tests and a real read passed), reruns all 40 owning PG checks and
+passes 13 UI checks including the observed policy storage deposit. Production
+assets loaded Geist Mono in Chromium with zero console errors. API responses
+were controlled and wallet mutations remained disabled. This screenshot does
+not claim wallet-extension signing or funded acceptance.
+
+![Production assets with controlled wallet data](2026-11-14-mainnet-policy-production-controlled.png)
+
+Final canary source `379ced72b4af8ad18c7db4ed5beebd9811f01e19` passed
+[independent publication CI](https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43672778947)
+and anonymous digest pull. Rust/schema inputs were unchanged; CI compared exact
+binary bytes against the accepted base and repeated offline schema bootstrap.
+Current Node/UI sources were rebuilt. This is explicit binary reuse, not a new
+Rust-build claim. The local separate full Rust build also produced the same hash.
+No Mainnet funds or CVM change were involved.

@@ -123,5 +123,110 @@
     "usageVerified": true,
     "mainnetTransactions": 0,
     "integratedMppTask": false
+  },
+  "candidateUpdates": {
+    "sourceRevision": "379ced72b4af8ad18c7db4ed5beebd9811f01e19",
+    "referenceFxTestsPassed": 3,
+    "referenceFxLiveReadSucceeded": true,
+    "owningPostgresRerunPassed": 40,
+    "playgroundTestsPassed": 13,
+    "typescriptViteBuildPassed": true,
+    "imagePublication": {
+      "workflow": "https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43672778947",
+      "conclusion": "success",
+      "anonymousDigestPullVerified": true,
+      "sourceRevision": "379ced72b4af8ad18c7db4ed5beebd9811f01e19",
+      "workflowRevision": "379ced72b4af8ad18c7db4ed5beebd9811f01e19",
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:d3f3f6e45858a7f20be10dd090fc95464ac865fc57c3b398b1ea0e2c5ebf26c2",
+      "preLaunchScriptRequired": false,
+      "artifactRelease": "mainnet-auction-379ced72b4af",
+      "archiveSha256": "147db6c3f211dc23c1175149af410412518d07124032fde47406a773cac6c51d",
+      "scope": "bounded-mainnet-candidate",
+      "bootstrap": {
+        "scope": "offline-image-bootstrap",
+        "image": "sha256:9ae662e37e822450f2d513ac5b3fc576896c7db21b4eeaaad8a35b5d987caeab",
+        "sourceRevision": "379ced72b4af8ad18c7db4ed5beebd9811f01e19",
+        "network": "none",
+        "realChainPayments": false,
+        "realInference": false,
+        "bootstrapSourceOverride": false,
+        "owningSchemaInitializedAndVerified": true,
+        "expectedNetworkGateStoppedRuntime": true,
+        "counts": {
+          "fingerprint": 1,
+          "wallets": 0,
+          "orders": 0,
+          "payments": 0,
+          "providerInvocations": 0
+        }
+      },
+      "realChainPaymentsTested": false,
+      "realInferenceTested": false,
+      "reusedRustBinary": {
+        "sourceRevision": "69a2a40eeefd642a851111f9e79abb4d0ab8059a",
+        "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:856227b912c42c927d04312218a6873aa98dcf0d6a209d7d0286c6d7418f761c",
+        "sha256": "d8b93779b81ad7ed02f14897a30906e19325fec4d2b334c067c1a509feb360ad"
+      }
+    },
+    "productionUiFixture": {
+      "browser": "Chromium",
+      "walletMutationsDisabled": true,
+      "fontStatus": "loaded",
+      "loadedFont": "Geist Mono",
+      "consoleErrors": 0,
+      "ownerPolicyDepositLimitNear": "0.02",
+      "screenshot": "2026-11-14-mainnet-policy-production-controlled.png",
+      "screenshotSha256": "9967f821cd0935a112ccab738c3c08d0e2f9797978bfae273e1abd0b4182c67e",
+      "controlsReachable": true
+    },
+    "imageBootstrap": {
+      "scope": "offline-image-bootstrap",
+      "image": "sha256:3d69aa27291df1cfd34c52509f1c6af9c1cb8f31f2235e26fbf21e155e05e85e",
+      "sourceRevision": "379ced72b4af8ad18c7db4ed5beebd9811f01e19",
+      "network": "none",
+      "realChainPayments": false,
+      "realInference": false,
+      "bootstrapSourceOverride": false,
+      "owningSchemaInitializedAndVerified": true,
+      "expectedNetworkGateStoppedRuntime": true,
+      "counts": {
+        "fingerprint": 1,
+        "wallets": 0,
+        "orders": 0,
+        "payments": 0,
+        "providerInvocations": 0
+      }
+    },
+    "packagedReferenceFx": {
+      "scope": "packaged-reference-fx-read-only",
+      "node": "v24.22.3",
+      "binarySha256": "d8b93779b81ad7ed02f14897a30906e19325fec4d2b334c067c1a509feb360ad",
+      "kind": "market-usd-near-v1",
+      "source": "https://1click.chaindefuser.com/v0/tokens",
+      "assetId": "nep141:wrap.near",
+      "nanoUsdPerNear": "3130000000",
+      "observedAtMs": 1794713250913,
+      "expiresAtMs": 1794713340913,
+      "priceUpdatedAt": "2026-11-15T03:27:30.913Z",
+      "fetchedAtMs": 1794713289285,
+      "referencePriceNotExecutableSwap": true,
+      "mainnetTransactions": 0,
+      "cloudPosts": 0
+    },
+    "reusedRustBinary": {
+      "sourceRevision": "69a2a40eeefd642a851111f9e79abb4d0ab8059a",
+      "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:856227b912c42c927d04312218a6873aa98dcf0d6a209d7d0286c6d7418f761c",
+      "sha256": "d8b93779b81ad7ed02f14897a30906e19325fec4d2b334c067c1a509feb360ad",
+      "owningInputsUnchanged": true,
+      "separateFullSourceBuildMatchedSameBytes": true
+    },
+    "cliOwner": {
+      "network": "mainnet",
+      "accountId": "042411fa708fe2dadb55c9a43a5604ec18853b9d4203fb2cd28d6e194252e040",
+      "cli": "near-cli-rs 0.31.1 fund-later",
+      "bindingVerified": true,
+      "fundedAtGeneration": false,
+      "broadcast": false
+    }
   }
 }
