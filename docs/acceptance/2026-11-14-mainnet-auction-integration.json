@@ -12,7 +12,7 @@
     },
     "owningPostgres": {
       "passed": 40,
-      "externalChainAndProviderFixtures": true
+      "chainAndProvider": "owned controlled fixtures"
     },
     "playground": {
       "passed": 12
@@ -83,5 +83,37 @@
     "operator-maintained FX expires; no production oracle integration",
     "project Cloud account pays provider; agents pay this MPP merchant",
     "provider revision/invoice not independently verified"
-  ]
+  ],
+  "publication": {
+    "workflow": "https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43667319025",
+    "conclusion": "success",
+    "sourceRevision": "69a2a40eeefd642a851111f9e79abb4d0ab8059a",
+    "workflowRevision": "2d7c10f252e73471911f06ed9959d0e1d6948b4a",
+    "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:856227b912c42c927d04312218a6873aa98dcf0d6a209d7d0286c6d7418f761c",
+    "preLaunchScriptRequired": false,
+    "artifactRelease": "mainnet-auction-69a2a40eeefd",
+    "archiveSha256": "e6ef332a06d0bf18e8df0dc7b67e0c191b7c49db96da3fdbc3b31bc406f4fc39",
+    "scope": "bounded-mainnet-candidate",
+    "bootstrap": {
+      "scope": "offline-image-bootstrap",
+      "image": "sha256:98fdd5ed0a46204397422a423c2b395475321019e5637240ef7674197a85d494",
+      "sourceRevision": "69a2a40eeefd642a851111f9e79abb4d0ab8059a",
+      "network": "none",
+      "realChainPayments": false,
+      "realInference": false,
+      "bootstrapSourceOverride": false,
+      "owningSchemaInitializedAndVerified": true,
+      "expectedNetworkGateStoppedRuntime": true,
+      "counts": {
+        "fingerprint": 1,
+        "wallets": 0,
+        "orders": 0,
+        "payments": 0,
+        "providerInvocations": 0
+      }
+    },
+    "realChainPaymentsTested": false,
+    "realInferenceTested": false,
+    "anonymousDigestPullVerified": true
+  }
 }

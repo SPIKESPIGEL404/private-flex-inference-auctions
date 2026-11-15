@@ -45,3 +45,8 @@ MPP merchant. These limits remain explicit release decisions.
 
 See the adjacent JSON for source/image hashes and scoped evidence, and
 `docs/mainnet-auction-operations.md` for reproducible bootstrap/packaging steps.
+
+GitHub Actions independently repeated the final image bootstrap and published the
+immutable GHCR candidate successfully: [run 43667319025](https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43667319025).
+Published image: `ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:856227b912c42c927d04312218a6873aa98dcf0d6a209d7d0286c6d7418f761c`.
+No CVM or funds were involved in that job.
