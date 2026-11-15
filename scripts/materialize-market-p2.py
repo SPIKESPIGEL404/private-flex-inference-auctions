@@ -41,5 +41,28 @@ module.write_text(original.replace('let hash = fingerprint(db).await?;', '''if s
         }
         let hash = fingerprint(db).await?;'''))
 shutil.copyfile(source_dir/'paid_tasks.sql',target/'src/market/pg/paid_tasks.sql')
+shutil.copyfile(source_dir/'controlled_supply.rs',target/'src/market/pg/controlled_supply.rs')
+module=target/'src/market/pg/mod.rs'
+module.write_text(module.read_text().replace('mod commands;', 'mod commands;\nmod controlled_supply;', 1))
+module=target/'src/market/pg/coordinator.rs'
+original=module.read_text()
+anchor='''        Command::Admit(input, reply) => {
+            let result = market'''
+assert original.count(anchor)==1
+original=original.replace(anchor, '''        Command::Admit(mut input, reply) => {
+            if let Err(error) = market.controlled_admission(&mut input).await {
+                let _ = reply.send(Err(error));
+                ensure!(!market.poisoned, "controlled publisher lost commit confirmation");
+                return Ok(());
+            }
+            let result = market''')
+anchor='''    let id = due.id;
+    let commit = market'''
+assert original.count(anchor)==1
+original=original.replace(anchor, '''    let id = due.id;
+    let mut candidates = candidates;
+    market.controlled_candidates(&mut candidates).await?;
+    let commit = market''')
+module.write_text(original)
 marker.write_text(json.dumps({'base':PIN,'patch_sha256':digest,'source_sha256':tree_hash()},indent=2)+'\n')
 print(str(target))

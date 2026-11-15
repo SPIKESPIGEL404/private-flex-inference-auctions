@@ -12,6 +12,12 @@
 !services/mpp-near-direct/package*.json
 !services/mpp-near-direct/p2/
 !services/mpp-near-direct/p2/**
+!scripts/
+!scripts/serve-agent-mpp-preview.py
+!deploy/
+!deploy/agent-preview/
+!deploy/agent-preview/.build-native/
+!deploy/agent-preview/.build-native/private-market-host-p2
 **/node_modules
 **/dist
 **/.env*

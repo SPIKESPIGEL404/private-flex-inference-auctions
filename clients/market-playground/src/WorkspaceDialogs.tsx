@@ -62,7 +62,7 @@ export function NewTask({sessions, limits, maxTasks, initialAgent, initialPrompt
       <label htmlFor="new-preference">cost / time preference</label><select id="new-preference" value={preference} onChange={e => setPreference(e.target.value as Preference)}>
         <option value="save">save</option><option value="balanced">balanced</option><option value="fast">finish sooner</option>
       </select>
-      <p className="dialog-note">Controlled tasks use the scripted model and this agent’s virtual workspace. {Math.max(0, maxTasks - count)} new task remaining · start within {Math.round(windowMs / 60000)} minutes. Existing budgets and orders are retained.</p>
+      <p className="dialog-note">Controlled tasks use the scripted model and this agent’s virtual workspace. {Math.max(0, maxTasks - count)} new task remaining · {Math.round(windowMs / 60000)} minutes from the first Run. Existing budgets and orders are retained.</p>
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="dialog-footer"><button className="outline-button" type="button" disabled={busy} onClick={onClose}>cancel</button>
         <button className="solid-button" type="submit" disabled={busy || count >= maxTasks}>{busy ? 'creating…' : 'create task ↵'}</button></div>

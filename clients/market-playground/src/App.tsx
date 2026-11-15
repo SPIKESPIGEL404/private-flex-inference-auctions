@@ -38,6 +38,7 @@ export default function App({active = true}: {active?: boolean}) {
   const [ready, setReady] = useState<Set<string>>(() => new Set()), [activity, setActivity] = useState(false);
   const epoch = useRef(0), switching = useRef(false), ownerScope = useRef('');
   const handles = useRef(new Map<string, PaneHandle>()), prefix = useRef(0);
+  const pendingRuns = useRef(new Map<string, number>());
   const workspace = useRef<HTMLElement>(null), [size, setSize] = useState({width: 1280, height: 720});
   const tasks = capabilities?.tasks === true;
   const buyers: Buyer[] = allocation ? allocation.buyers.map((b, i) => draft.buyers.find(x => x.id === b.id) ?? {
@@ -55,6 +56,7 @@ export default function App({active = true}: {active?: boolean}) {
   const clearOwner = useCallback((force = false) => {
     if (!ownerScope.current && !force) return;
     epoch.current++; ownerScope.current = ''; setViewEpoch(epoch.current); setHosted(null);
+    pendingRuns.current.clear();
     setDetails({}); setReady(new Set()); setVisible([]); setSelected(''); setZoomed(null); setDialog(null);
   }, []);
   const refresh = useCallback(async () => {
@@ -128,6 +130,25 @@ export default function App({active = true}: {active?: boolean}) {
   const paneReady = useCallback((id: string) => {
     if (epoch.current === viewEpoch) setReady(old => new Set(old).add(id));
   }, [viewEpoch]);
+  const restartPane = useCallback(async (oldId: string, nextId: string) => {
+    if (epoch.current !== viewEpoch || switching.current) return;
+    pendingRuns.current.set(nextId, viewEpoch);
+    await refresh();
+    if (epoch.current !== viewEpoch) return;
+    setVisible(old => old.map(id => id === oldId ? nextId : id));
+    setSelected(old => old === oldId ? nextId : old);
+    setZoomed(old => old === oldId ? nextId : old);
+    setReady(old => new Set([...old].filter(id => id !== oldId)));
+  }, [refresh, viewEpoch]);
+  useEffect(() => {
+    if (busy || switching.current) return;
+    for (const [id, requestEpoch] of pendingRuns.current) {
+      if (requestEpoch !== epoch.current) { pendingRuns.current.delete(id); continue; }
+      if (ready.has(id) && hosted?.agents.some(s => s.id === id)) {
+        pendingRuns.current.delete(id); void handles.current.get(id)?.run();
+      }
+    }
+  }, [busy, ready, hosted]);
   const focus = useCallback((id: string) => { setSelected(id); setZoomed(old => old ? id : null); handles.current.get(id)?.focus(); }, []);
   const resize = useCallback(async (count: number) => {
     if (busy || !Number.isInteger(count) || count < 1 || count > (tasks ? sessions.length : allocation ? buyers.length : 8)) return;
@@ -185,11 +206,11 @@ export default function App({active = true}: {active?: boolean}) {
     finally { switching.current = false; setBusy(false); }
   }
   function newTask(prompt = '') { setNewPrompt(prompt); setDialog(tasks ? 'new' : 'settings'); }
-  const hasRunning = shown.some(s => !s.paused && s.state === 'running');
+  const hasRunning = shown.some(s => !s.paused && s.state === 'running' && !['expired','interrupted'].includes(s.phase ?? ''));
   async function runAll() {
     setError('');
     if (hasRunning) await Promise.all(shown.map(s => handles.current.get(s.id)?.pause()));
-    else await Promise.all(shown.filter(s => ready.has(s.id) && s.state !== 'complete').map(s => handles.current.get(s.id)?.run()));
+    else await Promise.all(shown.filter(s => ready.has(s.id)).map(s => handles.current.get(s.id)?.run()));
   }
   async function resetAll() {
     if (busy) return;
@@ -249,7 +270,7 @@ export default function App({active = true}: {active?: boolean}) {
           <button className="outline-button" aria-label="New task" disabled={busy || !tasks || !sessions.length} onClick={() => newTask()}>+ task</button>
           <button className="outline-button" disabled={busy || !tasks || !shown.length || shown.some(s => !ready.has(s.id))}
             title="Restart visible tasks with fresh workspaces. Previous activity and cumulative agent spend are retained." onClick={() => void resetAll()}>reset all</button>
-          <button className="outline-button" disabled={busy || !tasks || !shown.some(s => ready.has(s.id) && s.state !== 'complete')} onClick={() => void runAll()}>{hasRunning ? 'pause all' : 'run all'}</button>
+          <button className="outline-button" disabled={busy || !tasks || !shown.some(s => ready.has(s.id))} onClick={() => void runAll()}>{hasRunning ? 'pause all' : 'run all'}</button>
           {(tasks || wallet.owner) && <button className="help-button" disabled={busy} onClick={() => void logout()}>disconnect</button>}</>}
         <button className="help-button" aria-label="Keyboard shortcuts" onClick={() => setDialog('help')}>?</button>
     </SiteHeader><div className="sessionbar"><span className="session-name">[market]</span>
@@ -260,7 +281,7 @@ export default function App({active = true}: {active?: boolean}) {
     </div></header>
     <div className="gateway-status" role="status"><button onClick={() => setDialog('mode')}>{tasks ? capabilities?.nativeWallets ? 'Controlled inference · virtual settlement · wallet funding is real NEAR' : 'Controlled inference · virtual settlement · no real inference payments' : 'Wallet preparation · inference procurement not enabled'}</button>
       <span>{tasks ? 'independent agents · MPP / Market' : 'owner authorization required'}</span></div>
-    <SupplyAvailability />
+    <SupplyAvailability controlled={tasks} />
     {error && <div className="workspace-error" role="alert">{error}</div>}
     <main className="terminal-workspace" ref={workspace} aria-label="Agent terminals">
       {connection === 'loading' && <div className="workspace-empty">connecting to workspace…</div>}
@@ -273,7 +294,7 @@ export default function App({active = true}: {active?: boolean}) {
         style={{left: rect.left + '%', top: rect.top + '%', width: rect.width + '%', height: rect.height + '%', borderRightWidth: rect.rightEdge ? 0 : 1, borderBottomWidth: rect.bottomEdge ? 0 : 1}}>
         <TaskPane ref={value => {if (value) handles.current.set(session.id, value); else handles.current.delete(session.id);}}
           session={session} hosted={tasks} selected={selected === session.id} enabled={!busy} onSelect={() => setSelected(session.id)}
-          refresh={refresh} onDetail={recordDetail} onReady={paneReady} onUnauthorized={clearOwner} onInput={data => terminalInput(session.id, data)}
+          refresh={refresh} onDetail={recordDetail} onReady={paneReady} onRestart={restartPane} onUnauthorized={clearOwner} onInput={data => terminalInput(session.id, data)}
           configure={() => {setSelected(session.id); setDialog('settings');}} newTask={prompt => {setSelected(session.id); newTask(prompt);}} wallet={() => setDialog('wallet')} />
       </div>;})}
     </main>

@@ -279,6 +279,7 @@ def main():
                'BITROUTER_PREVIEW_BOOTSTRAP_BINDING': config['binding'], 'REDIS_BALANCE_CUTOVER_TOKEN': config['cutover'],
                'PRIVATE_MARKET_SELLER_KEY': config['seller'], 'PRIVATE_MARKET_LISTEN': '127.0.0.1:28084',
                'PRIVATE_MARKET_NEAR_DIRECT_P1': 'controlled', 'PRIVATE_MARKET_AGENT_P2': 'controlled',
+               'PRIVATE_MARKET_P2_CONTINUOUS_SUPPLY': '1',
                'PRIVATE_MARKET_EXTERNAL_FIXTURE': '1',
                'PRIVATE_MARKET_P2_PREVIEW_TTL_MS': str(TTL), 'INFERENCE_MARKET_CONFIG_PATH': str(state / 'catalog.json'),
                'DATABASE_MIN_CONNECTIONS': '1', 'DATABASE_MAX_CONNECTIONS': '12'}

@@ -25,7 +25,7 @@ export function TaskActivity({open, session, status, toggle, change}: {
   const [view, setView] = useState<'orders' | 'workspace'>('orders');
   return <section className={`provider-stats task-activity ${open ? 'stats-expanded' : ''}`} aria-label="Task activity">
     <div className="stats-heading"><button className="stats-heading-toggle" aria-expanded={open} onClick={toggle}>{open ? '⌄' : '›'} activity</button>
-      <span className="stats-provider-name">{session?.agent_id ?? 'workspace'} · {session?.state ?? 'not connected'}</span>
+      <span className="stats-provider-name">{session?.agent_id ?? 'workspace'} · {status?.phase ?? session?.phase ?? session?.state ?? 'not connected'}</span>
       <span className="stats-source">server ledger · controlled</span>
       {session && <span className="activity-budget">spent {nanoUsd(session.spent_nano)} · reserved {nanoUsd(session.reserved_nano)} · cap {nanoUsd(session.budget_nano)}</span>}
     </div>

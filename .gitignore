@@ -20,6 +20,7 @@ output/
 clients/agent-playground/dist/
 *.tsbuildinfo
 deploy/market/.build-cargo/
+deploy/agent-preview/.build-native/
 deploy/market/buyers.public.json
 deploy/market/attestation.local.json
 deploy/market/rendered/

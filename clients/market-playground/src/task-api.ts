@@ -1,14 +1,15 @@
 export type Preference = 'save' | 'balanced' | 'fast';
 export interface Capabilities { version: 1; nativeWallets?: boolean; ownerAuth?: 'nep413'|'code'; mode: 'controlled' | 'wallet-setup'; tasks: boolean; walletSetup: boolean; realInferencePayments: false; maxTasksPerAgent?: number; taskWindowMs?: number }
 export interface AgentSession {
-  id: string; agent_id: string; payer: string; state: string; paused: boolean;
+  id: string; agent_id: string; payer: string; state: string; phase?: string; started?: boolean; paused: boolean;
   task_id: string; revision: string; generation: string; preference: Preference;
   budget_nano: string; reserved_nano: string; spent_nano: string; prompt: string; deadline_ms: string;
 }
 export interface AgentLimit { agent_id: string; budget_nano: string; spent_nano: string; reserved_nano: string }
 export interface Call { id: string; state: string; revision: string; bid_nano: string; manual: boolean; decision?: { result: { reason?: string } } }
 export interface TaskStatus {
-  id: string; state: string; transcript: string; workspace: Record<string, string>;
+  id: string; state: string; phase?: string; started?: boolean; transcript: string; workspace: Record<string, string>;
+  result?: {stopReason: string} | null;
   task: { budget_nano: string; hard_bid_nano: string; preference: Preference; revision: string };
   calls: Call[]; orders: Array<{ state: string; principal: { P: string; C: string; H: string; W: string; R: string } }>;
 }

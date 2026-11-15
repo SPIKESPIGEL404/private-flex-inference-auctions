@@ -3,6 +3,11 @@ import {randomUUID} from 'node:crypto';
 import {hash,requireThat} from '../contract.mjs';
 import {completion} from '../p1/server.mjs';
 const now=async db=>Number((await db.query('SELECT floor(extract(epoch FROM clock_timestamp())*1000)::bigint AS n')).rows[0].n);
+const startedSql=`(s.fx_started OR s.head>0 OR EXISTS(SELECT 1 FROM mpp_direct_p2_operations o WHERE o.user_id=s.user_id AND o.resource='start:'||s.id)
+ OR EXISTS(SELECT 1 FROM mpp_direct_p2_calls c WHERE c.session_id=s.id))`;
+const phase=(s,t,started,calls=[])=>s.state==='complete'?'complete':started&&Date.now()>=Number(t.deadline_ms)?'expired':
+ s.state==='running'&&Number(s.writer_until_ms)<=Date.now()?'interrupted':
+ s.state==='running'&&calls.some(c=>c.state==='bidding'&&c.decision?.result?.reason==='supply_unavailable')?'waiting for supply':s.state;
 export class Tasks{
  constructor(authority){this.a=authority;this.pool=authority.pool;}
  async owner(token){const row=(await this.pool.query('SELECT owner_id FROM mpp_direct_p2_owners WHERE token_hash=$1',[hash(token)])).rows[0];requireThat(row,'unauthorized');return row.owner_id;}
@@ -11,9 +16,11 @@ export class Tasks{
   requireThat(row,'unknown_session');return row;
  }
  guard(s,writer,generation,at){requireThat(s.writer_hash===hash(writer??'')&&String(s.generation)===String(generation)&&Number(s.writer_until_ms)>at,'writer_fenced');}
- async list(owner){return (await this.pool.query(`SELECT a.agent_id,a.payer,s.id,s.state,s.generation,s.task_id,s.prompt,s.workspace_version,s.result,s.created_ms,
+ async list(owner){const rows=(await this.pool.query(`SELECT a.agent_id,a.payer,s.id,s.state,s.generation,s.task_id,s.prompt,s.workspace_version,s.result,s.created_ms,s.writer_until_ms,${startedSql} AS started,
+  (SELECT jsonb_agg(jsonb_build_object('state',c.state,'decision',c.decision)) FROM mpp_direct_p2_calls c WHERE c.session_id=s.id) AS calls,
   t.budget_nano,t.reserved_nano,t.spent_nano,t.deadline_ms,t.preference,t.paused,t.revision FROM mpp_direct_agents a
-  JOIN mpp_direct_p2_sessions s ON s.user_id=a.user_id JOIN mpp_direct_tasks t ON t.id=s.task_id WHERE a.owner_id=$1 AND t.active ORDER BY a.agent_id,s.created_ms,s.id`,[owner])).rows;}
+  JOIN mpp_direct_p2_sessions s ON s.user_id=a.user_id JOIN mpp_direct_tasks t ON t.id=s.task_id WHERE a.owner_id=$1 AND t.active ORDER BY a.agent_id,s.created_ms,s.id`,[owner])).rows;
+  return rows.map(({calls,...s})=>({...s,phase:phase(s,s,s.started,calls??[])}));}
  async create(owner,agentId,input){
   requireThat(typeof input.prompt==='string'&&input.prompt.trim().length>0&&input.prompt.length<=1000&&/^[1-9][0-9]{0,12}$/.test(input.budgetNano)
    &&['save','balanced','fast'].includes(input.preference),'invalid_task');
@@ -32,12 +39,26 @@ export class Tasks{
   const first=await this.session(owner,id);requireThat(/^[a-f0-9]{64}$/.test(input.writer),'invalid_writer');
   return this.a.transaction(first.user_id,async db=>{
    const s=await this.session(owner,id,db,'FOR UPDATE OF s');const at=await now(db);
-   if(s.writer_hash===hash(input.writer)&&Number(s.writer_until_ms)>at)return {generation:s.generation,state:s.state};
+   const replay=s.writer_hash===hash(input.writer)&&Number(s.writer_until_ms)>at;
+   if(replay){
+    const task=(await db.query('SELECT * FROM mpp_direct_tasks WHERE id=$1 FOR SHARE',[s.task_id])).rows[0];
+    requireThat(task.active&&!task.paused&&s.agent_active,'task_not_running');
+    requireThat(at<Number(task.deadline_ms),'task_expired');
+    return {generation:s.generation,state:s.state};
+   }
    requireThat(String(input.expectedGeneration)===String(s.generation),'revision_conflict');
    requireThat(input.force===true||Number(s.writer_until_ms)<=at,'writer_busy');
    const task=(await db.query('SELECT * FROM mpp_direct_tasks WHERE id=$1 FOR UPDATE',[s.task_id])).rows[0];
-   requireThat(task.active&&!task.paused&&s.agent_active&&at<Number(task.deadline_ms),'task_not_running');
+   requireThat(task.active&&!task.paused&&s.agent_active,'task_not_running');
    requireThat(s.state!=='complete','task_complete');
+   const started=(await db.query(`SELECT ${startedSql} AS started FROM mpp_direct_p2_sessions s WHERE s.id=$1`,[id])).rows[0].started;
+   if(!started){
+    // First writer starts the window once. Resume and engine startup failures
+    // cannot renew it, even before the first fx journal entry.
+    const deadline=at+180000;
+    await db.query('UPDATE mpp_direct_tasks SET deadline_ms=$2 WHERE id=$1',[task.id,deadline]);
+    await db.query('INSERT INTO mpp_direct_p2_operations VALUES($1,$2,$3,$4,$5)',[s.user_id,'start-'+id,'start:'+id,hash(id),{deadlineMs:String(deadline)}]);
+   }else requireThat(at<Number(task.deadline_ms),'task_expired');
    const row=(await db.query("UPDATE mpp_direct_p2_sessions SET generation=generation+1,writer_hash=$2,writer_until_ms=$3,state='running' WHERE id=$1 RETURNING generation,state",[id,hash(input.writer),at+10000])).rows[0];
    return row;
   });
@@ -81,6 +102,7 @@ export class Tasks{
    requireThat(approved,'paid_tool_authorization_required');
    const t=(await db.query('SELECT * FROM mpp_direct_tasks WHERE id=$1 FOR SHARE',[s.task_id])).rows[0];
    requireThat(s.state==='running'&&s.agent_active&&t.active&&!t.paused,'task_not_running');
+   requireThat(await now(db)<Number(t.deadline_ms),'task_expired');
    // All effects are in-memory. Workspace snapshot + result become durable in
    // this single PG commit. No external command/network/real filesystem exists.
    const bash=new Bash({cwd:'/workspace',files:s.workspace,executionLimits:{maxCommandCount:200,maxLoopIterations:200,maxCallDepth:30}});
@@ -188,6 +210,9 @@ export class Tasks{
   }
   if(s.result)transcript+='['+s.result.stopReason+']\n';
   for(const order of orders)if(order.executionStatus?.reason)transcript+='[purchase stopped: '+String(order.executionStatus.reason)+']\n';
-  return {id:s.id,state:s.state,generation:s.generation,fxStarted:s.fx_started,task,workspace:s.workspace,workspaceVersion:s.workspace_version,result:s.result,calls,orders,transcript};
+  const started=(await this.pool.query(`SELECT ${startedSql} AS started FROM mpp_direct_p2_sessions s WHERE s.id=$1`,[id])).rows[0].started;
+  const currentPhase=phase(s,task,started,calls);
+  const displayPhase=currentPhase==='running'&&orders.some(o=>o.executionStatus?.status==='waiting_for_supply')?'waiting for supply':currentPhase;
+  return {id:s.id,state:s.state,phase:displayPhase,started,generation:s.generation,fxStarted:s.fx_started,task,workspace:s.workspace,workspaceVersion:s.workspace_version,result:s.result,calls,orders,transcript};
  }
 }

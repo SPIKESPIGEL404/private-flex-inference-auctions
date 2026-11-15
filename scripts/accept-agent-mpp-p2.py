@@ -46,12 +46,13 @@ class SellerHandler(BaseHTTPRequestHandler):
    self.wfile.write(frame(finish=reason));self.wfile.write(frame(usage={'prompt_tokens':512,'completion_tokens':output,'total_tokens':512+output}));self.wfile.write(b'data: [DONE]\n\n');self.wfile.flush()
   except (BrokenPipeError,ConnectionResetError):pass
 class P2:
- def __init__(self,binary,slow_bootstrap=False):self.m=Market(binary,initialize=False);self.processes=[];self.logs=[];self.slow_bootstrap=slow_bootstrap
+ def __init__(self,binary,slow_bootstrap=False,continuous=False):self.m=Market(binary,initialize=False);self.processes=[];self.logs=[];self.slow_bootstrap=slow_bootstrap;self.continuous=continuous
  def __enter__(self):
   m=self.m.__enter__()
   try:
    m.redis.terminate();m.redis.wait(timeout=5);self.start_redis()
    m.env.update(PRIVATE_MARKET_NEAR_DIRECT_P1='controlled',PRIVATE_MARKET_AGENT_P2='controlled',PRIVATE_MARKET_LISTEN='127.0.0.1:'+str(free_port()))
+   if self.continuous:m.env['PRIVATE_MARKET_P2_CONTINUOUS_SUPPLY']='1'
    delayed=[]
    def delay_bootstrap():
     try:
@@ -202,11 +203,11 @@ def policy(binary):
   assert any(d['action']=='wait' for d in decisions)
   return {'case':'persistent-cost-speed-wait-and-bid-revisions','passed':True,'revisions':revisions}
 def manual_wait(binary):
- with P2(binary) as x:
+ with P2(binary,continuous=True) as x:
   x.m.sql('UPDATE mpp_direct_p2_market SET available=false')
   with ThreadPoolExecutor(max_workers=1) as pool:
    job=pool.submit(x.fx,1)
-   s=wait_for(lambda:(s if (s:=x.status(1))['calls'] else None));c=s['calls'][0]
+   s=wait_for(lambda:(s if (s:=x.status(1))['phase']=='waiting for supply' else None));c=s['calls'][0]
    payload={'action':'revise_bid','bidNano':'1','expectedRevision':c['revision'],'operation':'manual-one'}
    assert x.api('calls/'+c['id'],payload,headers=None)[0]==404 # POST is not PATCH
    from urllib.request import Request
@@ -260,7 +261,7 @@ def refund_wait(binary):
   assert x.status(1)['calls'][1]['started_ms']==started and x.counts()['payments']==2
   return {'case':'unconfirmed-refund-cannot-fund-paid-continuation','passed':True}
 def waiting_restart(binary):
- with P2(binary) as x:
+ with P2(binary,continuous=True) as x:
   x.m.sql('UPDATE mpp_direct_p2_market SET available=false')
   p,data=x.async_fx();p.stdin.write(data);p.stdin.close()
   wait_for(lambda:len(x.status(1)['calls'])==1);before=x.status(1)['calls'][0];p.kill();p.wait(timeout=5)
@@ -334,15 +335,64 @@ def reset_tasks(binary):
   x.m.sql('UPDATE mpp_direct_tasks SET reserved_nano=1 WHERE id=\'task-2\'')
   assert x.control(2,'reset')[1]['error']['code']=='original_settlement_pending'
   return {'case':'repeat-reset-preserves-evidence-budgets-and-owner-fences','passed':True}
+def continuous_supply(binary):
+ with P2(binary,continuous=True) as x:
+  x.m.sql("UPDATE mpp_direct_tasks SET preference='fast'")
+  original=x.status(1);session=original['id'];checks=[]
+  for index in range(12):
+   if index==8:x.restart_all()
+   outcome=x.fx(session)
+   if outcome['result']['stopReason']!='end_turn':
+    saved=x.api('sessions/'+session)[1]
+    raise AssertionError({'attempt':index,'result':outcome['result'],'phase':saved['phase'],
+      'decisions':[c['decision'].get('result') for c in saved['calls']], 'executionStatuses':[o['executionStatus'] for o in saved['orders']]})
+   saved=wait_for(lambda:(s if (s:=x.api('sessions/'+session)[1])['task']['reserved_nano']=='0' else None))
+   assert saved['workspace']['/workspace/result.txt']=='42\n'
+   assert saved['workspace']['/workspace/applications.log']=='applied\n'
+   checks.append({'attempt':index+1,'executions':x.counts()['executions'],'spentNano':saved['task']['spent_nano']})
+   print('PASS continuous attempt '+str(index+1)+' / executions '+str(x.counts()['executions']),file=sys.stderr,flush=True)
+   if index<11:
+    result=x.api('sessions/'+session+'/control',{'action':'reset','expectedRevision':saved['task']['revision'],'operation':'continuous-'+str(index)})
+    assert result[0]==200,result
+    session=result[1]['id']
+  assert x.counts()['executions']==24 and x.counts()['tools']==12
+  assert x.api('sessions/'+original['id'])[1]['workspace']['/workspace/result.txt']=='42\n'
+  spent=int(x.m.sql('SELECT spent_nano FROM mpp_direct_p2_agent_limits WHERE user_id='+literal(x.m.buyers[0]['user'])))
+  assert 0<spent<=20000000
+  return {'case':'24-inferences-same-database-restart-after-16-preserves-budget','passed':True,'attempts':checks,'parentSpentNano':str(spent)}
+def first_run_deadline(binary):
+ with P2(binary,continuous=True) as x:
+  x.m.sql("UPDATE mpp_direct_tasks SET deadline_ms=1 WHERE id='task-1'")
+  assert not x.status(1)['started']
+  x.claim(1);started=x.status(1)
+  assert started['started'] and int(started['task']['deadline_ms'])>int(time.time()*1000)+170000
+  deadline=started['task']['deadline_ms']
+  assert x.control(1,'pause')[0]==200 and x.control(1,'resume')[0]==200
+  x.claim(1)
+  assert x.status(1)['task']['deadline_ms']==deadline
+  x.m.sql("UPDATE mpp_direct_tasks SET deadline_ms=1 WHERE id='task-1'")
+  x.m.sql("UPDATE mpp_direct_p2_sessions SET writer_until_ms=0 WHERE id='session-1'")
+  saved=x.status(1);assert saved['phase']=='expired'
+  response=x.api('sessions/session-1/claim',{'writer':os.urandom(32).hex(),'expectedGeneration':saved['generation']})
+  assert response[1]['error']['code']=='task_expired',response
+  return {'case':'deadline-starts-on-first-claim-and-never-renews-on-resume','passed':True}
 def unknown(binary):
- with P2(binary) as x:
+ with P2(binary,continuous=True) as x:
   x.m.seller.mode='disconnect';r=x.fx(1);assert r['result']['stopReason']!='end_turn'
   assert x.counts()=={'payments':1,'refunds':0,'executions':1,'tools':0},x.counts()
   assert x.m.sql('SELECT h=p AND w=0 AND c=0 FROM mpp_direct_orders')=='t'
   assert int(x.status(1)['task']['reserved_nano'])>0
+  assert x.control(1,'reset')[1]['error']['code']=='original_settlement_pending'
+  with ThreadPoolExecutor(max_workers=1) as pool:
+   pending=pool.submit(x.fx,2)
+   wait_for(lambda:x.status(2)['phase']=='waiting for supply')
+   assert x.counts()['payments']==1 and x.counts()['executions']==1
+   assert x.control(2,'pause')[0]==200
+   try:assert pending.result(timeout=15)['result']['stopReason']!='end_turn'
+   except AssertionError as e:assert any(reason in str(e) for reason in ['fenced','journal append failed']),str(e)
   return {'case':'unknown-native-outcome-retains-money-and-dispatch-custody','passed':True}
 def lost_ack(binary):
- with P2(binary) as x:
+ with P2(binary,continuous=True) as x:
   x.set('dropPaymentAck',True);x.set('dropRefundAck',True);r=x.fx(1)
   assert r['result']['stopReason']=='end_turn',r
   wait_for(lambda:x.counts()['refunds']==2)
@@ -357,6 +407,7 @@ def main():
    while not a.serve.with_suffix('.stop').exists():time.sleep(.2)
   return
  cases={'happy':happy,'reset':reset_tasks,'crash-model':lambda b:crash_test(b,'after_model_1'),'crash-tool':lambda b:crash_test(b,'after_tool'),'crash-continuation':lambda b:crash_test(b,'after_model_2'),'isolation':isolation,'policy':policy,'manual':manual_wait,'limits':limits,'malformed':malformed,'refund-wait':refund_wait,'waiting-restart':waiting_restart,'stale':stale_forecast,'shared-wallet':shared_wallet,'unknown':unknown,'ack':lost_ack}
+ cases.update(continuous=continuous_supply,deadline=first_run_deadline)
  if a.case!='all' and a.case not in cases:p.error('unknown case: '+a.case)
  checks=[]
  for key,fn in cases.items():

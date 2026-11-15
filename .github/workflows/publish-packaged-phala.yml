@@ -10,6 +10,14 @@ on:
         description: Immutable current workspace image (required for workspace-only)
         type: string
         default: ''
+      workspace_native_release:
+        description: Source-matched controlled-supply native artifact release
+        type: string
+        default: ''
+      workspace_native_sha256:
+        description: SHA256 of the reviewed Linux native artifact
+        type: string
+        default: ''
 permissions:
   contents: read
   packages: write
@@ -30,6 +38,9 @@ jobs:
         if: ${{ inputs.workspace_only }}
         env:
           WORKSPACE_BASE: ${{ inputs.workspace_base }}
+          WORKSPACE_NATIVE_RELEASE: ${{ inputs.workspace_native_release }}
+          WORKSPACE_NATIVE_SHA256: ${{ inputs.workspace_native_sha256 }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/publish-playground-workspace.py
       - uses: actions/upload-artifact@v4
         with:

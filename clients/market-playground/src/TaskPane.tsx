@@ -14,6 +14,7 @@ interface Props {
   onSelect(): void; refresh(): Promise<void>; onUnauthorized(): void;
   onDetail(id: string, value: TaskStatus): void; onInput(data: string): boolean;
   onReady(id: string): void;
+  onRestart(oldId: string, nextId: string): Promise<void>;
   configure(): void; newTask(prompt?: string): void; wallet(): void;
 }
 // Model/tool text is display data, never terminal control sequences.
@@ -31,6 +32,7 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
   const active = useRef(true), running = useRef(false), stopping = useRef(false), line = useRef('');
   const finished = useRef<Promise<void>>(Promise.resolve());
   const resetRequest = useRef<{action: 'reset'; expectedRevision: string; operation: string} | null>(null);
+  const resetting = useRef(false);
   const latest = useRef(props); latest.current = props;
   const transcript = useRef('');
   const prompt = () => terminal.current?.write('\r\n\x1b[90mmarket>\x1b[0m ');
@@ -80,7 +82,12 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
 
   async function run() {
     const p = latest.current;
-    if (!p.enabled || !hosted || running.current || p.session.state === 'complete' || !terminal.current) return;
+    if (!p.enabled || !hosted || running.current || !terminal.current) return;
+    if (p.session.state === 'complete' || p.session.phase === 'expired' || detail.current?.result) {
+      const next = await reset();
+      if (next && active.current) await p.onRestart(session.id, next);
+      return;
+    }
     running.current = true; stopping.current = false; setBusy(true); setError('');
     let settle!: () => void;
     finished.current = new Promise(resolve => { settle = resolve; });
@@ -122,7 +129,8 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
     } catch (e) { if (active.current) setError(e instanceof Error ? e.message : 'Pause was not confirmed.'); return false; }
   }
   async function reset() {
-    if (!hosted || !active.current) return;
+    if (!hosted || !active.current || resetting.current) return;
+    resetting.current = true;
     setBusy(true); setError('');
     try {
       if (!resetRequest.current) {
@@ -142,7 +150,7 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
       }
     } catch (e) {
       if (active.current) setError(e instanceof Error ? e.message : 'Reset was not confirmed.');
-    } finally { if (active.current) setBusy(false); }
+    } finally { resetting.current = false; if (active.current) setBusy(false); }
   }
   useImperativeHandle(ref, () => ({run, pause, reset, focus: () => terminal.current?.focus()}));
   function input(data: string) {
@@ -167,8 +175,8 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
   }
   return <section className={`buyer-terminal hosted-terminal ${props.selected ? 'is-selected' : ''}`} aria-label={session.agent_id + ' task'}
     onPointerDown={props.onSelect} onFocusCapture={props.onSelect}>
-    <div className="task-pane-heading"><strong>{session.agent_id}</strong><span>{session.state}</span><span className="task-pane-money">{nanoUsd(session.spent_nano)} / {nanoUsd(session.budget_nano)}</span>
-      {hosted && <button className="pane-run" disabled={!ready || !props.enabled || session.state === 'complete' || busy} onClick={() => void run()} aria-label={'Run ' + session.id}>run ↵</button>}</div>
+    <div className="task-pane-heading"><strong>{session.agent_id}</strong><span>{detail.current?.phase ?? session.phase ?? session.state}</span><span className="task-pane-money">{nanoUsd(session.spent_nano)} / {nanoUsd(session.budget_nano)}</span>
+      {hosted && <button className="pane-run" disabled={!ready || !props.enabled || busy} onClick={() => void run()} aria-label={'Run ' + session.id}>{session.state==='complete'||session.phase==='expired'||detail.current?.result?'run again':'run'} ↵</button>}</div>
     {core ? <Terminal core={core} autoResize onReady={value => {terminal.current = value; transcript.current = ''; setReady(true); latest.current.onReady(session.id);}}
       onData={input} scrollbackLines={1200} onError={() => setError('Terminal rendering failed. Refresh to recover the saved task.')} />
       : <div className="terminal-loading">starting fx<span className="cursor">▌</span></div>}
