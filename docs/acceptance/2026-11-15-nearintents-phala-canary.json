@@ -1,0 +1,304 @@
+{
+  "scope": "hosted-paused-nearintents-canary",
+  "checkedAt": "2026-11-15T21:02:56.790117+00:00",
+  "sourceRevision": "e0559daaec22b755307b3fd059e2715848450c60",
+  "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:cf0c3de65ce687869d29a3cba4a3441fac5d5e2d15b2e3c24847d29a7a9e03ff",
+  "ciRun": "https://github.com/SPIKESPIGEL404/private-flex-inference-auctions/actions/runs/43760483201",
+  "cvmId": "c93b6999-4d41-4567-acdf-0e77d8e7a76f",
+  "appId": "e83279da3fa5b47453cc62317df738b70fedf08c",
+  "origin": "https://e83279da3fa5b47453cc62317df738b70fedf08c-3001.dstack-pha1-prod9.phala.network",
+  "status": "running",
+  "composeHash": "53c264751e2db1095146f1301cfb79e29d3f6fa48f99bd56e45074b977b29251",
+  "reviewedPlanHash": "0939cfe0a4d2a299043fede4a033eeb4a0f2d5ad29a80a4ee06a53aca19e3441",
+  "planDeadlineUtc": "2026-11-16T20:29:12.283000+00:00",
+  "paymentsPaused": true,
+  "operatorPaidProbeEnabled": false,
+  "assistantInitiatedRealTransfers": 0,
+  "assistantInitiatedPaidInferenceCalls": 0,
+  "realWalletLoginAccepted": false,
+  "realFundingAccepted": false,
+  "realInferenceAcceptance": "deferred by the user; deployment only",
+  "preLaunchScriptRequired": false,
+  "existingServicesPreserved": [
+    "market",
+    "agent-preview",
+    "domain-ingress",
+    "domain-diagnostics"
+  ],
+  "existingVolumesPreserved": [
+    "chutes-first-history",
+    "chutes-data",
+    "near-data",
+    "tls-ca",
+    "controlled-history",
+    "first-near-history",
+    "agent-preview-data",
+    "custom-domain-certs",
+    "custom-domain-evidence",
+    "domain-observer"
+  ],
+  "existingSealedNamesPreserved": true,
+  "finalUpdateChangedOnlyCanaryImage": true,
+  "retainedPreviewHealth": {
+    "ready": true,
+    "phase": "P2",
+    "mode": "controlled",
+    "realPayment": false,
+    "revision": "364264085636bb79c2ae7c01a24ef1ad8dc6f78d"
+  },
+  "capabilities": {
+    "version": 1,
+    "mode": "bounded-nearintents-auction-v1",
+    "taskRuntime": "client-memory-v1",
+    "network": "mainnet",
+    "tasks": true,
+    "walletSetup": false,
+    "ownerAuth": "nep413",
+    "nativeWallets": true,
+    "nativeFunding": true,
+    "inferenceEndpoint": "/buyer-api/v1/chat/completions",
+    "walletProvider": "nearintents-evm",
+    "paymentMethod": "nearintents",
+    "billing": "auction-fixed-request-v1",
+    "realInferencePayments": true,
+    "paymentsPaused": true,
+    "maxTasksPerAgent": 8,
+    "taskWindowMs": 1800000,
+    "realChainPayments": true,
+    "realInference": true
+  },
+  "health": {
+    "ready": true,
+    "network": "mainnet",
+    "mode": "bounded-nearintents-auction-v1",
+    "planHash": "0939cfe0a4d2a299043fede4a033eeb4a0f2d5ad29a80a4ee06a53aca19e3441",
+    "realPayment": true
+  },
+  "unauthenticatedChatRejected": {
+    "http": 401,
+    "body": "{\"error\":{\"code\":\"unauthorized\"}}"
+  },
+  "assets": {
+    "scope": "current-source-built-assets-vs-hosted-image",
+    "source": "e0559daaec22b755307b3fd059e2715848450c60",
+    "matched": 26,
+    "total": 26,
+    "files": [
+      {
+        "path": "assets/App-Cimx29xO.js",
+        "sha256": "e29c61b187a817a297dea8b10e684bce893d8edc21189bbd63c05bc349c31503",
+        "matched": true,
+        "bytes": 577657
+      },
+      {
+        "path": "assets/fx-core-C4mjExOH.wasm",
+        "sha256": "c2b17c90d1c4ce76f72d322bb7bd210e3d066eb1db05aaae053a4e4371cabb69",
+        "matched": true,
+        "bytes": 2260477
+      },
+      {
+        "path": "assets/fx-term-BweRpxJV.wasm",
+        "sha256": "723ae0a6ce55cda47f66f533224d149cec4501101ca233b1493c15d4af3e1fb7",
+        "matched": true,
+        "bytes": 3554437
+      },
+      {
+        "path": "assets/geist-mono-cyrillic-400-normal-C51Di1Mf.woff2",
+        "sha256": "c3e3d9893a3de6713b06bc2fadeacafd9ec05594c5ed18f2e23383669d9dbb9f",
+        "matched": true,
+        "bytes": 5556
+      },
+      {
+        "path": "assets/geist-mono-cyrillic-400-normal-CPJFfJgk.woff",
+        "sha256": "02b8fba2fdff88ac36fe4dbea0323081886af73ea68dabe08cad05ca62a489be",
+        "matched": true,
+        "bytes": 7100
+      },
+      {
+        "path": "assets/geist-mono-cyrillic-500-normal-D2cXvDHF.woff2",
+        "sha256": "4c8a1cdd921e467c7f8d410b2308986a3acdf1065b9e0bdc4976108a855edb1f",
+        "matched": true,
+        "bytes": 5720
+      },
+      {
+        "path": "assets/geist-mono-cyrillic-500-normal-DfuvdVgn.woff",
+        "sha256": "91a08f259b2314d053eab6473643a2b0bb3b78ffd5a70fbfcb7006fa1a1cbe7a",
+        "matched": true,
+        "bytes": 7300
+      },
+      {
+        "path": "assets/geist-mono-latin-400-normal-B2yvC1Cq.woff",
+        "sha256": "ec7ecd39327c39a2b2792c8b402d094619b6c1e517a74420cde8fd67a71ed083",
+        "matched": true,
+        "bytes": 13044
+      },
+      {
+        "path": "assets/geist-mono-latin-400-normal-DTRLJnHl.woff2",
+        "sha256": "3f98383b122fe015a48536cd4a1cda855a201718923ffe74931a01597107b9b5",
+        "matched": true,
+        "bytes": 9864
+      },
+      {
+        "path": "assets/geist-mono-latin-500-normal-D-GG86Jb.woff",
+        "sha256": "04dde39e58d3539d8a8933f649c556887984c89efe1d1da53c8bb2412da12138",
+        "matched": true,
+        "bytes": 13336
+      },
+      {
+        "path": "assets/geist-mono-latin-500-normal-YINYabwD.woff2",
+        "sha256": "72971bd4908d3984fa1b1426bb363730e4957e16a0f58bfbca76993095715488",
+        "matched": true,
+        "bytes": 10116
+      },
+      {
+        "path": "assets/geist-mono-latin-ext-400-normal-CfzLURNc.woff",
+        "sha256": "7cc6e726dcf12d457c59e75d843d9486fe05410495d36735035c9c984345638c",
+        "matched": true,
+        "bytes": 9668
+      },
+      {
+        "path": "assets/geist-mono-latin-ext-400-normal-DI-rJ0UV.woff2",
+        "sha256": "8ede9cb664d0e0446ed066201d58e444f6147645ae0cb1108f765f68c54fe0a4",
+        "matched": true,
+        "bytes": 7008
+      },
+      {
+        "path": "assets/geist-mono-latin-ext-500-normal-Buglb9-a.woff2",
+        "sha256": "84c2a01e0e35619e561d46285ccecec68aae76cb96c618b8e047806cb5530741",
+        "matched": true,
+        "bytes": 7156
+      },
+      {
+        "path": "assets/geist-mono-latin-ext-500-normal-CrWEgvU_.woff",
+        "sha256": "1c1714e8e9c550c95828150544640b0a04697562b460bb3a522a555a7ebbdef2",
+        "matched": true,
+        "bytes": 9796
+      },
+      {
+        "path": "assets/geist-mono-symbols2-400-normal-DjbiTEEA.woff",
+        "sha256": "980c7c91c59d3f4a3e361c7204fdf521302f1fb01ea35f958f57a79e6e6291a3",
+        "matched": true,
+        "bytes": 5012
+      },
+      {
+        "path": "assets/geist-mono-symbols2-500-normal-CmnCPGa0.woff",
+        "sha256": "85f29019cb4ec8c86d58ecd7ce89d35fabcf7e7c58bd62a9b38d33aeb7498e20",
+        "matched": true,
+        "bytes": 4988
+      },
+      {
+        "path": "assets/geist-mono-vietnamese-400-normal-CZEPLOgu.woff",
+        "sha256": "5e6255c9b6336d6cc03b626d802b1408da4662e77a9030ccbc4101c2ed851526",
+        "matched": true,
+        "bytes": 5308
+      },
+      {
+        "path": "assets/geist-mono-vietnamese-500-normal-Dx9-epDo.woff",
+        "sha256": "288bc86db5dbad0b24f8b2e0d480b72878f02de90fcf31a1ccb9a918035fffe6",
+        "matched": true,
+        "bytes": 5392
+      },
+      {
+        "path": "assets/ghostty-vt-CQK3cHgQ.wasm",
+        "sha256": "dc9ab0dca64ddeaa9c0dbf9c03f41b0f578893eccc9eb517707c4f4f8355e780",
+        "matched": true,
+        "bytes": 599368
+      },
+      {
+        "path": "assets/index-BTsR2zce.css",
+        "sha256": "b902a4774306541605c25855885e27b57c589bfb4389ae3d61f8ce1ab8c5272a",
+        "matched": true,
+        "bytes": 82687
+      },
+      {
+        "path": "assets/index-D0x9BKan.js",
+        "sha256": "81bd6b8b59863f9a7fb6cd237d46a16f0d38c634054ce53b24ae8707bff86fd4",
+        "matched": true,
+        "bytes": 219795
+      },
+      {
+        "path": "assets/index-D9Kl6wlP.js",
+        "sha256": "2461de7b7f47c03cb7d278ffd833e98adb5eb4aa3ca950186334cfd8bf2f1c1f",
+        "matched": true,
+        "bytes": 60891
+      },
+      {
+        "path": "assets/task-PMi92Ksr.js",
+        "sha256": "d172289a90468d48326f260043c5f2dd5064df95c26cb5c101bea44d36ae5ad4",
+        "matched": true,
+        "bytes": 1290420
+      },
+      {
+        "path": "assets/wasm-inline-CojyJTUa.js",
+        "sha256": "b2b5a923cc6e80bff79455bbf96fb8e155f7d0c525d7788db3543b6bda75cad0",
+        "matched": true,
+        "bytes": 71629
+      },
+      {
+        "path": "index.html",
+        "sha256": "816fc9dd269069ac1fcb5bf0232fc242ac973a78febf8a0842b15fa0c30a9271",
+        "matched": true,
+        "bytes": 643
+      }
+    ]
+  },
+  "nativeOfflineBootstrap": {
+    "scope": "offline-image-bootstrap",
+    "image": "sha256:02540ce9843f13c43ed636c958c1c224082675bd53408d60b94e9cb26096124b",
+    "sourceRevision": "e0559daaec22b755307b3fd059e2715848450c60",
+    "network": "none",
+    "realChainPayments": false,
+    "realInference": false,
+    "bootstrapSourceOverride": false,
+    "owningSchemaInitializedAndVerified": true,
+    "expectedNetworkGateStoppedRuntime": true,
+    "counts": {
+      "fingerprint": 1,
+      "wallets": 0,
+      "orders": 0,
+      "payments": 0,
+      "providerInvocations": 0
+    }
+  },
+  "nearintentsOfflineBootstrap": {
+    "scope": "offline-nearintents-image-bootstrap",
+    "image": "sha256:02540ce9843f13c43ed636c958c1c224082675bd53408d60b94e9cb26096124b",
+    "sourceRevision": "e0559daaec22b755307b3fd059e2715848450c60",
+    "network": "none",
+    "realTransfers": 0,
+    "paidInference": 0,
+    "freshVolumeAndRestartPassed": true,
+    "counts": {
+      "owning": 1,
+      "adapter": 1,
+      "agents": 0,
+      "orders": 0,
+      "credentials": 0,
+      "providerInvocations": 0
+    }
+  },
+  "reusedRustBinary": {
+    "sourceRevision": "85d342cc2b86c944011dc69c0d0c22427f6e92f1",
+    "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:5021845ffdd208cfbd674662c057bc0180e420e4b6ff336ef136e29c138c968e",
+    "sha256": "d8b93779b81ad7ed02f14897a30906e19325fec4d2b334c067c1a509feb360ad"
+  },
+  "controlledChecks": {
+    "intentsAuctionAndPlan": 15,
+    "nativeRegression": 40,
+    "playground": 16,
+    "activationAndPreservation": 6,
+    "unchangedStandaloneCharge": 23
+  },
+  "browser": {
+    "pausedMainnetPageObserved": true,
+    "walletSelectorObserved": true,
+    "walletChosen": false,
+    "messageSigned": false,
+    "fundingSubmitted": false
+  },
+  "resourcesUnchanged": true,
+  "publishedSourceInputSha256": {
+    ".github/workflows/publish-packaged-phala.yml": "44e50106059f8a39fdac50360bda18cc5b50b8b68265cb97953cd97ca874c53d",
+    "scripts/publish-current-mainnet.py": "61f8d2505d8dc9fbfc7912f812c07f11bf995901e9af1eda0f0bd995dbf198fe"
+  }
+}
