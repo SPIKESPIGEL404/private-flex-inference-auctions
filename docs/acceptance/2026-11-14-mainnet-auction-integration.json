@@ -1,0 +1,87 @@
+{
+  "scope": "controlled-mainnet-candidate-not-funded-acceptance",
+  "sourceRevision": "69a2a40eeefd642a851111f9e79abb4d0ab8059a",
+  "pr": 26,
+  "integratedHeads": {
+    "20": "df0ba403abcc270516021bac083a6ba9eda332b1",
+    "24": "7c7adc81653a80c918cf727e0889d3b35effbb7f"
+  },
+  "checks": {
+    "paymentWalletCloudAuction": {
+      "passed": 111
+    },
+    "owningPostgres": {
+      "passed": 40,
+      "externalChainAndProviderFixtures": true
+    },
+    "playground": {
+      "passed": 12
+    },
+    "gatewayComparison": {
+      "passed": 50
+    },
+    "rustHost": {
+      "passed": 13
+    }
+  },
+  "packageSafetyTestsPassed": 3,
+  "typescriptViteBuildPassed": true,
+  "rustBinarySha256": "b08971669000a03b9acb98064fdbbb93b0d7cf3ca16b150bc77ecbb8f083778f",
+  "owningSchemaModeMismatchRejected": true,
+  "runtimeSchemaDriftRejected": true,
+  "imageBootstrap": {
+    "scope": "offline-image-bootstrap",
+    "image": "sha256:30854c62585a5141be85d9c22a909620f0cf142f692fcbe6a4562290c03dc1f4",
+    "sourceRevision": "69a2a40eeefd642a851111f9e79abb4d0ab8059a",
+    "network": "none",
+    "realChainPayments": false,
+    "realInference": false,
+    "bootstrapSourceOverride": false,
+    "owningSchemaInitializedAndVerified": true,
+    "expectedNetworkGateStoppedRuntime": true,
+    "counts": {
+      "fingerprint": 1,
+      "wallets": 0,
+      "orders": 0,
+      "payments": 0,
+      "providerInvocations": 0
+    }
+  },
+  "imageNodeVersion": "v24.22.3",
+  "runtimeImportsOffline": true,
+  "readonlyCloudAttestation": {
+    "scope": "readonly-no-inference",
+    "model": "Qwen/Qwen3.8-27B",
+    "sdkVersion": "0.3.0",
+    "strictTcb": "UpToDate",
+    "verified": true,
+    "resultKeys": [
+      "gateway",
+      "models",
+      "verifiedAt"
+    ]
+  },
+  "controlledBrowser": {
+    "apiFixture": true,
+    "walletMutationsDisabled": true,
+    "screenshot": "2026-11-14-mainnet-wallet-controlled.png",
+    "screenshotSha256": "3e003488bb9636925a88f0650ba3db998a1786d0c48f276fbde022a8ea734270",
+    "realWalletExtension": false
+  },
+  "realChainPayments": false,
+  "realInference": false,
+  "cvmModified": false,
+  "releaseGates": [
+    "private valid Cloud key file",
+    "reviewed exact funded canary and total allowance",
+    "fresh sourced FX",
+    "real owner wallet policy/funding",
+    "FINAL principal/gas/refund evidence and replay audit"
+  ],
+  "limits": [
+    "SDK request-response capture is not durable until verified persistence; unknown never reposts",
+    "operator-maintained FX expires; no production oracle integration",
+    "project Cloud account pays provider; agents pay this MPP merchant",
+    "provider revision/invoice not independently verified"
+  ]
+}
