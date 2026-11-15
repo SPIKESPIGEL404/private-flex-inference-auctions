@@ -171,7 +171,12 @@ export class Tasks{
  async status(owner,id){
   const s=await this.session(owner,id);const task=(await this.pool.query('SELECT * FROM mpp_direct_tasks WHERE id=$1',[s.task_id])).rows[0];
   const calls=(await this.pool.query('SELECT id,state,revision,bid_nano,manual,started_ms,deadline_ms,decision,order_id FROM mpp_direct_p2_calls WHERE session_id=$1 ORDER BY started_ms,id',[id])).rows;
-  const orders=[];for(const c of calls)if(c.order_id)orders.push(this.a.view(await this.a.getOrder(c.order_id,s.user_id)));
+  const orders=[];for(const c of calls)if(c.order_id){
+   const order=await this.a.getOrder(c.order_id,s.user_id);
+   const receipt=(await this.pool.query(`SELECT r.receipt FROM mpp_direct_orders o JOIN market_inference_requests q ON q.request_id=o.admitted_request
+    JOIN market_inference_receipts r ON r.request_id=q.request_id AND r.revision=q.revision WHERE o.id=$1`,[order.id])).rows[0]?.receipt;
+   orders.push({...this.a.view(order),executionStatus:receipt?.status??null});
+  }
   // Reconstruct display from paid responses and committed tool receipts. Reading
   // a pane never starts fx, buys inference, or reapplies a tool.
   const responses=(await this.pool.query('SELECT r.body FROM mpp_direct_p2_responses r JOIN mpp_direct_p2_calls c ON c.id=r.call_id WHERE c.session_id=$1 ORDER BY c.progress_version,c.id',[id])).rows;
@@ -182,6 +187,7 @@ export class Tasks{
    for(const t of message.tool_calls??[]){transcript+='[bash] '+JSON.parse(t.function.arguments).command+'\n';const tool=tools.find(x=>x.execution_id===t.id);if(tool)transcript+=tool.result.stdout+tool.result.stderr+'[exit '+tool.result.exitCode+']\n';}
   }
   if(s.result)transcript+='['+s.result.stopReason+']\n';
+  for(const order of orders)if(order.executionStatus?.reason)transcript+='[purchase stopped: '+String(order.executionStatus.reason)+']\n';
   return {id:s.id,state:s.state,generation:s.generation,fxStarted:s.fx_started,task,workspace:s.workspace,workspaceVersion:s.workspace_version,result:s.result,calls,orders,transcript};
  }
 }
