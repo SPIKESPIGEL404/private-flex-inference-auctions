@@ -1,0 +1,32 @@
+# Node/UI update over a reviewed Mainnet image. CI requires unchanged Rust and
+# owning-schema inputs and verifies the exact reused binary against this base.
+ARG RUNTIME_IMAGE
+ARG NODE_IMAGE=node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
+FROM ${NODE_IMAGE} AS assets
+WORKDIR /app/services/mpp-near-direct
+COPY services/mpp-near-direct ./
+RUN npm ci --ignore-scripts --omit=dev
+WORKDIR /app/services/inference-comparison
+COPY services/inference-comparison/package*.json ./
+RUN npm ci --ignore-scripts --omit=dev
+WORKDIR /app/clients/market-playground
+COPY clients/market-playground/package*.json ./
+RUN npm ci --ignore-scripts
+COPY clients/market-playground ./
+RUN npm run build
+
+FROM ${RUNTIME_IMAGE} AS mainnet
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.revision=$SOURCE_REVISION
+USER root
+RUN python3 -c "import shutil; shutil.rmtree('/app/clients/market-playground/dist')"
+COPY --from=assets /app/clients/market-playground/dist ./clients/market-playground/dist
+COPY services/mpp-near-direct ./services/mpp-near-direct
+COPY --from=assets /app/services/mpp-near-direct/node_modules ./services/mpp-near-direct/node_modules
+COPY services/inference-comparison/core.mjs services/inference-comparison/near-bridge.mjs ./services/inference-comparison/
+COPY --from=assets /app/services/inference-comparison/node_modules ./services/inference-comparison/node_modules
+COPY clients/market-buyer/purchase-sign.mjs ./clients/market-buyer/purchase-sign.mjs
+COPY clients/buyer-gateway/src ./clients/buyer-gateway/src
+COPY scripts/*.py ./scripts/
+COPY scripts/*.mjs ./scripts/
+USER preview:preview

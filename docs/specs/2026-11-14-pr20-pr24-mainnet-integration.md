@@ -37,8 +37,10 @@ into each allocation contract; test accounting conventions are rejected. The
 project allowance starts bounded at USD0.01 with unknown calls retaining their
 reservation; never reset it on restart. No stronger model-weight proof is implied.
 
-Deployment must build frontend and binaries from the merged source rather than
-relabel the prior archive. Include the shared client task module in Docker build
+Deployment must package current frontend/runtime sources. An unchanged Rust
+binary may be reused from a reviewed Mainnet image only when owning Rust/schema
+inputs match and CI checks both binary hashes; report the reuse explicitly.
+Do not relabel a prior archive with changed source. Include the shared client task module in Docker build
 contexts. Keep the no-pre-launch image deployment, pin GHCR digests, use a new
 Mainnet data volume/database, and compare the live CVM manifest immediately before
 updates. Preserve original services/volumes and provide an additive rollback.

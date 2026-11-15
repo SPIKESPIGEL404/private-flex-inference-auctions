@@ -76,6 +76,14 @@ The untargeted Dockerfile still selects the P2 preview entry. The separate
 `mainnet` target packages current Rust, UI, shared browser client and Cloud SDK.
 Do not relabel the historical P2 release archive as this build.
 
+For Node/UI-only updates, `Dockerfile.mainnet-runtime` can rebuild those components
+over an immutable, previously accepted Mainnet image. Archive metadata must carry
+`reusedRustBinary` with the base `sourceRevision`, immutable `image`, and binary
+`sha256`. The publisher rejects changed `crates/` or owning materializer inputs,
+checks the base source label, and hashes both binary copies in network-disabled
+containers before bootstrapping the new image. The default full-source Dockerfile
+remains available. Record this as verified binary reuse, not a new Rust build.
+
 `prepare-mainnet-auction-overlay.py BEFORE_MANIFEST IMMUTABLE_GHCR_IMAGE
 PUBLIC_RUNTIME_JSON OUTPUT --report REPORT` renders an additive service on port
 3001 and a new `mainnet-auction-data` volume. It preserves every existing service,
