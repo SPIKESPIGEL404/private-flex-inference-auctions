@@ -7,7 +7,7 @@ def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 matrix=json.loads((record/'2026-11-14-agent-mpp-p2-matrix.json').read_text())
 regression=json.loads((record/'2026-11-14-agent-mpp-p2-p1-regression.json').read_text())
 tests=(record/'2026-11-14-agent-mpp-p2-tests.tap').read_text()
-assert len(matrix['checks'])==15 and all(c['passed'] for c in matrix['checks'])
+assert len(matrix['checks'])==18 and all(c['passed'] for c in matrix['checks'])
 assert len(regression['checks'])==22 and all(c['passed'] for c in regression['checks'])
 assert '# fail 0' in tests and '# pass 62' in tests
 browser=json.loads((record/'2026-11-14-agent-mpp-p2-browser.json').read_text())
@@ -30,7 +30,7 @@ if extras.exists():artifacts.append(extras.name)
 binary=pathlib.Path(sys.argv[1])
 evidence={'phase':'P2','status':'controlled-tests-pass','generatedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
  'head':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
- 'unitTests':62,'p2IntegrationCases':15,'p1RegressionCases':22,'realChainTransactions':0,'realProviderCalls':0,'liveSponsorQualification':'G1 CLOSED','fundingAndRealTaskAcceptance':'P3 CLOSED',
+ 'unitTests':62,'p2IntegrationCases':18,'p1RegressionCases':22,'realChainTransactions':0,'realProviderCalls':0,'liveSponsorQualification':'G1 CLOSED','fundingAndRealTaskAcceptance':'P3 CLOSED',
  'binarySha256':sha(binary),'p1BinarySha256':sha(binary.with_name('private-market-host-p1')),
  'materializedSource':json.loads((root/'.market-p2-upstream/.p2-source.json').read_text()),
  'inputs':{str(p.relative_to(root)):sha(p) for p in sorted(set(paths)) if p.is_file()},
