@@ -1,0 +1,65 @@
+{
+  "checkedAtUtc": "2026-11-15T01:35:39.701678+00:00",
+  "deploymentApplied": true,
+  "sourceRevision": "51e99f96d5d7060a57ee5ca629accfcca2019d8e",
+  "workflowRunId": "43663342427",
+  "image": "ghcr.io/spikespigel404/private-flex-inference-auctions@sha256:34c20d16ced44fdfa0aa50613ad3aef4129142d5a3bde4af65778defe88ccbfd",
+  "actualComposeHash": "6da5f3148e12fb0972d97b460fc02d752967c805b2b14c0cf45a4210f1f6f775",
+  "manifestMatchesExpected": true,
+  "changedFields": [
+    "agent-preview.image",
+    "agent-preview.environment.AGENT_PREVIEW_REVISION"
+  ],
+  "originalVolumesAndOtherServicesPreserved": true,
+  "sealedEnvironmentNamesPreserved": true,
+  "preLaunchScriptEmpty": true,
+  "frontendUrl": "https://e83279da3fa5b47453cc62317df738b70fedf08c-3000.dstack-pha1-prod9.phala.network",
+  "health": {
+    "/healthz": {
+      "status": 200,
+      "body": {
+        "ready": true,
+        "phase": "P2",
+        "mode": "controlled",
+        "realPayment": false,
+        "revision": "51e99f96d5d7060a57ee5ca629accfcca2019d8e"
+      }
+    },
+    "/buyer-api/capabilities": {
+      "status": 200,
+      "body": {
+        "version": 1,
+        "mode": "controlled",
+        "tasks": true,
+        "walletSetup": false,
+        "realInferencePayments": false,
+        "maxTasksPerAgent": 2,
+        "taskWindowMs": 180000,
+        "ownerAuth": "nep413",
+        "nativeWallets": true
+      }
+    },
+    "/buyer-api/supply": {
+      "status": 200,
+      "body": {
+        "version": 1,
+        "provider": "chutes",
+        "model": "qwen3.8-27b",
+        "state": "ready",
+        "ready": true,
+        "observedAtMs": 1794706523476,
+        "expiresAtMs": 1794706568476,
+        "coldStartEstimateSeconds": 600,
+        "autoShutdownSeconds": 3600,
+        "scope": "provider-readiness-not-market-capacity"
+      }
+    }
+  },
+  "onlineResetVerified": true,
+  "onlineRerunVerified": false,
+  "onlineRerunOutcome": "error: original_execution_closed; authoritative Market status closed/no_supply; principal refunded",
+  "browserSessionPreserved": true,
+  "realInferencePaymentsEnabled": false,
+  "realWalletTransactionsPerformed": 0,
+  "nativeRuntimeBinaryChanged": false
+}

@@ -21,6 +21,9 @@ results, orders and cumulative agent spend remain stored; reset does not add
 credit. The two-task limit counts active tasks, so retired attempts do not consume
 the slots needed for another run. An unknown settlement must resolve before that
 task can reset.
+Reset does not replenish seller offers. A ready provider indicator is separate
+from eligible controlled Market supply; a `no_supply` purchase still stops and
+retains its original refund record.
 
 Open the wallet panel to create two independent ordinary NEAR implicit accounts. Their random Ed25519 keys stay in encrypted IndexedDB in this browser profile. Download a password-encrypted backup before funding. The server stores public addresses, proof of key possession, and a transfer operation journal; it never receives private keys. Clearing browser data requires restoring that backup and password.
 

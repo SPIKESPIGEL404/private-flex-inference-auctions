@@ -1,7 +1,12 @@
 # Playground reset and repeat-run regression
 
-Local acceptance on November 14, 2026 (America/New_York). These changes have not
-been deployed to the public preview.
+Local acceptance on November 14, 2026 (America/New_York), followed by deployment
+of `51e99f96d5d7060a57ee5ca629accfcca2019d8e` to the existing public preview.
+The [deployment receipt](2026-11-14-playground-reset-deployment.json) verifies the
+actual manifest and hosted revision. Online reset works, but full rerun acceptance
+is **not passed**: the authoritative Market closes new purchases with `no_supply`.
+Original virtual principal is refunded. Do not infer hosted task completion from
+the local completion evidence below.
 
 The workspace disabled running completed sessions and provided no reset action.
 Creating another task only worked until the agent's lifetime two-task count was
@@ -9,7 +14,10 @@ exhausted. A runtime that failed before saving its final result could also leave
 the hosted session in `running`. Late pause/resume operations could reopen a
 completed session even though its fx journal already contained a terminal turn.
 The exact source of the user's original `[refused]` response was not established
-from the screenshot alone.
+from the screenshot alone. Hosted verification subsequently established HTTP
+409 `original_execution_closed` and an authoritative `closed/no_supply` receipt.
+The task status now exposes that original closure reason rather than showing
+only libfx's generic `refused` stop reason.
 
 `reset all` now pauses visible sessions, waits for original settlement, retires
 their execution authority, and creates fresh tasks/sessions/workspaces with the
@@ -43,3 +51,13 @@ writer-expiry failures; recovery was tested by resetting those error sessions.
 Local supply/attestation endpoints are absent in this fixture, so their separate
 UI panels show unavailable/failed verification. No real provider requests, wallet
 funding or chain transactions were performed.
+
+The deployment preserved the same CVM, login, ledger volumes, allowed sealed
+environment keys, native binary and other service definitions. Only the preview
+image and its source revision changed. Its two visible sessions reset to fresh
+ready workspaces. Running them exposed the supply failure above; the page now
+shows `[purchase stopped: no_supply]` and exits `running` correctly. The existing
+controlled catalog has finite one-use seller offers; this deployment does not
+replenish or redesign that supply lifecycle. `provider ready` describes the
+separate Chutes readiness endpoint and does not prove this controlled Market has
+eligible supply.
