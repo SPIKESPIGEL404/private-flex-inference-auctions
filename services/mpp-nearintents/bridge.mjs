@@ -79,16 +79,18 @@ export function validateConfiguration(raw, secret) {
 
 // Every operation uses one outer PG transaction. All SDK mutations, including
 // hash consumption, commit with the original cash ledger and funding receipt.
-export function atomicStore(db, fundingId) {
+export function atomicStore(db, fundingId, table = 'mpp_nearintents_store') {
+  if (!['mpp_nearintents_store', 'nearintents_auction_store'].includes(table))
+    throw new Error('Invalid SDK store table')
   const keyOf = (key) =>
     key.startsWith('nearintents-mpp-sdk:quote:') ? `funding:${fundingId}:${key}` : `global:${key}`
   const lock = (key) => db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,814517))', [key])
   const getRaw = async (key) =>
-    (await db.query('SELECT value FROM mpp_nearintents_store WHERE key=$1', [key])).rows[0]
+    (await db.query(`SELECT value FROM ${table} WHERE key=$1`, [key])).rows[0]
       ?.value ?? null
   const putRaw = (key, value) =>
     db.query(
-      'INSERT INTO mpp_nearintents_store(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+      `INSERT INTO ${table}(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
       [key, JSON.stringify(value)],
     )
   return {
@@ -101,7 +103,7 @@ export function atomicStore(db, fundingId) {
     async delete(key) {
       const stored = keyOf(key)
       await lock(stored)
-      await db.query('DELETE FROM mpp_nearintents_store WHERE key=$1', [stored])
+      await db.query(`DELETE FROM ${table} WHERE key=$1`, [stored])
     },
     async update(key, fn) {
       const stored = keyOf(key)
@@ -109,7 +111,7 @@ export function atomicStore(db, fundingId) {
       const change = fn(await getRaw(stored))
       if (change.op === 'set') await putRaw(stored, change.value)
       else if (change.op === 'delete')
-        await db.query('DELETE FROM mpp_nearintents_store WHERE key=$1', [stored])
+        await db.query(`DELETE FROM ${table} WHERE key=$1`, [stored])
       else if (change.op !== 'noop') throw new Error('Invalid store mutation')
       return change.result
     },

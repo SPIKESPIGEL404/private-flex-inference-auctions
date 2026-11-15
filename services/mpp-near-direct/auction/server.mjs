@@ -28,19 +28,37 @@ export const startAuctionServer = (options) =>
   runServer({ ...options, mainnet: false });
 export const startMainnetAuctionServer = (options) =>
   runServer({ ...options, mainnet: true });
+export const startNearintentsAuctionServer = (options) =>
+  runServer({ ...options, mainnet: true, nearintents: true });
 async function runServer({
   market,
   wallet,
   provider,
   setup,
   mainnet = false,
+  nearintents = market.config.paymentMethod === "nearintents",
   ownerTokens = [],
   ownerAuth,
   ownerBindings = {},
   port = 0,
   uiOrigin = "http://127.0.0.1:4173",
 }) {
-  if (mainnet)
+  if (mainnet && nearintents)
+    check(
+      market.config.mode === "bounded-nearintents-auction-v1" &&
+        market.config.network === "mainnet" &&
+        market.config.realBroadcastEnabled === true &&
+        wallet.scope === "bounded-nearintents-auction-v1" &&
+        provider.scope === LIVE_MODE &&
+        wallet.durableOriginalOperations &&
+        setup &&
+        !ownerAuth &&
+        !ownerTokens.length &&
+        !Object.keys(ownerBindings).length &&
+        uiOrigin === market.config.livePlan.origin,
+      "reviewed_nearintents_server_required",
+    );
+  else if (mainnet)
     check(
       market.config.mode === LIVE_MODE &&
         market.config.network === "mainnet" &&
@@ -94,6 +112,7 @@ async function runServer({
   let stopping = false,
     busy = false;
   const balanceAt = new Map();
+  const requests = new Set();
   const complete = (id, permit, outcome) =>
     outcome?.failure
       ? market.failExecution(id, { ...permit, reason: outcome.failure })
@@ -156,11 +175,13 @@ async function runServer({
         } catch {
           /* Original execution liability stays reserved. */
         }
-      const refunds = (
-        await market.pool.query(
-          "SELECT * FROM mpp_direct_auction_allocations WHERE refundable>0 AND settlement IN('refund_pending','unknown') ORDER BY id",
-        )
-      ).rows;
+      const refunds = nearintents
+        ? []
+        : (
+            await market.pool.query(
+              "SELECT * FROM mpp_direct_auction_allocations WHERE refundable>0 AND settlement IN('refund_pending','unknown') ORDER BY id",
+            )
+          ).rows;
       for (const a of refunds)
         try {
           const plan = await market.beginOperation(a.id, "refund"),
@@ -172,7 +193,8 @@ async function runServer({
         } catch {
           await market.operationUnknown(a.id, "refund").catch(() => {});
         }
-      if (mainnet)
+      if (nearintents) await setup.recoverFunding?.();
+      if (mainnet && !nearintents)
         for (const r of (
           await market.pool.query(
             "SELECT id,owner_id FROM mpp_direct_live_withdrawals WHERE state IN('sending','unknown')",
@@ -183,11 +205,16 @@ async function runServer({
           } catch {}
       for (const a of (
         await market.pool.query(
-          "SELECT id FROM mpp_direct_auction_agents WHERE active",
+          nearintents
+            ? "SELECT id FROM mpp_direct_auction_agents"
+            : "SELECT id FROM mpp_direct_auction_agents WHERE active",
         )
       ).rows)
         try {
-          if (mainnet && Date.now() - (balanceAt.get(a.id) ?? 0) < 15000)
+          if (
+            (mainnet || nearintents) &&
+            Date.now() - (balanceAt.get(a.id) ?? 0) < 15000
+          )
             continue;
           balanceAt.set(a.id, Date.now());
           await market.observeFinalBalance(a.id, (payer) =>
@@ -233,6 +260,11 @@ async function runServer({
     return [(await market.authenticate(bearer)).id];
   }
   const server = http.createServer(async (req, res) => {
+    let finishRequest;
+    const requestDone = new Promise((resolve) => {
+      finishRequest = resolve;
+    });
+    requests.add(requestDone);
     try {
       req.url = req.url.replace(/^\/buyer-api(?=\/)/, "/market-api");
       // Loopback-only controlled server. Reject cross-origin mutations and never
@@ -250,7 +282,11 @@ async function runServer({
       if (req.url === "/market-api/capabilities" && req.method === "GET")
         return json(res, 200, {
           version: 1,
-          mode: mainnet ? LIVE_MODE : "controlled",
+          mode: mainnet
+            ? nearintents
+              ? "bounded-nearintents-auction-v1"
+              : LIVE_MODE
+            : "controlled",
           taskRuntime: "client-memory-v1",
           network: market.config.network,
           tasks: true,
@@ -258,13 +294,22 @@ async function runServer({
           ownerAuth: "nep413",
           nativeWallets: true,
           nativeFunding: mainnet,
-          inferenceEndpoint: mainnet
-            ? "/buyer-api/v1/chat/completions"
-            : undefined,
-          walletProvider: mainnet ? "outlayer" : "controlled",
+          inferenceEndpoint:
+            mainnet || nearintents
+              ? "/buyer-api/v1/chat/completions"
+              : undefined,
+          walletProvider: nearintents
+            ? "nearintents-evm"
+            : mainnet
+              ? "outlayer"
+              : "controlled",
+          paymentMethod: nearintents ? "nearintents" : "near-direct",
+          billing: nearintents
+            ? "auction-fixed-request-v1"
+            : "metered-prepay-v1",
           realInferencePayments: mainnet,
           maxTasksPerAgent: 8,
-          taskWindowMs: 180000,
+          taskWindowMs: nearintents ? 1800000 : 180000,
           realChainPayments: mainnet,
           realInference: mainnet,
         });
@@ -374,6 +419,39 @@ async function runServer({
           ),
         );
       }
+      if (
+        nearintents &&
+        /^\/market-api\/nearintents-(wallets|funding)(\/|$)/.test(req.url)
+      ) {
+        let owner;
+        try {
+          owner = auth.owner(cookies(req).near_owner);
+        } catch {}
+        if (!owner && !mainnet) {
+          const token =
+            cookies(req).auction_owner ??
+            String(req.headers.authorization ?? "").replace(/^Bearer /, "");
+          const fixture = ownerTokens.find((o) => o.tokenHash === hash(token));
+          if (fixture)
+            owner = {
+              account_id: fixture.ownerId.replace(
+                new RegExp("^" + market.config.network + ":"),
+                "",
+              ),
+            };
+        }
+        check(owner, "unauthorized");
+        return json(
+          res,
+          200,
+          await setup.handle(
+            owner.account_id,
+            req.url,
+            req.method,
+            req.method === "POST" ? await read(req) : undefined,
+          ),
+        );
+      }
       const ids = await agents(req);
       if (req.url === "/market-api/authorizations" && req.method === "GET") {
         const grants = (
@@ -389,30 +467,40 @@ async function runServer({
             [ids],
           )
         ).rows;
-        const roots = mainnet
-          ? (
-              await market.pool.query(
-                `SELECT 'root-'||a.id AS id,a.id AS agent_id,a.payer,
+        const roots =
+          mainnet || nearintents
+            ? (
+                await market.pool.query(
+                  `SELECT 'root-'||a.id AS id,a.id AS agent_id,a.payer,
           '0'::text AS revision,false AS active,b.deadline_ms::text,b.deadline_ms::text AS agent_deadline_ms,
           $2::text AS call_cap_micro,$2::text AS agent_call_cap_micro,$3::text AS gas_cap_yocto,
           b.cap_nano::text,b.reserved_nano::text,b.spent_nano::text,b.cap_nano::text AS agent_cap_nano,
           b.reserved_nano::text AS agent_reserved_nano,b.spent_nano::text AS agent_spent_nano
           FROM mpp_direct_auction_agents a JOIN mpp_direct_auction_budgets b ON b.id=a.agent_budget WHERE a.id=ANY($1)`,
-                [
-                  ids,
-                  market.config.livePlan.callCapMicro,
-                  market.config.livePlan.gasReserveYocto,
-                ],
-              )
-            ).rows
-          : undefined;
+                  [
+                    ids,
+                    market.config.livePlan?.callCapMicro ??
+                      setup.config.callCapMicro,
+                    nearintents ? "0" : market.config.livePlan.gasReserveYocto,
+                  ],
+                )
+              ).rows
+            : undefined;
         return json(res, 200, {
           bids,
           grants,
-          ...(mainnet
+          ...(mainnet || nearintents
             ? { inferenceEndpoint: "/buyer-api/v1/chat/completions" }
             : {}),
-          ...(mainnet ? { roots } : {}),
+          ...(mainnet || nearintents ? { roots } : {}),
+          ...(nearintents
+            ? {
+                paymentMethod: "nearintents",
+                paymentHeader: "Payment-Authorization",
+                billing: "auction-fixed-request-v1",
+                maxTaskSeconds: 3600,
+              }
+            : {}),
           service: market.config.service,
           pricing: {
             fx: mainnet
@@ -436,14 +524,34 @@ async function runServer({
           )
         ).rows;
         return json(res, 200, {
-          orders: rows.map((a) => {
-            const {
-              result: _result,
-              challenge: _challenge,
-              ...financial
-            } = market.view(a);
-            return financial;
-          }),
+          orders: await Promise.all(
+            rows.map(async (a) => {
+              const {
+                result: _result,
+                challenge: _challenge,
+                ...financial
+              } = market.view(a);
+              if (nearintents) {
+                const proof = (
+                  await market.pool.query(
+                    "SELECT evidence FROM mpp_direct_auction_movements WHERE allocation_id=$1 AND kind='payment'",
+                    [a.id],
+                  )
+                ).rows[0]?.evidence;
+                return {
+                  ...financial,
+                  sourcePayment: {
+                    asset: a.challenge.request.currency,
+                    amount: a.challenge.request.amount,
+                    state: a.payment,
+                    receipt: proof?.receipt ?? null,
+                  },
+                  sourceFee: await wallet.sourceFee(a.id),
+                };
+              }
+              return financial;
+            }),
+          ),
         });
       }
       const pay = req.url.match(/^\/market-api\/orders\/([a-f0-9]{64})\/pay$/),
@@ -459,6 +567,7 @@ async function runServer({
         return json(res, 200, await market.status(row.agent_id, order[1]));
       }
       if (pay && req.method === "POST") {
+        check(!nearintents, "nearintents_credential_endpoint_required");
         const row = (
           await market.pool.query(
             "SELECT * FROM mpp_direct_auction_allocations WHERE id=$1 AND agent_id=ANY($2)",
@@ -493,6 +602,26 @@ async function runServer({
               }
             : {}),
         });
+      }
+      const credentialRoute = req.url.match(
+        /^\/market-api\/orders\/([a-f0-9]{64})\/mpp-credential$/,
+      );
+      if (nearintents && credentialRoute && req.method === "POST") {
+        const row = (
+          await market.pool.query(
+            "SELECT * FROM mpp_direct_auction_allocations WHERE id=$1 AND agent_id=ANY($2)",
+            [credentialRoute[1], ids],
+          )
+        ).rows[0];
+        check(row, "unknown_allocation");
+        const input = await read(req);
+        check(
+          input.challengeId === row.challenge.id &&
+            input.contractHash === row.contract.contractHash,
+          "challenge_mismatch",
+        );
+        const paymentAuthorization = await wallet.createCredential(row.id);
+        return json(res, 200, { paymentAuthorization });
       }
       const revoke = req.url.match(
         /^\/market-api\/authorizations\/([a-zA-Z0-9_-]{1,128})\/revoke$/,
@@ -567,15 +696,28 @@ async function runServer({
           maxTotalMicro: input.maxTotalMicro,
           expiryMs: input.expiryMs,
         });
-        const status = await market.bidStatus(input.agentId, bid.bidId);
+        let status = await market.bidStatus(input.agentId, bid.bidId);
         if (!status.allocationId) return json(res, 202, status);
+        if (nearintents && nativeChat && req.headers["payment-authorization"]) {
+          const proof = await wallet.settle(
+            status.allocationId,
+            req.headers["payment-authorization"],
+          );
+          check(proof, "original_payment_unknown");
+          status = await market.bidStatus(input.agentId, bid.bidId);
+          void worker();
+        }
         if (
-          mainnet &&
+          (mainnet || nearintents) &&
           nativeChat &&
           status.paymentState === "confirmed" &&
           !["fenced", "failed"].includes(status.executionState)
         ) {
-          if (!req.headers.authorization)
+          if (
+            !(nearintents
+              ? req.headers["payment-authorization"]
+              : req.headers.authorization)
+          )
             return json(
               res,
               402,
@@ -584,12 +726,14 @@ async function runServer({
             );
           await wallet.verifyPresentation(
             status.orderId,
-            req.headers.authorization,
+            nearintents
+              ? req.headers["payment-authorization"]
+              : req.headers.authorization,
           );
         }
         if (status.result) {
           let receiptHeaders = {};
-          if (mainnet) {
+          if (mainnet || nearintents) {
             const proof = (
               await market.pool.query(
                 "SELECT m.evidence FROM mpp_direct_auction_movements m JOIN mpp_direct_auction_allocations a ON a.id=m.allocation_id WHERE a.order_id=$1 AND m.kind='payment'",
@@ -602,12 +746,14 @@ async function runServer({
             );
             receiptHeaders = {
               "payment-receipt": Receipt.serialize(
-                Receipt.from({
-                  method: METHOD,
-                  status: "success",
-                  reference: proof.movementKey,
-                  timestamp: new Date(proof.paidAtMs).toISOString(),
-                }),
+                nearintents
+                  ? proof.receipt
+                  : Receipt.from({
+                      method: METHOD,
+                      status: "success",
+                      reference: proof.movementKey,
+                      timestamp: new Date(proof.paidAtMs).toISOString(),
+                    }),
               ),
             };
           }
@@ -653,6 +799,9 @@ async function runServer({
                 : 400,
         { error: { code } },
       );
+    } finally {
+      finishRequest();
+      requests.delete(requestDone);
     }
   });
   server.requestTimeout = 15000;
@@ -670,6 +819,7 @@ async function runServer({
       clearInterval(timer);
       server.closeAllConnections();
       await new Promise((r) => server.close(r));
+      await Promise.allSettled([...requests]);
       while (busy) await new Promise((r) => setTimeout(r, 10));
     },
   };

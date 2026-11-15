@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { nanoUsd, parseNanoUsd, multiplier, parseMultiplier } from "./task-api";
 import { nearAmount } from "./native-wallet";
+import { units } from "./evm-funding";
 import type { AgentSession, TaskStatus, Call } from "./task-api";
 function Bid({
   call,
@@ -197,7 +198,11 @@ export function TaskActivity({
                   <table>
                     <caption>
                       {memory
-                        ? "Original orders · native NEAR · controlled"
+                        ? status.orders.some(
+                            (o) => o.paymentMethod === "nearintents",
+                          )
+                          ? "Auction orders · NEAR Intents · fixed request price"
+                          : "Original orders · native NEAR"
                         : "Virtual native NEAR principal · yoctoNEAR"}
                     </caption>
                     <thead>
@@ -212,6 +217,7 @@ export function TaskActivity({
                           <th>charged NEAR</th>
                           <th>refund pending</th>
                           <th>refunded NEAR</th>
+                          <th>source payment / gas</th>
                         </tr>
                       ) : (
                         <tr>
@@ -259,6 +265,41 @@ export function TaskActivity({
                               </td>
                               <td>{nearAmount(order.principal.W)}</td>
                               <td>{nearAmount(order.principal.R)}</td>
+                              <td>
+                                {order.sourcePayment ? (
+                                  <>
+                                    <span>
+                                      {units(order.sourcePayment.amount, 6)}{" "}
+                                      USDC
+                                    </span>
+                                    <br />
+                                    <span>
+                                      {order.sourceFee?.actualGasWei
+                                        ? units(
+                                            order.sourceFee.actualGasWei,
+                                            18,
+                                          ) + " ETH gas"
+                                        : "gas pending"}
+                                    </span>
+                                    <br />
+                                    {order.sourcePayment.receipt?.reference && (
+                                      <span
+                                        title={
+                                          order.sourcePayment.receipt.reference
+                                        }
+                                      >
+                                        receipt{" "}
+                                        {order.sourcePayment.receipt.reference.slice(
+                                          0,
+                                          12,
+                                        )}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
                             </>
                           ) : (
                             <>

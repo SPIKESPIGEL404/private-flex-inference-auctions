@@ -19,4 +19,11 @@ class PackageTests(unittest.TestCase):
    path=pathlib.Path(temp)/'config.json';path.write_text(json.dumps({'reviewedPlanHash':'a'*64,'dataDirectory':temp+'/state','plan':{'mode':'bounded-mainnet-v1','network':'mainnet'}}))
    result=subprocess.run(['python3',str(ROOT/'scripts/bootstrap-mainnet-auction.py'),str(path)],capture_output=True,text=True)
    self.assertNotEqual(result.returncode,0);self.assertIn('explicit_mainnet_plan_gate_required',result.stderr);self.assertFalse((path.parent/'state').exists())
+ def test_nearintents_has_a_separate_explicit_gate_before_state_creation(self):
+  import os
+  with tempfile.TemporaryDirectory() as temp:
+   path=pathlib.Path(temp)/'config.json';path.write_text(json.dumps({'paymentMethod':'nearintents','reviewedPlanHash':'a'*64,'dataDirectory':temp+'/state','plan':{'mode':'live'}}))
+   env={**os.environ,'ENABLE_BOUNDED_MAINNET':'a'*64};env.pop('ENABLE_NEARINTENTS_AUCTION',None)
+   result=subprocess.run(['python3',str(ROOT/'scripts/bootstrap-mainnet-auction.py'),str(path)],capture_output=True,text=True,env=env)
+   self.assertNotEqual(result.returncode,0);self.assertIn('explicit_mainnet_plan_gate_required',result.stderr);self.assertFalse((path.parent/'state').exists())
 if __name__=='__main__':unittest.main()

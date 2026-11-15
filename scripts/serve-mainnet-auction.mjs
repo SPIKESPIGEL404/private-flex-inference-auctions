@@ -4,7 +4,12 @@ import { readFile, stat } from "node:fs/promises";
 import { resolve, extname } from "node:path";
 import { launch } from "../services/mpp-near-direct/auction/live/runtime.mjs";
 const config = JSON.parse(await readFile(process.argv[2], "utf8"));
-const runtime = await launch(config),
+const runtime =
+    config.paymentMethod === "nearintents"
+      ? await (
+          await import("../services/mpp-nearintents/auction/runtime.mjs")
+        ).launchNearintentsAuction(config)
+      : await launch(config),
   root = resolve(config.staticDirectory ?? "clients/market-playground/dist");
 const media = {
   ".html": "text/html",
@@ -27,7 +32,10 @@ const edge = http.createServer(async (req, res) => {
         JSON.stringify({
           ready: true,
           network: "mainnet",
-          mode: runtime.plan.mode,
+          mode:
+            config.paymentMethod === "nearintents"
+              ? "bounded-nearintents-auction-v1"
+              : runtime.plan.mode,
           planHash: runtime.planHash,
           realPayment: true,
         }),

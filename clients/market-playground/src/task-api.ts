@@ -12,8 +12,14 @@ export interface Capabilities {
   nativeFunding?: boolean;
   nativeWallets?: boolean;
   ownerAuth?: "nep413" | "code";
-  mode: "controlled" | "wallet-setup" | "bounded-mainnet-v1";
-  walletProvider?: "outlayer" | "controlled";
+  mode:
+    | "controlled"
+    | "wallet-setup"
+    | "bounded-mainnet-v1"
+    | "bounded-nearintents-auction-v1";
+  walletProvider?: "outlayer" | "controlled" | "nearintents-evm";
+  paymentMethod?: "nearintents" | "near-direct";
+  billing?: string;
   tasks: boolean;
   walletSetup: boolean;
   realInferencePayments: boolean;
@@ -74,6 +80,19 @@ export interface TaskStatus {
   error?: string;
   calls: Call[];
   orders: Array<{
+    paymentMethod?: "nearintents";
+    billing?: string;
+    sourcePayment?: {
+      asset: string;
+      amount: string;
+      state: string;
+      receipt?: { reference: string; originTxHash?: string };
+    };
+    sourceFee?: {
+      actualGasWei: string | null;
+      reservedGasWei: string;
+      transactionHash: string;
+    } | null;
     orderId?: string;
     executionState?: string;
     paymentState?: string;

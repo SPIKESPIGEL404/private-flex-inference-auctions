@@ -68,7 +68,10 @@ const auctionDraft = (value = defaultAuction): AuctionDraft => ({
   maximum: multiplier(value.maxMultiplier),
   seconds: String(value.deadlineSeconds),
 });
-function parseAuction(value: AuctionDraft): AuctionSettings | null {
+function parseAuction(
+  value: AuctionDraft,
+  maxSeconds = 180,
+): AuctionSettings | null {
   const base = parseMultiplier(value.base),
     maximum = parseMultiplier(value.maximum),
     seconds = Number(value.seconds);
@@ -77,7 +80,7 @@ function parseAuction(value: AuctionDraft): AuctionSettings | null {
     BigInt(base) <= BigInt(maximum) &&
     Number.isInteger(seconds) &&
     seconds >= 30 &&
-    seconds <= 180
+    seconds <= maxSeconds
     ? {
         policy: value.policy,
         baseMultiplier: base,
@@ -90,10 +93,12 @@ function AuctionFields({
   value,
   onChange,
   disabled = false,
+  maxSeconds = 180,
 }: {
   value: AuctionDraft;
   onChange(value: AuctionDraft): void;
   disabled?: boolean;
+  maxSeconds?: number;
 }) {
   return (
     <fieldset disabled={disabled} className="auction-settings">
@@ -132,7 +137,7 @@ function AuctionFields({
         id="auction-deadline"
         type="number"
         min="30"
-        max="180"
+        max={maxSeconds}
         value={value.seconds}
         onChange={(e) => onChange({ ...value, seconds: e.target.value })}
       />
@@ -151,6 +156,8 @@ export function TaskSettings({
   onClose,
   onSave,
   onNew,
+  maxTaskSeconds = 180,
+  sourceCostsSeparate = false,
 }: {
   session: AgentSession;
   limit?: AgentLimit;
@@ -163,6 +170,8 @@ export function TaskSettings({
     auction?: AuctionSettings,
   ): Promise<void>;
   onNew(): void;
+  maxTaskSeconds?: number;
+  sourceCostsSeparate?: boolean;
 }) {
   const [budget, setBudget] = useState(editableUsd(session.budget_nano));
   const [prompt, setPrompt] = useState(session.prompt);
@@ -189,11 +198,11 @@ export function TaskSettings({
             return;
           }
           const auction = session.clientOwned
-            ? parseAuction(bidding)
+            ? parseAuction(bidding, maxTaskSeconds)
             : undefined;
           if (session.clientOwned && !auction) {
             setError(
-              "Enter bid multipliers from 1 to 100, with a ceiling at least as high as the starting bid, and a duration from 30 to 180 seconds.",
+              `Enter bid multipliers from 1 to 100 and a duration from 30 to ${maxTaskSeconds} seconds.`,
             );
             return;
           }
@@ -222,7 +231,14 @@ export function TaskSettings({
         )}
         <label htmlFor="task-budget">
           task cap{" "}
-          <span>USD · {hosted ? "virtual funds" : "unsigned draft"}</span>
+          <span>
+            USD ·{" "}
+            {sourceCostsSeparate
+              ? "service budget; source costs separate"
+              : hosted
+                ? "virtual funds"
+                : "unsigned draft"}
+          </span>
         </label>
         <div className="money-input">
           <span>$</span>
@@ -237,6 +253,7 @@ export function TaskSettings({
         </div>
         {session.clientOwned ? (
           <AuctionFields
+            maxSeconds={maxTaskSeconds}
             value={bidding}
             onChange={setBidding}
             disabled={!editable}
@@ -296,6 +313,7 @@ export function NewTask({
   initialAgent,
   initialPrompt,
   windowMs,
+  sourceCostsSeparate = false,
   onClose,
   onCreate,
 }: {
@@ -305,6 +323,7 @@ export function NewTask({
   initialAgent?: string;
   initialPrompt?: string;
   windowMs: number;
+  sourceCostsSeparate?: boolean;
   onClose(): void;
   onCreate(
     agent: string,
@@ -316,7 +335,12 @@ export function NewTask({
 }) {
   const agents = [...new Set(sessions.map((s) => s.agent_id))];
   const memory = sessions.some((s) => s.clientOwned);
-  const [bidding, setBidding] = useState(() => auctionDraft());
+  const [bidding, setBidding] = useState(() =>
+    auctionDraft({
+      ...defaultAuction,
+      deadlineSeconds: windowMs > 180000 ? Math.min(900, windowMs / 1000) : 120,
+    }),
+  );
   const [agent, setAgent] = useState(initialAgent ?? agents[0]);
   const [prompt, setPrompt] = useState(
     initialPrompt ??
@@ -347,7 +371,9 @@ export function NewTask({
             setError("Task cap exceeds this agent’s authorization.");
             return;
           }
-          const auction = memory ? parseAuction(bidding) : undefined;
+          const auction = memory
+            ? parseAuction(bidding, windowMs / 1000)
+            : undefined;
           if (memory && !auction) {
             setError("Invalid bidding multipliers or task duration.");
             return;
@@ -379,7 +405,13 @@ export function NewTask({
           rows={4}
         />
         <label htmlFor="new-budget">
-          task cap <span>USD · virtual funds</span>
+          task cap{" "}
+          <span>
+            USD ·{" "}
+            {sourceCostsSeparate
+              ? "service budget; source costs separate"
+              : "virtual funds"}
+          </span>
         </label>
         <div className="money-input">
           <span>$</span>
@@ -392,7 +424,11 @@ export function NewTask({
           />
         </div>
         {memory ? (
-          <AuctionFields value={bidding} onChange={setBidding} />
+          <AuctionFields
+            value={bidding}
+            onChange={setBidding}
+            maxSeconds={windowMs / 1000}
+          />
         ) : (
           <>
             <label htmlFor="new-preference">cost / time preference</label>

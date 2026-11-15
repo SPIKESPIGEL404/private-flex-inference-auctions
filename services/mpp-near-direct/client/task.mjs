@@ -294,6 +294,7 @@ export function procurementTransport({
   maxRetries = 5,
   onPaymentChallenge,
   onWaiting,
+  paymentHeader = "Authorization",
 }) {
   return {
     async invoke({ body, runId, logicalCallId, requestHash, signal }) {
@@ -324,7 +325,7 @@ export function procurementTransport({
               "content-type": "application/json",
               "idempotency-key": logicalCallId,
               ...(paymentAuthorization
-                ? { authorization: paymentAuthorization }
+                ? { [paymentHeader.toLowerCase()]: paymentAuthorization }
                 : {}),
               ...(nativeChat
                 ? {

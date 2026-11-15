@@ -125,8 +125,13 @@ export function pricingContract({
   nowMs,
   paymentWindowMs,
   admissionWindowMs,
+  billing,
 }) {
   validateClass(service);
+  check(
+    billing === undefined || billing === "auction-fixed-request-v1",
+    "unsupported_billing_contract",
+  );
   const multiplier = uint(bidMultiplier);
   check(
     multiplier >= SCALE && multiplier <= 100n * SCALE,
@@ -147,10 +152,12 @@ export function pricingContract({
     Number.isSafeInteger(nowMs) &&
       Number.isSafeInteger(paymentWindowMs) &&
       paymentWindowMs > 0 &&
-      paymentWindowMs <= 120000 &&
+      paymentWindowMs <=
+        (billing === "auction-fixed-request-v1" ? 600000 : 120000) &&
       Number.isSafeInteger(admissionWindowMs) &&
       admissionWindowMs >= paymentWindowMs &&
-      admissionWindowMs <= 180000,
+      admissionWindowMs <=
+        (billing === "auction-fixed-request-v1" ? 900000 : 180000),
     "invalid_contract_window",
   );
   const rates = Object.fromEntries(
@@ -181,6 +188,7 @@ export function pricingContract({
   check(reserveNano <= MAX_ACCOUNT, "liability_overflow");
   const body = {
     version: 1,
+    ...(billing === undefined ? {} : { billing }),
     serviceClassVersion: service.serviceClassVersion,
     capacityPoolId: service.capacityPoolId,
     rates,
@@ -214,6 +222,15 @@ export function settleUsage(contract, usage) {
     "usage_outside_contract",
   );
   const charge = total(contract.rates, usage, contract.fee);
+  if (contract.billing === "auction-fixed-request-v1")
+    return {
+      ...contract.maximum,
+      actualPrincipalYocto: contract.principalYocto,
+      refundYocto: "0",
+      billing: contract.billing,
+      usageRebate: false,
+      meteredEquivalent: charge,
+    };
   const actual = ceil(
     mul(mul(BigInt(charge.totalMicro), 1000n), YOCTO),
     uint(contract.fx.nanoUsdPerNear),
@@ -238,6 +255,7 @@ export function clearRound({
   fx,
   paymentWindowMs,
   admissionWindowMs,
+  billing,
   rule = "first-price-v1",
 }) {
   validateClass(service);
@@ -279,6 +297,7 @@ export function clearRound({
           nowMs: clearedAtMs,
           paymentWindowMs,
           admissionWindowMs,
+          billing,
         });
         if (BigInt(contract.maximum.totalMicro) > money(bid.maxTotalMicro))
           reason = "call_cap_exceeded";

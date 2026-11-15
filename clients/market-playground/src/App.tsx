@@ -17,6 +17,7 @@ import { SupplyAvailability } from "./SupplyAvailability";
 import { NativeWalletController } from "./native-wallet";
 import { NativeWallets } from "./NativeWallets";
 import { OutlayerWallets } from "./OutlayerWallets";
+import { NearintentsWallets } from "./NearintentsWallets";
 import { WalletController } from "./wallet-api";
 import { WalletSetup } from "./WalletSetup";
 import { loadBrowserSession, resizeSession, tilePanes } from "./model";
@@ -51,7 +52,10 @@ export default function App({ active = true }: { active?: boolean }) {
     memoryController.subscribe,
     memoryController.snapshot,
   );
-  const mainnet = capabilities?.mode === "bounded-mainnet-v1";
+  const nearintents = capabilities?.paymentMethod === "nearintents";
+  const mainnet =
+    capabilities?.mode === "bounded-mainnet-v1" ||
+    capabilities?.mode === "bounded-nearintents-auction-v1";
   const memory = capabilities?.taskRuntime === "client-memory-v1";
   const [hosted, setHosted] = useState<Hosted | null>(null);
   const [nativeController] = useState(() => new NativeWalletController());
@@ -232,7 +236,10 @@ export default function App({ active = true }: { active?: boolean }) {
       const value = await taskApi<Capabilities>("capabilities");
       if (
         value.version !== 1 ||
-        value.realInferencePayments !== (value.mode === "bounded-mainnet-v1") ||
+        value.realInferencePayments !==
+          ["bounded-mainnet-v1", "bounded-nearintents-auction-v1"].includes(
+            value.mode,
+          ) ||
         !(
           (value.mode === "controlled" && value.tasks && !value.walletSetup) ||
           (value.mode === "wallet-setup" &&
@@ -241,6 +248,13 @@ export default function App({ active = true }: { active?: boolean }) {
           (value.mode === "bounded-mainnet-v1" &&
             value.network === "mainnet" &&
             value.walletProvider === "outlayer" &&
+            value.taskRuntime === "client-memory-v1" &&
+            value.tasks &&
+            !value.walletSetup) ||
+          (value.mode === "bounded-nearintents-auction-v1" &&
+            value.network === "mainnet" &&
+            value.walletProvider === "nearintents-evm" &&
+            value.paymentMethod === "nearintents" &&
             value.taskRuntime === "client-memory-v1" &&
             value.tasks &&
             !value.walletSetup)
@@ -673,15 +687,19 @@ export default function App({ active = true }: { active?: boolean }) {
       <header className="app-header">
         <SiteHeader view="try">
           <button className="preview-link" onClick={() => setDialog("mode")}>
-            {memory
+            {nearintents
               ? mainnet
-                ? "mainnet · real payments"
-                : "testnet · controlled"
-              : tasks
-                ? "controlled"
-                : capabilities
-                  ? "wallet setup"
-                  : "connecting"}
+                ? "NEAR Intents · mainnet"
+                : "NEAR Intents · controlled"
+              : memory
+                ? mainnet
+                  ? "mainnet · real payments"
+                  : "testnet · controlled"
+                : tasks
+                  ? "controlled"
+                  : capabilities
+                    ? "wallet setup"
+                    : "connecting"}
           </button>
           {authenticated && (
             <>
@@ -815,15 +833,19 @@ export default function App({ active = true }: { active?: boolean }) {
       </header>
       <div className="gateway-status" role="status">
         <button onClick={() => setDialog("mode")}>
-          {mainnet
-            ? "Mainnet · real inference payments · agent pays principal and gas"
-            : memory
-              ? "Testnet · controlled inference and settlement · no real payments"
-              : tasks
-                ? capabilities?.nativeWallets
-                  ? "Controlled inference · virtual settlement · wallet funding is real NEAR"
-                  : "Controlled inference · virtual settlement · no real inference payments"
-                : "Wallet preparation · inference procurement not enabled"}
+          {nearintents
+            ? mainnet
+              ? "Arbitrum USDC → NEAR · auction request price · agent pays gas"
+              : "Controlled NEAR Intents auction · no real payments or inference"
+            : mainnet
+              ? "Mainnet · real inference payments · agent pays principal and gas"
+              : memory
+                ? "Testnet · controlled inference and settlement · no real payments"
+                : tasks
+                  ? capabilities?.nativeWallets
+                    ? "Controlled inference · virtual settlement · wallet funding is real NEAR"
+                    : "Controlled inference · virtual settlement · no real inference payments"
+                  : "Wallet preparation · inference procurement not enabled"}
         </button>
         <span>
           {tasks
@@ -883,7 +905,7 @@ export default function App({ active = true }: { active?: boolean }) {
         {memory && hosted && !sessions.length && (
           <div className="workspace-empty">
             <p>No agent authorizations are available for this wallet.</p>
-            {mainnet ? (
+            {mainnet || nearintents ? (
               <button
                 className="outline-button"
                 onClick={() => setDialog("wallet")}
@@ -956,6 +978,8 @@ export default function App({ active = true }: { active?: boolean }) {
       <AttestationPanel />
       {dialog === "settings" && current && (
         <TaskSettings
+          sourceCostsSeparate={nearintents}
+          maxTaskSeconds={(capabilities?.taskWindowMs ?? 180000) / 1000}
           key={current.id}
           session={current}
           limit={hosted?.limits.find((l) => l.agent_id === current.agent_id)}
@@ -970,6 +994,7 @@ export default function App({ active = true }: { active?: boolean }) {
       )}
       {dialog === "new" && tasks && hosted && (
         <NewTask
+          sourceCostsSeparate={nearintents}
           sessions={sessions}
           limits={hosted.limits}
           maxTasks={capabilities?.maxTasksPerAgent ?? 2}
@@ -987,22 +1012,32 @@ export default function App({ active = true }: { active?: boolean }) {
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog === "wallet" && mainnet && (
+      {dialog === "wallet" && nearintents && (
+        <NearintentsWallets
+          key={native.owner?.account_id ?? "disconnected"}
+          onClose={() => setDialog(null)}
+          onUpdated={refresh}
+        />
+      )}
+      {dialog === "wallet" && mainnet && !nearintents && (
         <OutlayerWallets
           controller={nativeController}
           onClose={() => setDialog(null)}
           onUpdated={refresh}
         />
       )}
-      {dialog === "wallet" && capabilities?.nativeWallets && !mainnet && (
-        <NativeWallets
-          controller={nativeController}
-          ids={sessions.map((s) => s.agent_id)}
-          network={capabilities.network}
-          authorizations={memory ? memorySnapshot.grants : undefined}
-          onClose={() => setDialog(null)}
-        />
-      )}
+      {dialog === "wallet" &&
+        capabilities?.nativeWallets &&
+        !mainnet &&
+        !nearintents && (
+          <NativeWallets
+            controller={nativeController}
+            ids={sessions.map((s) => s.agent_id)}
+            network={capabilities.network}
+            authorizations={memory ? memorySnapshot.grants : undefined}
+            onClose={() => setDialog(null)}
+          />
+        )}
       {dialog === "wallet" &&
         !capabilities?.walletSetup &&
         !capabilities?.nativeWallets && (
@@ -1033,13 +1068,15 @@ export default function App({ active = true }: { active?: boolean }) {
           onClose={() => setDialog(null)}
         >
           <p className="dialog-note">
-            {mainnet
-              ? "Real NEAR Mainnet funds. Each agent has an OutLayer wallet, pays its own principal and gas through MPP, and receives unused principal back in NEAR. The owner installs the merchant-only policy and funds each wallet explicitly. Tasks and bash run in this page; reloading clears conversation/files and only recovers existing financial operations. Unknown payments or model calls are never purchased again automatically. The displayed authorization caps and run deadline limit new purchases."
-              : memory
-                ? "Each task runs in this page. Market owns authorizations, bids, orders, payments and refunds. Switching or hiding panes keeps the current task. Reloading clears local conversation and files; original orders remain available in Activity. This build uses controlled model and wallet fixtures on the Testnet configuration."
-                : tasks
-                  ? "Independent fx sessions call the MPP proxy. The server owns procurement, budget reservations, durable workspaces and refund reconciliation. Inference model replies and settlement receipts are local fixtures. Ordinary agent wallet funding is a separate real NEAR mainnet transfer; it does not pay for these controlled tasks."
-                  : "This backend supports owner wallet authorization and agent preparation. Task procurement is not enabled. Funding availability follows the host configuration and owner approval."}
+            {nearintents
+              ? `${mainnet ? "Real Arbitrum and NEAR Mainnet payments." : "Controlled source payments and model replies; no real funds."} Sign in with NEAR, then fund each agent’s Arbitrum wallet with USDC and ETH. The existing auction fixes each winning request’s service price. The agent pays through MPP on Chat Completions; source exchange costs and gas have separate caps. Successful requests have no usage rebate; failed delivery retains a merchant refund liability for reconciliation. Freeze the agent to withdraw unused source funds. An already-started payment may still settle after freezing. Tasks and bash run in this page; reloading clears conversation/files and queries existing financial records without buying again.`
+              : mainnet
+                ? "Real NEAR Mainnet funds. Each agent has an OutLayer wallet, pays its own principal and gas through MPP, and receives unused principal back in NEAR. The owner installs the merchant-only policy and funds each wallet explicitly. Tasks and bash run in this page; reloading clears conversation/files and only recovers existing financial operations. Unknown payments or model calls are never purchased again automatically. The displayed authorization caps and run deadline limit new purchases."
+                : memory
+                  ? "Each task runs in this page. Market owns authorizations, bids, orders, payments and refunds. Switching or hiding panes keeps the current task. Reloading clears local conversation and files; original orders remain available in Activity. This build uses controlled model and wallet fixtures on the Testnet configuration."
+                  : tasks
+                    ? "Independent fx sessions call the MPP proxy. The server owns procurement, budget reservations, durable workspaces and refund reconciliation. Inference model replies and settlement receipts are local fixtures. Ordinary agent wallet funding is a separate real NEAR mainnet transfer; it does not pay for these controlled tasks."
+                    : "This backend supports owner wallet authorization and agent preparation. Task procurement is not enabled. Funding availability follows the host configuration and owner approval."}
           </p>
         </Modal>
       )}

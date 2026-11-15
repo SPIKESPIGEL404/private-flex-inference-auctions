@@ -32,6 +32,7 @@ export function evmPayer({
   journal,
   controlled = false,
   clients,
+  authorize,
 }) {
   const asset = Types.parseCaip19(originAsset);
   check(
@@ -125,6 +126,20 @@ export function evmPayer({
         let old = await journal.get(key);
         check(!old || old.binding === binding, "original_deposit_conflict");
         if (!old) {
+          await authorize?.();
+          const sourceReserved = (await journal.list())
+            .filter(
+              (r) =>
+                r.kind === "evm" &&
+                r.walletKey === walletKey &&
+                r.asset === originAsset,
+            )
+            .reduce((sum, r) => sum + uint(r.amountIn), 0n);
+          check(
+            sourceReserved + uint(request.amount) <=
+              uint(policy.maximumTotalAmountIn),
+            "source_amount_above_total_cap",
+          );
           check(
             !(await journal.list()).some(
               (r) =>
@@ -166,6 +181,8 @@ export function evmPayer({
             hash = keccak256(signed);
           old = {
             kind: "evm",
+            asset: originAsset,
+            amountIn: request.amount,
             walletKey,
             binding,
             operationId,

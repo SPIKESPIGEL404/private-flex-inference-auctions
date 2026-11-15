@@ -21,9 +21,23 @@ import {
 
 // This module is the single native-auction writer, not a gateway winner picker.
 // All bid membership, grants, native liability, pool ownership, contracts and
-// operation intents commit in the owning Market PG transaction. No RPC in tx.
+// operation intents commit in the owning Market PG transaction. Native signing
+// and settlement are outside it. Intents quote creation is bounded HTTP inside
+// the allocation transaction; settlement polling never holds the Market lock.
 export class AuctionMarket {
-  constructor({ pool, config, fault = () => {}, live }) {
+  constructor({ pool, config, fault = () => {}, live, paymentRail }) {
+    check(
+      (config.paymentMethod === "nearintents") === !!paymentRail,
+      "explicit_auction_payment_method_required",
+    );
+    if (config.paymentMethod === "nearintents") {
+      check(
+        paymentRail?.method === "nearintents" &&
+          config.billing === "auction-fixed-request-v1",
+        "nearintents_auction_adapter_required",
+      );
+      paymentRail.validateConfiguration(config, live);
+    }
     if (config.mode === LIVE_MODE) {
       const { planHash } = validateLivePlan(config.livePlan, {
         allowExpired: true,
@@ -38,7 +52,7 @@ export class AuctionMarket {
           hash(config.service) === hash(config.livePlan.service),
         "reviewed_mainnet_adapters_required",
       );
-    } else
+    } else if (config.mode !== "bounded-nearintents-auction-v1")
       check(
         config.mode === "controlled" &&
           config.network === "testnet" &&
@@ -64,12 +78,16 @@ export class AuctionMarket {
     );
     check(
       config.paymentWindowMs > 0 &&
-        config.paymentWindowMs <= 120000 &&
+        config.paymentWindowMs <= (paymentRail ? 600000 : 120000) &&
         config.admissionWindowMs >= config.paymentWindowMs &&
-        config.admissionWindowMs <= 180000,
+        config.admissionWindowMs <= (paymentRail ? 900000 : 180000),
       "invalid_payment_windows",
     );
-    Object.assign(this, { pool, config, fault, live });
+    check(
+      config.mode !== "bounded-nearintents-auction-v1" || paymentRail,
+      "nearintents_auction_adapter_required",
+    );
+    Object.assign(this, { pool, config, fault, live, paymentRail });
   }
   async initialize() {
     const { secret, ...publicConfig } = this.config;
@@ -154,7 +172,14 @@ export class AuctionMarket {
     );
   }
   async snapshot(db, at, cutoff) {
-    const supplyReady = !this.live || (await this.live.ready(db, at));
+    const supplyReady =
+      (!this.live || (await this.live.ready(db, at))) &&
+      (!this.paymentRail ||
+        !(
+          await db.query(
+            "SELECT FROM mpp_direct_auction_allocations WHERE refundable>0 LIMIT 1",
+          )
+        ).rowCount);
     const rows = (
       await db.query(
         `SELECT b.*,g.active AS grant_active,g.revision AS grant_revision,g.deadline_ms AS grant_deadline,g.gas_cap_yocto::text,
@@ -186,13 +211,15 @@ export class AuctionMarket {
         balance.payer === b.payer &&
         balance.observedAtMs <= at &&
         at < balance.expiresAtMs;
-      balances["wallet:" + b.agent_id] = fresh
-        ? String(
-            BigInt(balance.availableYocto) > BigInt(b.native_reserved)
-              ? BigInt(balance.availableYocto) - BigInt(b.native_reserved)
-              : 0n,
-          )
-        : "0";
+      balances["wallet:" + b.agent_id] = this.paymentRail
+        ? this.paymentRail.spendCapacity(balance, b, at)
+        : fresh
+          ? String(
+              BigInt(balance.availableYocto) > BigInt(b.native_reserved)
+                ? BigInt(balance.availableYocto) - BigInt(b.native_reserved)
+                : 0n,
+            )
+          : "0";
       if (this.live) {
         const limit =
           BigInt(this.config.livePlan.principalCapYocto) +
@@ -244,6 +271,7 @@ export class AuctionMarket {
       fx: this.live ? await this.live.fx(db, at) : this.config.fx,
       paymentWindowMs: this.config.paymentWindowMs,
       admissionWindowMs: this.config.admissionWindowMs,
+      ...(this.paymentRail ? { billing: this.config.billing } : {}),
       rule: this.config.rule,
     };
     const result = clearRound(inputs),
@@ -270,44 +298,55 @@ export class AuctionMarket {
         execution = "exec-" + id,
         payment = "pay-" + id,
         refund = "refund-" + id;
-      const request = {
-        version: 1,
-        network: this.config.network,
-        currency: "NEAR",
-        decimals: 24,
-        amount: c.principalYocto,
-        recipient: this.config.merchant,
-        payer: (
-          await db.query(
-            "SELECT payer FROM mpp_direct_auction_agents WHERE id=$1",
-            [b.agent_id],
-          )
-        ).rows[0].payer,
-        bindingVersion: (
-          await db.query(
-            "SELECT binding_version FROM mpp_direct_auction_agents WHERE id=$1",
-            [b.agent_id],
-          )
-        ).rows[0].binding_version,
-        orderRef: order,
-        termsHash: c.contractHash,
-        nativeRequestHash: b.request_hash,
-        nonce: randomBytes(32).toString("base64"),
-        issuedAtMs: at,
-        expiresAtMs: c.paymentBeforeMs,
-        signingRecipient: this.config.realm,
-      };
-      request.refundTo = request.payer;
-      validateRequest(request);
-      const challenge = Challenge.from({
-        secretKey: this.config.secret,
-        realm: this.config.realm,
-        method: METHOD,
-        intent: "charge",
-        request,
-        expires: new Date(c.paymentBeforeMs).toISOString(),
-        header: "Payment-Authorization",
-      });
+      let challenge;
+      if (this.paymentRail)
+        challenge = await this.paymentRail.challenge(db, {
+          id,
+          agentId: b.agent_id,
+          payer: b.payer,
+          contract: c,
+          requestHash: b.request_hash,
+        });
+      else {
+        const request = {
+          version: 1,
+          network: this.config.network,
+          currency: "NEAR",
+          decimals: 24,
+          amount: c.principalYocto,
+          recipient: this.config.merchant,
+          payer: (
+            await db.query(
+              "SELECT payer FROM mpp_direct_auction_agents WHERE id=$1",
+              [b.agent_id],
+            )
+          ).rows[0].payer,
+          bindingVersion: (
+            await db.query(
+              "SELECT binding_version FROM mpp_direct_auction_agents WHERE id=$1",
+              [b.agent_id],
+            )
+          ).rows[0].binding_version,
+          orderRef: order,
+          termsHash: c.contractHash,
+          nativeRequestHash: b.request_hash,
+          nonce: randomBytes(32).toString("base64"),
+          issuedAtMs: at,
+          expiresAtMs: c.paymentBeforeMs,
+          signingRecipient: this.config.realm,
+        };
+        request.refundTo = request.payer;
+        validateRequest(request);
+        challenge = Challenge.from({
+          secretKey: this.config.secret,
+          realm: this.config.realm,
+          method: METHOD,
+          intent: "charge",
+          request,
+          expires: new Date(c.paymentBeforeMs).toISOString(),
+          header: "Payment-Authorization",
+        });
+      }
       await db.query(
         `INSERT INTO mpp_direct_auction_allocations(id,round_id,bid_id,bid_revision,agent_id,grant_id,grant_revision,contract,challenge,
     order_id,execution_id,payment_operation,refund_operation,principal,reserve_nano) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$1,$10,$11,$12,$13,$14)`,
@@ -851,9 +890,15 @@ export class AuctionMarket {
     });
   }
   async acceptVerifiedPayment(id, e) {
-    return this.transaction(async (db, _state, at) => {
-      const a = await this.allocation(db, id),
-        r = a.challenge.request;
+    return this.transaction((db, _state, at) =>
+      this.applyVerifiedPayment(db, id, e, at),
+    );
+  }
+  async applyVerifiedPayment(db, id, e, at) {
+    const a = await this.allocation(db, id),
+      r = a.challenge.request;
+    if (this.paymentRail) await this.paymentRail.validateEvidence(db, a, e);
+    else
       check(
         e.orderRef === a.order_id &&
           e.amount === String(a.principal) &&
@@ -863,76 +908,77 @@ export class AuctionMarket {
           e.challengeId === a.challenge.id,
         "payment_binding_mismatch",
       );
-      const gasOverrun = uint(e.gasActualYocto) > uint(a.contract.gasCapYocto);
+    const gasOverrun =
+      !this.paymentRail &&
+      uint(e.gasActualYocto) > uint(a.contract.gasCapYocto);
+    check(
+      a.gas_actual == null || String(a.gas_actual) === e.gasActualYocto,
+      "original_payment_fee_conflict",
+    );
+    const old = (
+      await db.query(
+        "SELECT * FROM mpp_direct_auction_movements WHERE identity=$1",
+        [e.movementKey],
+      )
+    ).rows[0];
+    if (old) {
       check(
-        a.gas_actual == null || String(a.gas_actual) === e.gasActualYocto,
-        "original_payment_fee_conflict",
+        old.allocation_id === id && hash(old.evidence) === hash(e),
+        "movement_already_consumed",
       );
-      const old = (
-        await db.query(
-          "SELECT * FROM mpp_direct_auction_movements WHERE identity=$1",
-          [e.movementKey],
-        )
-      ).rows[0];
-      if (old) {
-        check(
-          old.allocation_id === id && hash(old.evidence) === hash(e),
-          "movement_already_consumed",
-        );
-        return this.view(a);
-      }
-      check(a.payment !== "confirmed", "original_payment_already_confirmed");
+      return this.view(a);
+    }
+    check(a.payment !== "confirmed", "original_payment_already_confirmed");
+    await db.query(
+      "INSERT INTO mpp_direct_auction_movements VALUES($1,$2,'payment',$3)",
+      [e.movementKey, id, e],
+    );
+    const grant = (
+      await db.query("SELECT * FROM mpp_direct_auction_grants WHERE id=$1", [
+        a.grant_id,
+      ])
+    ).rows[0];
+    const runnable =
+      !gasOverrun &&
+      a.execution === "reserved" &&
+      !e.late &&
+      at < a.contract.admissionBeforeMs &&
+      (await this.grantPermits(db, a, at));
+    await db.query(
+      "UPDATE mpp_direct_auction_allocations SET payment='confirmed',gas_actual=$2,execution=$3,refundable=$4 WHERE id=$1",
+      [
+        id,
+        e.gasActualYocto,
+        runnable ? "ready" : "fenced",
+        runnable ? "0" : String(a.principal),
+      ],
+    );
+    await db.query(
+      "UPDATE mpp_direct_auction_operations SET state='confirmed',result=$2 WHERE id=$1",
+      [a.payment_operation, e],
+    );
+    if (gasOverrun) {
       await db.query(
-        "INSERT INTO mpp_direct_auction_movements VALUES($1,$2,'payment',$3)",
-        [e.movementKey, id, e],
-      );
-      const grant = (
-        await db.query("SELECT * FROM mpp_direct_auction_grants WHERE id=$1", [
-          a.grant_id,
-        ])
-      ).rows[0];
-      const runnable =
-        !gasOverrun &&
-        a.execution === "reserved" &&
-        !e.late &&
-        at < a.contract.admissionBeforeMs &&
-        (await this.grantPermits(db, a, at));
-      await db.query(
-        "UPDATE mpp_direct_auction_allocations SET payment='confirmed',gas_actual=$2,execution=$3,refundable=$4 WHERE id=$1",
-        [
-          id,
-          e.gasActualYocto,
-          runnable ? "ready" : "fenced",
-          runnable ? "0" : String(a.principal),
-        ],
-      );
-      await db.query(
-        "UPDATE mpp_direct_auction_operations SET state='confirmed',result=$2 WHERE id=$1",
-        [a.payment_operation, e],
-      );
-      if (gasOverrun) {
-        await db.query(
-          `UPDATE mpp_direct_auction_budgets SET active=false WHERE id IN
+        `UPDATE mpp_direct_auction_budgets SET active=false WHERE id IN
           (SELECT a.owner_budget FROM mpp_direct_auction_agents a WHERE a.id=$1 UNION ALL
            SELECT a.agent_budget FROM mpp_direct_auction_agents a WHERE a.id=$1 UNION ALL
            SELECT g.task_budget FROM mpp_direct_auction_grants g WHERE g.id=$2)`,
-          [a.agent_id, a.grant_id],
-        );
-        await this.event(db, id, "gas_overrun_frozen", at, {
-          actual: e.gasActualYocto,
-          reserved: a.contract.gasCapYocto,
-        });
-      }
-      if (!runnable) {
-        await this.releaseCapacity(db, a);
-        await this.prepareRefund(db, a, at, String(a.principal));
-      }
-      await this.event(db, id, "payment_confirmed", at, {
-        movement: e.movementKey,
-        late: !runnable,
+        [a.agent_id, a.grant_id],
+      );
+      await this.event(db, id, "gas_overrun_frozen", at, {
+        actual: e.gasActualYocto,
+        reserved: a.contract.gasCapYocto,
       });
-      return this.status(a.agent_id, id, db);
+    }
+    if (!runnable) {
+      await this.releaseCapacity(db, a);
+      await this.prepareRefund(db, a, at, String(a.principal));
+    }
+    await this.event(db, id, "payment_confirmed", at, {
+      movement: e.movementKey,
+      late: !runnable,
     });
+    return this.status(a.agent_id, id, db);
   }
   async proveNotSent(id, operationEvidence) {
     return this.transaction(async (db, _state, at) => {
@@ -1229,16 +1275,19 @@ export class AuctionMarket {
     ).rows;
     const started = Date.now(),
       balance = await reader(agent.payer);
-    check(
-      balance.source ===
-        (this.live ? "near-rpc-final-v1" : "controlled-native-final-v1") &&
-        balance.network === this.config.network &&
-        balance.payer === agent.payer &&
-        balance.observedAtMs >= started &&
-        balance.expiresAtMs > balance.observedAtMs,
-      "not_final_native_balance",
-    );
-    uint(balance.availableYocto);
+    if (this.paymentRail)
+      this.paymentRail.validateBalance(balance, agent, started);
+    else
+      check(
+        balance.source ===
+          (this.live ? "near-rpc-final-v1" : "controlled-native-final-v1") &&
+          balance.network === this.config.network &&
+          balance.payer === agent.payer &&
+          balance.observedAtMs >= started &&
+          balance.expiresAtMs > balance.observedAtMs,
+        "not_final_native_balance",
+      );
+    if (!this.paymentRail) uint(balance.availableYocto);
     return this.transaction(async (db) => {
       let released = 0n;
       for (const a of terminal) {
@@ -1361,7 +1410,7 @@ export class AuctionMarket {
       );
       check(
         input.deadlineMs > at + this.config.admissionWindowMs &&
-          input.deadlineMs <= at + 180000,
+          input.deadlineMs <= at + (this.paymentRail ? 3600000 : 180000),
         "invalid_authorization_deadline",
       );
       const count = (
@@ -1390,9 +1439,11 @@ export class AuctionMarket {
           agentId,
           taskBudget,
           input.callCapMicro,
-          this.live
-            ? this.config.livePlan.gasReserveYocto
-            : "1000000000000000000",
+          this.paymentRail
+            ? "0"
+            : this.live
+              ? this.config.livePlan.gasReserveYocto
+              : "1000000000000000000",
           input.deadlineMs,
         ],
       );
@@ -1431,6 +1482,15 @@ export class AuctionMarket {
         refunded: String(a.refunded),
       },
       gasActualYocto: a.gas_actual,
+      ...(this.paymentRail
+        ? {
+            paymentMethod: "nearintents",
+            billing: this.config.billing,
+            usageRebate: false,
+            gasActualYocto: null,
+            sourceFeesSeparate: true,
+          }
+        : {}),
     };
   }
   async status(agentId, id, db = this.pool) {

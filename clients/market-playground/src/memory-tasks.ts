@@ -51,6 +51,19 @@ interface Bid {
   state: string;
 }
 interface Order {
+  paymentMethod?: "nearintents";
+  billing?: string;
+  sourcePayment?: {
+    asset: string;
+    amount: string;
+    state: string;
+    receipt?: { reference: string; originTxHash?: string };
+  };
+  sourceFee?: {
+    actualGasWei: string | null;
+    reservedGasWei: string;
+    transactionHash: string;
+  } | null;
   allocationId: string;
   authorizationId: string;
   agentId: string;
@@ -70,6 +83,9 @@ interface Order {
   financial?: { totalMicro?: string };
 }
 interface MarketData {
+  paymentMethod?: "nearintents";
+  paymentHeader?: "Authorization" | "Payment-Authorization";
+  maxTaskSeconds?: number;
   inferenceEndpoint?: string;
   roots?: Grant[];
   grants: Grant[];
@@ -332,7 +348,18 @@ export class MemoryTaskController {
           taskPrompt,
           String(minimum(10000000n, BigInt(grant.agent_cap_nano))),
           "balanced",
-          defaultAuction,
+          this.data?.paymentMethod === "nearintents"
+            ? {
+                ...defaultAuction,
+                deadlineSeconds: Math.min(
+                  1800,
+                  Math.max(
+                    120,
+                    Math.ceil(this.data.pricing.admissionWindowMs / 1000) * 3,
+                  ),
+                ),
+              }
+            : defaultAuction,
         );
     this.publish();
   }
@@ -426,7 +453,7 @@ export class MemoryTaskController {
       BigInt(auction.maxMultiplier) > 100000000n ||
       !Number.isInteger(auction.deadlineSeconds) ||
       auction.deadlineSeconds < 30 ||
-      auction.deadlineSeconds > 180
+      auction.deadlineSeconds > (this.data?.maxTaskSeconds ?? 180)
     )
       throw Error("Invalid bidding policy or deadline.");
   }
@@ -572,12 +599,13 @@ export class MemoryTaskController {
         const transport = procurementTransport({
           url: this.data?.inferenceEndpoint ?? "/buyer-api/procure",
           nativeChat: this.data?.inferenceEndpoint !== undefined,
+          paymentHeader: this.data?.paymentHeader,
           agentId: row.session.agent_id,
           authorizationId: row.grant!.id,
           bidMultiplier: local.bidMultiplier,
           maxTotalMicro: callCapMicro,
           expiryMs: deadlineMs,
-          maxRetries: 1800,
+          maxRetries: this.data?.paymentMethod === "nearintents" ? 36000 : 1800,
           retryDelayMs: 100,
           onWaiting: async (status: Waiting) => {
             alive();
@@ -656,7 +684,11 @@ export class MemoryTaskController {
             );
             try {
               return await this.api<{ paymentAuthorization?: string | null }>(
-                "orders/" + status.allocationId + "/pay",
+                "orders/" +
+                  status.allocationId +
+                  (this.data?.paymentMethod === "nearintents"
+                    ? "/mpp-credential"
+                    : "/pay"),
                 {
                   challengeId: status.challenge.id,
                   contractHash: status.contract.contractHash,

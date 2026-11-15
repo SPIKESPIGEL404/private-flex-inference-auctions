@@ -1,5 +1,9 @@
 # Bounded Mainnet candidate operations
 
+This page covers the original native NEAR profile. See the separate
+[NEAR Intents auction profile](nearintents-auction-operations.md) for Arbitrum
+agent funding, fixed request bundles and the new explicit activation gate.
+
 This entry is separate from the deployed P2 playground. No live spend or deployment
 is implied by a successful build or controlled acceptance.
 

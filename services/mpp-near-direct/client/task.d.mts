@@ -40,6 +40,7 @@ export function createMemoryTask(options: {
 export function procurementTransport(options: {
   url: string;
   nativeChat?: boolean;
+  paymentHeader?: "Authorization" | "Payment-Authorization";
   authorizationId: string;
   agentId?: string;
   bidMultiplier?: string;

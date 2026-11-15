@@ -1,5 +1,10 @@
 # Agent inference payments through NEAR Intents charge
 
+This document describes the first standalone candidate. The subsequent
+[auction and playground integration](2026-11-15-nearintents-auction-ui.md)
+connects winning Market prices and the existing UI to this payment method.
+The scope limits below remain historical to this standalone implementation.
+
 The agent calls `POST /v1/chat/completions` with an ordinary OpenAI request.
 A 402 response quotes this exact request. The agent's payment client checks its
 own policy, pays from the agent wallet, and retries the same request with an MPP

@@ -21,6 +21,9 @@ FROM ${NODE_IMAGE} AS assets
 WORKDIR /app/services/mpp-near-direct
 COPY services/mpp-near-direct ./
 RUN npm ci --ignore-scripts --omit=dev
+WORKDIR /app/services/mpp-nearintents
+COPY services/mpp-nearintents ./
+RUN npm ci --ignore-scripts --omit=dev
 WORKDIR /app/services/inference-comparison
 COPY services/inference-comparison/package*.json ./
 RUN npm ci --ignore-scripts --omit=dev
@@ -45,6 +48,8 @@ COPY --from=rustbuild /src/target/release/private-market-host-p2 /usr/local/bin/
 COPY --from=assets /app/clients/market-playground/dist ./clients/market-playground/dist
 COPY services/mpp-near-direct ./services/mpp-near-direct
 COPY --from=assets /app/services/mpp-near-direct/node_modules ./services/mpp-near-direct/node_modules
+COPY services/mpp-nearintents ./services/mpp-nearintents
+COPY --from=assets /app/services/mpp-nearintents/node_modules ./services/mpp-nearintents/node_modules
 COPY services/inference-comparison/core.mjs services/inference-comparison/near-bridge.mjs ./services/inference-comparison/
 COPY --from=assets /app/services/inference-comparison/node_modules ./services/inference-comparison/node_modules
 COPY clients/market-buyer/purchase-sign.mjs ./clients/market-buyer/purchase-sign.mjs

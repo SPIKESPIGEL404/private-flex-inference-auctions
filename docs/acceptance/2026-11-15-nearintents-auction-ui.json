@@ -1,0 +1,116 @@
+{
+  "scope": "controlled-owning-auction-official-nearintents-playground",
+  "recordedAt": "2026-11-15T19:54:05.311164+00:00",
+  "branch": "codex/nearintents-chat-charge",
+  "parentCommit": "f67267105794802c69d18b6a0e1ee00f897c1fe1",
+  "nodeVersion": "v24.22.1",
+  "sdk": {
+    "@defuse-protocol/nearintents-mpp-sdk": "0.4.1",
+    "mppx": "0.17.0"
+  },
+  "owningBinarySha256": "5679f98e8ce72ee6bb36459dd5463ddecebdd467a9cba2a53d02ecf8aba43beb",
+  "owningSchemaVerifiedBeforeAndAfter": true,
+  "realBroadcasts": 0,
+  "realPaidInferenceCalls": 0,
+  "automatedChecks": {
+    "total": 96,
+    "skipped": 0,
+    "intentsAuction": 14,
+    "nativeRegression": 40,
+    "standaloneChargeRegression": 23,
+    "playground": 15,
+    "activationGates": 4
+  },
+  "outputs": {
+    "intentsAuction": "✔ existing first-price auction determines the official 402 amount; losing agent has no payment (713.869625ms)\n✔ an estimated swap beyond the winning payment window cannot sign or broadcast (184.522083ms)\n✔ two autonomous fx tasks purchase through the existing auction and finish independently (1053.437875ms)\n✔ same chat bytes and credential replay without a second payment or provider invocation (309.575167ms)\n✔ SDK consumption and owning Market movement roll back and recover together (232.028833ms)\n✔ owner freeze is not blocked by settlement polling; paid revoked allocation is refund-only (246.683792ms)\n✔ owner and funding intents are isolated, original hashes are immutable, known rejection can cancel (88.917208ms)\n✔ adapter schema drift is rejected without changing the owning financial schema (49.015166ms)\n✔ owner can freeze and exit unused source balances; original exit replays without another nonce (201.18775ms)\n✔ live profile pins asset, origin, service-budget hierarchy and bounded activation (2.216791ms)\n✔ live adapter cannot substitute the frozen service or operator plan (2.531209ms)\n✔ funding reconciliation verifies source transaction, exact recipient/amount and delivered ERC20 log (3.258042ms)\n✔ a reverted funding command still binds its exact target and amount (0.601875ms)\n✔ source observation reads token and gas at one block and rejects another RPC chain (1.004083ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 7548.778375\n",
+    "nativeRegression": "✔ Mainnet plan has an explicit reviewed hash, bounded duration and separate caps (1.456333ms)\n✔ FX is sourced, fresh, positive, and never uses a Testnet convention (0.375459ms)\n✔ input qualification rejects multimodal, unknown roles, oversized input before any bid/payment (0.182875ms)\n✔ controlled server cannot be upgraded by passing a live flag; Mainnet rejects fixture adapters (0.361125ms)\n✔ live PG: absent provider intent is permanently sealed before refund, including a delayed dispatcher (64.052542ms)\n✔ live PG: explicit billing refusal refunds principal, retains expense exposure and blocks the same key (42.247625ms)\n✔ project probe: concurrent checks POST once and cost verified usage in the owning budget (35.482041ms)\n✔ project probe: lost provider ACK stays unresolved across coordinator restart, never repeats paid POST (31.475041ms)\n✔ project probe: original cost survives lost COMMIT ACK at after_probe_cost_commit (26.128666ms)\n✔ project probe: original cost survives lost COMMIT ACK at after_probe_settlement_commit (23.608ms)\n✔ project probe: an expired original reservation cannot start a late paid request (23.304708ms)\n✔ live PG: stale FX prevents allocations without changing original order FX (31.905417ms)\n✔ live PG: gas overrun records actual chain effect, fences execution, refunds full principal, freezes roots (35.357042ms)\n✔ live PG: verified usage settles once, and original provider replay never makes another paid request (40.030458ms)\n✔ live PG: lost provider ACK holds cost across restart and never posts again (37.102416ms)\n✔ live PG: exhausted provider project budget proves never-sent and refunds the original payment (35.177291ms)\n✔ live PG: outside-contract verified usage is a full-refund provider breach, never clamped (41.360792ms)\n✔ live PG: background wallet recovery never starts prepared sends; sealing fences delayed pay forever (37.031417ms)\n✔ live PG: native wallet dispatch intent races serialize and unknown blocks the same payer (31.775542ms)\n✔ live PG: Mainnet server rejects fixture login, bare mutation and foreign origin; cookies are Secure (32.163291ms)\n✔ live PG: cross-owner setup and funding cannot access another wallet (25.188125ms)\n✔ live PG: real verifier and signed refund outbox close original principal + agent gas without duplicate effects (64.194208ms)\n✔ live PG: supply becomes unavailable before original payment and no transfer is started (27.299833ms)\n✔ owner exit: pending original liabilities block policy change and withdrawal (29.138208ms)\n✔ owner exit: owner-only policy readback, independent FINAL proof, agent gas, single POST, and later-credit exit (35.813333ms)\n✔ owner exit: a lost transfer ACK survives restart and never posts a replacement (22.516625ms)\n✔ owning schema contains no new session/journal/workspace store; legacy pool acquisition is fenced (30.109292ms)\n✔ concurrent clearers atomically allocate one slot; exact replay and immutable financial contract (39.91025ms)\n✔ command and COMMIT ACK loss recover original bid and allocation; partial commit rolls back all holds (43.462792ms)\n✔ cutoff serializes late withdrawal; frozen winner keeps original contract after bid expiry (37.853375ms)\n✔ same-price revision resets priority and expected revision CAS prevents stale withdrawal (34.959834ms)\n✔ unpaid expiry releases only fenced capacity and retains liability; late payment refunds full principal once (40.559792ms)\n✔ GPU outcome unknown retains pool; result recovery releases capacity before refund completion (61.008ms)\n✔ revoke prevents new payment and dispatch, including payment/claim races (36.063791ms)\n✔ out of range metering keeps original execution liability and refuses normal settlement (34.384125ms)\n✔ two independent client agents: real fx/tools through HTTP auction, stable wallet operations, complete refunds (313.258708ms)\n✔ shared owner liability blocks next buyer until actual refund confirmation (50.88825ms)\n✔ payment confirmation races with permanent fence without late execution or lost principal (32.825833ms)\n✔ original operation cannot change binding; parent authorization revocation also fences dispatch (65.063459ms)\n✔ main workspace reuses NEP-413 owner login and exposes only financial grants through buyer-api (69.796917ms)\nℹ tests 40\nℹ suites 0\nℹ pass 40\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 2534.88125\n",
+    "standaloneChargeRegression": "✔ real fx/just-bash task buys two inferences through the same paid chat API and verifies its artifact (389.489917ms)\n✔ official SDK pays for a chat request directly; replay and restart never pay or infer again (256.564042ms)\n✔ native SSE bytes survive the payment handshake and replay (146.79825ms)\n✔ authentication, body binding, independent agents and concurrent presentations (45.642792ms)\n✔ atomic SDK consumption rolls back with paid-order persistence; original credential recovers (87.746916ms)\n✔ original result write retries captured bytes without invoking provider twice (94.600458ms)\n✔ a dispatch crash remains fenced across restart and cannot regenerate inference (94.277667ms)\n✔ paid provider failure retains full refund liability and cannot trigger another charge (131.13875ms)\n✔ swap failure and credential tampering never deliver inference or issue a replacement quote (84.364333ms)\n✔ agent price, speed and cumulative budget limits reject before a wallet effect (130.557875ms)\n✔ configuration cannot change merchant, price or HMAC secret on restart (25.655667ms)\n✔ lost response after paid completion replays the original result through the same API (84.405209ms)\n✔ lost signer ACK recovers the original transfer before presenting a credential (80.006291ms)\n✔ agent speed policy refuses a slow source route before signing (24.510375ms)\n✔ source USDC and a 24-decimal NEAR destination retain separate exact atomic amounts (92.127041ms)\n✔ bounded live configuration pins the official settlement endpoint and input/output contract (5.620875ms)\n✔ provider truncation, identity changes and excess usage cannot become delivered results (0.227542ms)\n✔ EVM payer persists real signed bytes before broadcast and recovers a lost ACK using the same nonce (99.7085ms)\n✔ gas cap and source wallet binding fail before signing or broadcast (2.310584ms)\n✔ journal refuses a concurrent or crash-left wallet lock (0.669375ms)\n✔ agent CLI creates an unfunded private wallet, prints a secret-free plan and refuses unapproved live startup (1092.31825ms)\n✔ live endpoint cannot be redirected to a fake settlement authority (0.860833ms)\n✔ controlled endpoint and HMAC secret are explicit and pinned (0.290916ms)\nℹ tests 23\nℹ suites 0\nℹ pass 23\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 2116.806541\n",
+    "playground": "\n> private-market-playground@0.1.0 test\n> tsx --test test/*.test.ts\n\n✔ USDC and ETH funding preserve independent exact smallest units (1.713208ms)\n✔ funding requests a user wallet and verifies the source chain before transfer (0.191083ms)\n✔ view refresh never starts a runtime or writes a backend task session; task runs only once (2.38725ms)\n✔ owner switch during runtime startup disposes the old runtime before it can run (0.942959ms)\n✔ pause ACK loss leaves revocation unconfirmed; retry reconciles the same financial grant (1.948666ms)\n✔ new page queries historical finance but reconstructs no conversation, files or runtime (0.240875ms)\n✔ increasing the task cap does not raise the economic bid; browser liability matches Market integer contract (0.431ms)\n✔ native precision is exact at one yocto and rejects floating notation (3.797417ms)\n✔ independent keys stay encrypted; stale backup merges server pending journal (89.810041ms)\n✔ two tabs preserve one pending transfer and never send twice (30.407125ms)\n✔ owner change while operation persistence awaits fences actual wallet submission (31.405ms)\n✔ late wallet login after disconnect never verifies the revoked signature (3.101709ms)\n✔ OutLayer owner mode signs only bounded owner transfers and does not open an agent vault (0.68325ms)\n✔ OutLayer owner policy accepts the observed storage deposit while enforcing a separate owner deposit cap (0.285166ms)\n✔ OutLayer owner withdrawal needs explicit exit purpose for a policy version above one (0.232542ms)\nℹ tests 15\nℹ suites 0\nℹ pass 15\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 1321.082666\n",
+    "activationGates": "....\n----------------------------------------------------------------------\nRan 4 tests in 0.075s\n\nOK\n"
+  },
+  "uiBuildPassed": true,
+  "browser": {
+    "twoAgentWallets": true,
+    "fundingIntentsConfirmed": 4,
+    "realBrowserFxBashTasksComplete": 2,
+    "selectedVerifiedArtifact": {
+      "sum": 19,
+      "count": 3
+    },
+    "selectedInput": [
+      5,
+      5,
+      9
+    ],
+    "settledOrders": 4,
+    "reloadAddsPaymentOrProviderEffect": false,
+    "sourceBalanceRefreshedAfterExit": true,
+    "originalEffectCounts": {
+      "counters": {
+        "quotes": 4,
+        "transfers": 4,
+        "rebroadcasts": 0,
+        "exits": 2
+      },
+      "providerCalls": 4
+    },
+    "sourceWallet": "owned EIP-1193 and source RPC fixtures; backend real ECDSA signatures",
+    "screenshotsSha256": {
+      "docs/acceptance/2026-11-15-nearintents-auction-browser.png": "24416586f0e8386a5926327a15a1f7342309ff0fea4cad98219132b23734c1cf",
+      "docs/acceptance/2026-11-15-nearintents-auction-wallets.png": "8c21c57fa339960bdccaf113e078d056998b2b3bccb11d098f1c3450b4196afa"
+    }
+  },
+  "finalImage": {
+    "accepted": false,
+    "intermediateImageBuiltAndImportsPassedWithoutNetwork": true,
+    "finalRebuildFailure": "local disk exhaustion; BuildKit metadata I/O error; Docker daemon then unavailable"
+  },
+  "deploymentChanged": false,
+  "sourceSha256": {
+    "clients/market-playground/package-lock.json": "735c191981de80f301c6374770dbb10a714544bf9321838ecaf56572529aeca4",
+    "clients/market-playground/package.json": "e6ff298fdd01346e02f08ebe0223ab87a02077e22205a7855d62adde75a81641",
+    "clients/market-playground/src/App.tsx": "f3eae37983842f1c52d22dbca89a6fc458f2fdc50b5efbadd9be654e746e36f5",
+    "clients/market-playground/src/NearintentsWallets.tsx": "e854cc8ff0689515c65b8bb093aa564c7372d8210d6401bb66fc05dabc9523c4",
+    "clients/market-playground/src/TaskActivity.tsx": "c09951d005e477c0cc5c5a6f2220f86f6bb4ff219a53db11e482c4f9dfbf1cec",
+    "clients/market-playground/src/WorkspaceDialogs.tsx": "a7fab2ff467a1a0c0efefa84306158d24703e61ec1050ca9cf523d14dd08b4f7",
+    "clients/market-playground/src/evm-funding.ts": "93900ba9b723e56d25322dacc6b522c5db0a4e1aa39d7886359ee2d13bf93db2",
+    "clients/market-playground/src/memory-tasks.ts": "302f697b693b6a85f9feb7e5780cd930fc9177ce75f943d362677d96f06a853a",
+    "clients/market-playground/src/task-api.ts": "60e4ddcbc2ca523a524162cde90177e3dac8f77cda8ed9f14944954b9ac7b376",
+    "clients/market-playground/test/evm-funding.test.ts": "4b5c496ca7d1de92f49258d5b7ff4c6e381ebeeab3572c152f07823647b0ad80",
+    "deploy/agent-preview/Dockerfile": "edc63c2da7d399cd6e12f973ae707b0c2b1e6e2ec41e86a185154a8fbe4af2bc",
+    "deploy/agent-preview/Dockerfile.mainnet-runtime": "e3b58622c4677aa59d508728bed5fdaa88b0157bda865ebf01db7e20e2df9e00",
+    "deploy/agent-preview/Dockerfile.mainnet-runtime.dockerignore": "d02b86caf861bb1f63ed55f54ac4c5bc521506cfa8abec95b1ad63151464b8bf",
+    "scripts/accept-nearintents-auction.py": "8b6e26cef25293cbaac81592644b5fd3870ca26b605917996e71909d0e39e25d",
+    "scripts/bootstrap-mainnet-auction.py": "60715fc40b8762d635313ed5e50a3c7f48757846b96081089e7e33602a23d2d1",
+    "scripts/nearintents-controlled-server.mjs": "b7c22654b40b70dec263b2d692754ef07ea204e551d0038e7a661abfbf6cf2b5",
+    "scripts/prepare-nearintents-auction.mjs": "c4c83445882233bef06f780f42677547bbd62fc14ede26a4b7806e46a52a78f1",
+    "scripts/serve-mainnet-auction.mjs": "3804fd783aac8a6eb9e895a3ba481ea2eb5f5b48fb649f4d4db93610b590059a",
+    "scripts/test-mainnet-auction-package.py": "e70ded3df75fd5586ac6079eebaf8654744313e0ca591cd32eb699a919897f5b",
+    "services/inference-comparison/package-lock.json": "7b12812f6524c386d75bb55e6cc72435b129a7c1616017d97d27db207de6acaf",
+    "services/inference-comparison/package.json": "630452576a38d1f60e8a87bfed7130b3f83bfa07e38258566ab2ff2996519d5e",
+    "services/mpp-near-direct/auction/contracts.mjs": "34fd863104b5deb856730a647d9375e7fde3b75fa660dfb8ff4870db54f21d37",
+    "services/mpp-near-direct/auction/market.mjs": "160d6b5e90885c9c193457da62902f185d759dafffe3ce73d76f8abb69097fed",
+    "services/mpp-near-direct/auction/server.mjs": "98b764fe5ee847691e4a49982d8d353f7a8ac82f54effd7dc13097bfa8001b75",
+    "services/mpp-near-direct/client/task.d.mts": "a84d897edc855af2d6ecb07c97267fdb1eb8c777782903a4dc311aab8a09b6e4",
+    "services/mpp-near-direct/client/task.mjs": "936d71f5f7ad8993aac1c6653e7241383917f5ed00e3ca165ecaf452354d9453",
+    "services/mpp-near-direct/package-lock.json": "c22452d9cf02375c0af19f85851487dbd9e3e6eb488e0af57ccdf6e427014714",
+    "services/mpp-near-direct/package.json": "63ab3ac254442ae19f5a26e728d495367693f5f32d3e7912164ed048ddd5d4d6",
+    "services/mpp-nearintents/auction/exit.mjs": "14b613bd33540a76d08ebe48fb9a874f2bcf9bd2fdecd69531f42fbbcf15bf25",
+    "services/mpp-nearintents/auction/plan.mjs": "53225d1fe48249f408d70098cebf69fdef7b9662ecbe651b18e78b3617aa9419",
+    "services/mpp-nearintents/auction/rail.mjs": "82c3b14562ac0b061a7c2f77413912d33d4a3d0b760993bfa44daa9e21162939",
+    "services/mpp-nearintents/auction/runtime.mjs": "81819ee53d6aa3745f985783361393d851b5ff9536ae640763fb402ec239d875",
+    "services/mpp-nearintents/auction/schema.sql": "d4a669a21130e38ebdd0a9b43e2d3fceeac1e1a7a1a159483d62079847862362",
+    "services/mpp-nearintents/auction/setup.mjs": "2af13afc2b841214eca2ec4fd849490c631568d0a1a01b2ba9a9c9ec8a68d17d",
+    "services/mpp-nearintents/auction/source.mjs": "ce854ad091813e75ac416c294f6d3a6e4c964d0662a5d6eccc79ffd6ca424a73",
+    "services/mpp-nearintents/auction/test/auction.pg.mjs": "5effa91fe837217ff9fbcdf9796183be21551de3b4c2811127edc646dd2a4689",
+    "services/mpp-nearintents/auction/test/fixture.mjs": "aa455d8d568bf41444901de7b6622e75fb5c23257af4e069dc4af8be15e994d5",
+    "services/mpp-nearintents/auction/test/plan.test.mjs": "c974148d9fc2353fb90b9294ccf34e3b3a88bbdd942d7a7400509de3384914fd",
+    "services/mpp-nearintents/auction/test/source.test.mjs": "e0f8699efee1f609dc2d29bb75341d6c867dfc87c32cc83bcae7a0e7bba0c6e6",
+    "services/mpp-nearintents/auction/wallet.mjs": "d6399922af0bacd6bbd935b3b42a58a86652fd8a0c2cd009a8658c524281486b",
+    "services/mpp-nearintents/bridge.mjs": "1736c3b8dc2a973d5e730083f29fdb1e93bfbd1ec7cf689304bc4bd2b79037bd",
+    "services/mpp-nearintents/chat/evm-payer.mjs": "ca7654b63b30ef040c5abc54563e5c4ed3e83c96c458249e6762ef0b8b558e35",
+    "services/mpp-nearintents/package-lock.json": "13638f04f667bf2e8030147df87216c120aca19468b631a6ae341c17dd7940d6",
+    "services/mpp-nearintents/package.json": "4c4951b0f8f44e01e24c41cf6c41ac156023f74e15262c1f445d93e6a30b7b31",
+    "docs/examples/nearintents-auction-parameters.json": "8be3cf81af6d73700157f44081f9c52f1bafa34da971967316ca48099ff3351a"
+  }
+}

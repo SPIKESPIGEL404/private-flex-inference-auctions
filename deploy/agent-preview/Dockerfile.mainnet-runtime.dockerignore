@@ -10,6 +10,8 @@
 !services/
 !services/mpp-near-direct/
 !services/mpp-near-direct/**
+!services/mpp-nearintents/
+!services/mpp-nearintents/**
 !services/inference-comparison/
 !services/inference-comparison/**
 !scripts/
