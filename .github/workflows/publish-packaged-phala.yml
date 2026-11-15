@@ -1,6 +1,15 @@
 name: Publish packaged Phala images
 on:
   workflow_dispatch:
+    inputs:
+      workspace_only:
+        description: Update only the controlled workspace using the pinned deployed base
+        type: boolean
+        default: false
+      workspace_base:
+        description: Immutable current workspace image (required for workspace-only)
+        type: string
+        default: ''
 permissions:
   contents: read
   packages: write
@@ -15,7 +24,13 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
       - name: Verify published bases, build, check, and publish
+        if: ${{ !inputs.workspace_only }}
         run: python3 scripts/publish-packaged-phala.py
+      - name: Build and publish workspace update
+        if: ${{ inputs.workspace_only }}
+        env:
+          WORKSPACE_BASE: ${{ inputs.workspace_base }}
+        run: python3 scripts/publish-playground-workspace.py
       - uses: actions/upload-artifact@v4
         with:
           name: phala-published-images

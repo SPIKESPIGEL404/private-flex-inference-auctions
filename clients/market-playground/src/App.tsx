@@ -186,7 +186,31 @@ export default function App({active = true}: {active?: boolean}) {
   }
   function newTask(prompt = '') { setNewPrompt(prompt); setDialog(tasks ? 'new' : 'settings'); }
   const hasRunning = shown.some(s => !s.paused && s.state === 'running');
-  async function runAll() { setError(''); if (hasRunning) await Promise.all(shown.map(s => handles.current.get(s.id)?.pause())); else await Promise.all(shown.map(s => handles.current.get(s.id)?.run())); }
+  async function runAll() {
+    setError('');
+    if (hasRunning) await Promise.all(shown.map(s => handles.current.get(s.id)?.pause()));
+    else await Promise.all(shown.filter(s => ready.has(s.id) && s.state !== 'complete').map(s => handles.current.get(s.id)?.run()));
+  }
+  async function resetAll() {
+    if (busy) return;
+    const requestEpoch = epoch.current; setBusy(true); setError('');
+    try {
+      const replacements = new Map<string, string>();
+      // Serialize revisions when two panes belong to the same agent.
+      for (const s of shown) {
+        if (requestEpoch !== epoch.current) return;
+        const id = await handles.current.get(s.id)?.reset();
+        if (id) replacements.set(s.id, id);
+      }
+      await refresh();
+      if (requestEpoch !== epoch.current) return;
+      setVisible(old => old.map(id => replacements.get(id) ?? id));
+      setSelected(old => replacements.get(old) ?? old); setZoomed(null);
+      setDetails(old => Object.fromEntries(Object.entries(old).filter(([id]) => !replacements.has(id))));
+      setReady(old => new Set([...old].filter(id => !replacements.has(id))));
+      if (replacements.size !== shown.length) setError('Some tasks could not reset. Check the pane error; pending orders must settle first.');
+    } finally { if (requestEpoch === epoch.current) setBusy(false); }
+  }
   async function saveSettings(budget: string, preference: Preference, prompt: string) {
     if (!current) return;
     if (!tasks) {
@@ -223,6 +247,8 @@ export default function App({active = true}: {active?: boolean}) {
             onChange={e => {setCountDraft(e.target.value); if (/^[1-8]$/.test(e.target.value)) void resize(Number(e.target.value));}} onBlur={() => setCountDraft(String(shown.length))} /></label>
           <button className="outline-button" aria-label="Configure task" disabled={busy || !current} onClick={() => setDialog('settings')}><span className="configure-full">configure</span><span className="configure-short">config</span> <kbd>⌘K</kbd></button>
           <button className="outline-button" aria-label="New task" disabled={busy || !tasks || !sessions.length} onClick={() => newTask()}>+ task</button>
+          <button className="outline-button" disabled={busy || !tasks || !shown.length || shown.some(s => !ready.has(s.id))}
+            title="Restart visible tasks with fresh workspaces. Previous activity and cumulative agent spend are retained." onClick={() => void resetAll()}>reset all</button>
           <button className="outline-button" disabled={busy || !tasks || !shown.some(s => ready.has(s.id) && s.state !== 'complete')} onClick={() => void runAll()}>{hasRunning ? 'pause all' : 'run all'}</button>
           {(tasks || wallet.owner) && <button className="help-button" disabled={busy} onClick={() => void logout()}>disconnect</button>}</>}
         <button className="help-button" aria-label="Keyboard shortcuts" onClick={() => setDialog('help')}>?</button>

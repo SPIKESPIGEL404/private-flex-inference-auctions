@@ -1,0 +1,23 @@
+# Update the controlled browser workspace over the exact deployed runtime.
+# The native binary, entrypoint, dependencies and /data format are inherited.
+ARG RUNTIME_IMAGE
+ARG NODE_IMAGE=node@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
+FROM ${NODE_IMAGE} AS assets
+WORKDIR /app/services/mpp-near-direct
+COPY services/mpp-near-direct/package*.json ./
+RUN npm ci --ignore-scripts
+COPY services/mpp-near-direct/p2 ./p2
+WORKDIR /app/clients/market-playground
+COPY clients/market-playground/package*.json ./
+RUN npm ci --ignore-scripts
+COPY clients/market-playground ./
+RUN npm run build
+
+FROM ${RUNTIME_IMAGE}
+ARG WORKSPACE_REVISION
+LABEL ai.bitrouter.workspace.revision=$WORKSPACE_REVISION
+USER root
+RUN rm -rf /app/clients/market-playground/dist
+COPY --from=assets /app/clients/market-playground/dist /app/clients/market-playground/dist
+COPY --from=assets /app/services/mpp-near-direct/p2/tasks.mjs /app/services/mpp-near-direct/p2/server.mjs /app/services/mpp-near-direct/p2/fx-runtime.mjs /app/services/mpp-near-direct/p2/
+USER preview:preview

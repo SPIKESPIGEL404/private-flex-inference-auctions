@@ -1,0 +1,46 @@
+{
+  "sessions": [
+    {
+      "id": "211c3613-36f1-4fd2-bbf4-cd2e5aee7f0d",
+      "agent_id": "agent-1",
+      "state": "complete",
+      "spent_nano": "1575000"
+    },
+    {
+      "id": "92c75f4e-183a-4daf-807c-9922bac556b5",
+      "agent_id": "agent-2",
+      "state": "complete",
+      "spent_nano": "1575000"
+    },
+    {
+      "id": "6e92918d-cf21-4a08-bf27-94be2a26a34e",
+      "agent_id": "agent-2",
+      "state": "complete",
+      "spent_nano": "1575000"
+    }
+  ],
+  "limits": [
+    {
+      "agent_id": "agent-1",
+      "budget_nano": "20000000",
+      "reserved_nano": "0",
+      "spent_nano": "5721000"
+    },
+    {
+      "agent_id": "agent-2",
+      "budget_nano": "20000000",
+      "reserved_nano": "0",
+      "spent_nano": "6300000"
+    }
+  ],
+  "mode": "controlled",
+  "scope": "local browser WASM runtime + Market/Postgres/Redis; scripted seller and payment chain",
+  "realProviderCalls": 0,
+  "realChainTransactions": 0,
+  "deployed": false,
+  "results": [
+    "42",
+    "19",
+    "19"
+  ]
+}

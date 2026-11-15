@@ -13,13 +13,13 @@ export class Tasks{
  guard(s,writer,generation,at){requireThat(s.writer_hash===hash(writer??'')&&String(s.generation)===String(generation)&&Number(s.writer_until_ms)>at,'writer_fenced');}
  async list(owner){return (await this.pool.query(`SELECT a.agent_id,a.payer,s.id,s.state,s.generation,s.task_id,s.prompt,s.workspace_version,s.result,s.created_ms,
   t.budget_nano,t.reserved_nano,t.spent_nano,t.deadline_ms,t.preference,t.paused,t.revision FROM mpp_direct_agents a
-  JOIN mpp_direct_p2_sessions s ON s.user_id=a.user_id JOIN mpp_direct_tasks t ON t.id=s.task_id WHERE a.owner_id=$1 ORDER BY a.agent_id,s.created_ms,s.id`,[owner])).rows;}
+  JOIN mpp_direct_p2_sessions s ON s.user_id=a.user_id JOIN mpp_direct_tasks t ON t.id=s.task_id WHERE a.owner_id=$1 AND t.active ORDER BY a.agent_id,s.created_ms,s.id`,[owner])).rows;}
  async create(owner,agentId,input){
   requireThat(typeof input.prompt==='string'&&input.prompt.trim().length>0&&input.prompt.length<=1000&&/^[1-9][0-9]{0,12}$/.test(input.budgetNano)
    &&['save','balanced','fast'].includes(input.preference),'invalid_task');
   const agent=(await this.pool.query('SELECT * FROM mpp_direct_agents WHERE owner_id=$1 AND agent_id=$2 AND active',[owner,agentId])).rows[0];requireThat(agent,'unknown_agent');
   return this.a.transaction(agent.user_id,async db=>{
-   const count=Number((await db.query('SELECT count(*) FROM mpp_direct_tasks WHERE user_id=$1',[agent.user_id])).rows[0].count);requireThat(count<2,'task_count_limit');
+   const count=Number((await db.query('SELECT count(*) FROM mpp_direct_tasks WHERE user_id=$1 AND active',[agent.user_id])).rows[0].count);requireThat(count<2,'task_count_limit');
    const limit=(await db.query('SELECT * FROM mpp_direct_p2_agent_limits WHERE user_id=$1 FOR UPDATE',[agent.user_id])).rows[0];requireThat(BigInt(input.budgetNano)<=BigInt(limit.budget_nano),'agent_budget_limit');
    const original=(await db.query('SELECT workspace FROM mpp_direct_p2_sessions WHERE user_id=$1 ORDER BY created_ms LIMIT 1',[agent.user_id])).rows[0];
    const id=randomUUID(),task='task-'+id,at=await now(db),workspace={'/workspace/task.txt':input.prompt,'/workspace/numbers.txt':original.workspace['/workspace/numbers.txt']};
@@ -108,9 +108,30 @@ export class Tasks{
    if(kind==='session'){
     const s=await this.session(owner,id,db,'FOR UPDATE OF s');
     const task=(await db.query('SELECT * FROM mpp_direct_tasks WHERE id=$1 FOR UPDATE',[s.task_id])).rows[0];
+    requireThat(task.active,'task_replaced');
     requireThat(String(input.expectedRevision)===String(task.revision),'revision_conflict');
-    requireThat(['pause','resume','preference','budget'].includes(input.action),'invalid_control');
-    if(input.action==='budget'){requireThat(/^[1-9][0-9]{0,12}$/.test(input.budgetNano),'invalid_budget');await db.query('UPDATE mpp_direct_tasks SET budget_nano=$2,revision=revision+1 WHERE id=$1',[task.id,input.budgetNano]);}
+    requireThat(['pause','resume','preference','budget','reset'].includes(input.action),'invalid_control');
+    if(s.state==='complete'&&['pause','resume'].includes(input.action)){
+     // A late control click must not reopen a journal whose turn already ended.
+     result={revision:String(task.revision),action:input.action};
+    }
+    else if(input.action==='reset'){
+     requireThat(s.state==='complete'||task.paused||Number(s.writer_until_ms)<=await now(db),'pause_before_reset');
+     const pending=(await db.query("SELECT 1 FROM mpp_direct_orders WHERE task_id=$1 AND (h>0 OR w>0 OR state NOT IN('settled','refunded','cancelled')) LIMIT 1",[task.id])).rows.length;
+     requireThat(BigInt(task.reserved_nano)===0n&&!pending,'original_settlement_pending');
+     const next=randomUUID(),nextTask='task-'+next,at=await now(db);
+     const workspace={'/workspace/task.txt':s.prompt,'/workspace/numbers.txt':s.workspace['/workspace/numbers.txt']};
+     // Retire only execution authority. All old journals, orders, tool receipts
+     // and charges remain durable and still count against the agent budget.
+     await db.query('UPDATE mpp_direct_tasks SET active=false,paused=true,revision=revision+1 WHERE id=$1',[task.id]);
+     await db.query('UPDATE mpp_direct_p2_sessions SET writer_until_ms=0,generation=generation+1 WHERE id=$1',[id]);
+     await db.query("UPDATE mpp_direct_p2_calls SET state='cancelled' WHERE task_id=$1 AND state='bidding'",[task.id]);
+     await db.query(`INSERT INTO mpp_direct_tasks(id,user_id,budget_nano,hard_bid_nano,call_cap_nano,deadline_ms,preference,max_wait_ms)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[nextTask,s.user_id,task.budget_nano,task.hard_bid_nano,task.call_cap_nano,at+180000,task.preference,task.max_wait_ms]);
+     await db.query('INSERT INTO mpp_direct_p2_sessions(id,user_id,task_id,prompt,workspace,created_ms) VALUES($1,$2,$3,$4,$5,$6)',[next,s.user_id,nextTask,s.prompt,workspace,at]);
+     result={id:next,taskId:nextTask,revision:String(BigInt(task.revision)+1n),action:input.action};
+    }
+    else if(input.action==='budget'){requireThat(/^[1-9][0-9]{0,12}$/.test(input.budgetNano),'invalid_budget');await db.query('UPDATE mpp_direct_tasks SET budget_nano=$2,revision=revision+1 WHERE id=$1',[task.id,input.budgetNano]);}
     else if(input.action==='preference'){
      requireThat(['save','balanced','fast'].includes(input.preference),'invalid_preference');await db.query('UPDATE mpp_direct_tasks SET preference=$2,revision=revision+1 WHERE id=$1',[task.id,input.preference]);
      const calls=(await db.query("UPDATE mpp_direct_p2_calls SET preference=$2,revision=revision+1 WHERE task_id=$1 AND state='bidding' RETURNING id,revision",[task.id,input.preference])).rows;
@@ -121,7 +142,7 @@ export class Tasks{
      await db.query('UPDATE mpp_direct_tasks SET paused=$2,revision=revision+1 WHERE id=$1',[task.id,paused]);
      await db.query("UPDATE mpp_direct_p2_sessions SET state=$2,writer_until_ms=0,generation=generation+1 WHERE id=$1",[id,paused?'paused':'ready']);
     }
-    result={revision:String(BigInt(task.revision)+1n),action:input.action};
+    result??={revision:String(BigInt(task.revision)+1n),action:input.action};
    }else{
     const c=(await db.query('SELECT * FROM mpp_direct_p2_calls WHERE id=$1 FOR UPDATE',[id])).rows[0];
     const task=(await db.query('SELECT * FROM mpp_direct_tasks WHERE id=$1 FOR SHARE',[c.task_id])).rows[0];
@@ -140,6 +161,13 @@ export class Tasks{
  }
  async finish(owner,id,w,g,result){const s=await this.context(owner,id,w,g);requireThat(JSON.stringify(result).length<=64000,'result_limit');
   const changed=await this.pool.query("UPDATE mpp_direct_p2_sessions SET state=$2,result=$3,writer_until_ms=0 WHERE id=$1 AND generation=$4 AND writer_hash=$5",[id,result.stopReason==='end_turn'?'complete':'error',result,g,hash(w)]);requireThat(changed.rowCount===1,'writer_fenced');return {saved:true};}
+ async release(owner,id,w,g){
+  await this.session(owner,id);
+  // A closed browser runtime is no longer running, even if its lease expired
+  // before finish. A later writer or an owner pause always wins this CAS.
+  const changed=await this.pool.query("UPDATE mpp_direct_p2_sessions SET state='error',writer_until_ms=0 WHERE id=$1 AND generation=$2 AND writer_hash=$3 AND state='running'",[id,g,hash(w)]);
+  return {released:changed.rowCount===1};
+ }
  async status(owner,id){
   const s=await this.session(owner,id);const task=(await this.pool.query('SELECT * FROM mpp_direct_tasks WHERE id=$1',[s.task_id])).rows[0];
   const calls=(await this.pool.query('SELECT id,state,revision,bid_nano,manual,started_ms,deadline_ms,decision,order_id FROM mpp_direct_p2_calls WHERE session_id=$1 ORDER BY started_ms,id',[id])).rows;

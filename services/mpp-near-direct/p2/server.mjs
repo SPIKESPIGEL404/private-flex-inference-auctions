@@ -136,7 +136,7 @@ export async function start(config){
     if(workspace){workspace.auth.logout(decodeURIComponent(cookies(req).near_owner??''));res.setHeader('set-cookie',cookie('near_owner','')+'; Max-Age=0');return json(res,200,{loggedOut:true});}
     res.setHeader('set-cookie','p2_owner=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'+secureCookie);return json(res,200,{loggedOut:true});
    }
-   const match=req.url.match(/^\/buyer-api\/sessions\/([a-zA-Z0-9_-]{1,96})(?:\/(claim|heartbeat|journal|tool|inference|control|finish))?$/);
+   const match=req.url.match(/^\/buyer-api\/sessions\/([a-zA-Z0-9_-]{1,96})(?:\/(claim|heartbeat|journal|tool|inference|control|finish|release))?$/);
    if(match){
     const [,id,op]=match;
     if(req.method==='GET'&&!op)return json(res,200,await tasks.status(owner,id));
@@ -148,6 +148,7 @@ export async function start(config){
     if(op==='tool')return json(res,200,await tasks.tool(owner,id,w,g,input));
     if(op==='control')return json(res,200,await tasks.control(owner,'session',id,input));
     if(op==='finish')return json(res,200,await tasks.finish(owner,id,w,g,input));
+    if(op==='release')return json(res,200,await tasks.release(owner,id,w,g));
     if(op==='inference'){
      requireThat(typeof input.body==='string'&&input.body.length<=128*1024,'native_body_required');
      const value=await purchase(owner,id,w,g,input.body);res.writeHead(200,{...value.headers,'cache-control':'no-store'});res.end(value.body);return;

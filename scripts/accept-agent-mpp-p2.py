@@ -285,6 +285,55 @@ def shared_wallet(binary):
   assert x.m.sql('SELECT reserved_nano+spent_nano<=budget_nano FROM mpp_direct_p2_agent_limits WHERE user_id='+literal(user))=='t'
   assert x.m.sql('SELECT l.reserved_nano=(SELECT sum(reserved_nano) FROM mpp_direct_tasks WHERE user_id=l.user_id) AND l.spent_nano=(SELECT sum(spent_nano) FROM mpp_direct_tasks WHERE user_id=l.user_id) FROM mpp_direct_p2_agent_limits l WHERE user_id='+literal(user))=='t'
   return {'case':'concurrent-tasks-share-one-agent-authorization','passed':True}
+def reset_tasks(binary):
+ with P2(binary) as x:
+  assert x.fx(1)['result']['stopReason']=='end_turn'
+  for action in ['pause','resume']:
+   assert x.control(1,action)[0]==200
+   assert x.status(1)['state']=='complete','late control must not reopen a completed turn'
+  wait_for(lambda:x.status(1)['task']['reserved_nano']=='0')
+  before=x.status(1);user=x.m.buyers[0]['user']
+  spent=x.m.sql('SELECT spent_nano FROM mpp_direct_p2_agent_limits WHERE user_id='+literal(user))
+  operation={'action':'reset','expectedRevision':str(before['task']['revision']),'operation':'reset-acceptance'}
+  status,created,*_=x.api('sessions/session-1/control',operation);assert status==200,created
+  assert x.api('sessions/session-1/control',operation)[1]==created,'lost reset acknowledgement must replay the same new session'
+  fresh=x.api('sessions/'+created['id'])[1]
+  assert fresh['state']=='ready' and not fresh['fxStarted'] and fresh['generation']=='0'
+  assert '/workspace/result.txt' not in fresh['workspace'] and '/workspace/applications.log' not in fresh['workspace']
+  assert fresh['calls']==[] and fresh['orders']==[]
+  assert x.status(1)['workspace']==before['workspace'] and x.status(1)['transcript']==before['transcript']
+  assert x.m.sql('SELECT spent_nano FROM mpp_direct_p2_agent_limits WHERE user_id='+literal(user))==spent
+  assert x.api('sessions/session-1/control',{**operation,'operation':'another-reset'})[0]==400
+  assert x.api('sessions/'+created['id'],cookie=x.login(x.otherCode))[0]==404
+  x.login()
+  assert x.fx(created['id'])['result']['stopReason']=='end_turn'
+  again=x.api('sessions/'+created['id'])[1]
+  assert again['workspace']['/workspace/result.txt']=='42\n' and again['workspace']['/workspace/applications.log']=='applied\n'
+  wait_for(lambda:x.api('sessions/'+created['id'])[1]['task']['reserved_nano']=='0')
+  assert int(x.m.sql('SELECT spent_nano FROM mpp_direct_p2_agent_limits WHERE user_id='+literal(user)))==2*int(spent)
+  assert len(x.api('agents')[1]['agents'])==2,'retired attempts must not add panes'
+  # Repeated resets consume no extra active-task slots and preserve all receipts.
+  for index in range(3):
+   operation={'action':'reset','expectedRevision':str(again['task']['revision']),'operation':'reset-again-'+str(index)}
+   status,created,*_=x.api('sessions/'+again['id']+'/control',operation);assert status==200,created
+   again=x.api('sessions/'+created['id'])[1]
+  assert x.counts()['executions']==4 and x.counts()['tools']==2
+  # A live writer and unresolved money cannot be hidden by reset.
+  headers=x.claim(2)
+  assert x.control(2,'reset')[1]['error']['code']=='pause_before_reset'
+  newer=x.claim(2,force=True)
+  assert x.api('sessions/session-2/release',{},headers=headers)[1]=={'released':False}
+  assert x.status(2)['state']=='running','stale close must not stop the new writer'
+  x.m.sql("UPDATE mpp_direct_p2_sessions SET writer_until_ms=0 WHERE id='session-2'")
+  assert x.api('sessions/session-2/release',{},headers=newer)[1]=={'released':True}
+  assert x.status(2)['state']=='error','closing an expired runtime must clear running'
+  headers=x.claim(2)
+  x.control(2,'pause')
+  assert x.api('sessions/session-2/release',{},headers=headers)[1]=={'released':False}
+  assert x.status(2)['state']=='paused','owner pause must survive late runtime cleanup'
+  x.m.sql('UPDATE mpp_direct_tasks SET reserved_nano=1 WHERE id=\'task-2\'')
+  assert x.control(2,'reset')[1]['error']['code']=='original_settlement_pending'
+  return {'case':'repeat-reset-preserves-evidence-budgets-and-owner-fences','passed':True}
 def unknown(binary):
  with P2(binary) as x:
   x.m.seller.mode='disconnect';r=x.fx(1);assert r['result']['stopReason']!='end_turn'
@@ -307,7 +356,7 @@ def main():
    a.serve.write_text(json.dumps({'url':x.url,'ownerCode':x.code,'otherCode':x.otherCode,'root':str(x.m.root)}));a.serve.chmod(0o600);print(json.dumps({'url':x.url,'context':str(a.serve)}),flush=True)
    while not a.serve.with_suffix('.stop').exists():time.sleep(.2)
   return
- cases={'happy':happy,'crash-model':lambda b:crash_test(b,'after_model_1'),'crash-tool':lambda b:crash_test(b,'after_tool'),'crash-continuation':lambda b:crash_test(b,'after_model_2'),'isolation':isolation,'policy':policy,'manual':manual_wait,'limits':limits,'malformed':malformed,'refund-wait':refund_wait,'waiting-restart':waiting_restart,'stale':stale_forecast,'shared-wallet':shared_wallet,'unknown':unknown,'ack':lost_ack}
+ cases={'happy':happy,'reset':reset_tasks,'crash-model':lambda b:crash_test(b,'after_model_1'),'crash-tool':lambda b:crash_test(b,'after_tool'),'crash-continuation':lambda b:crash_test(b,'after_model_2'),'isolation':isolation,'policy':policy,'manual':manual_wait,'limits':limits,'malformed':malformed,'refund-wait':refund_wait,'waiting-restart':waiting_restart,'stale':stale_forecast,'shared-wallet':shared_wallet,'unknown':unknown,'ack':lost_ack}
  if a.case!='all' and a.case not in cases:p.error('unknown case: '+a.case)
  checks=[]
  for key,fn in cases.items():

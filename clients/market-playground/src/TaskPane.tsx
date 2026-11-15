@@ -5,10 +5,10 @@ import type {WTerm} from '@wterm/dom';
 import ghosttyWasm from '@wterm/ghostty/ghostty-vt.wasm?url';
 import fxWasm from '../node_modules/libfx/fx-core.wasm?url';
 import {createTaskRuntime} from '../../../services/mpp-near-direct/p2/fx-runtime.mjs';
-import {taskApi, nanoUsd} from './task-api';
+import {taskApi, TaskApiError, nanoUsd} from './task-api';
 import type {AgentSession, TaskStatus} from './task-api';
 
-export interface PaneHandle { run(): Promise<void>; pause(): Promise<boolean>; focus(): void }
+export interface PaneHandle { run(): Promise<void>; pause(): Promise<boolean>; reset(): Promise<string | undefined>; focus(): void }
 interface Props {
   session: AgentSession; selected: boolean; enabled: boolean; hosted: boolean;
   onSelect(): void; refresh(): Promise<void>; onUnauthorized(): void;
@@ -29,6 +29,8 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
   const detail = useRef<TaskStatus | null>(null);
   const runtime = useRef<Awaited<ReturnType<typeof createTaskRuntime>> | null>(null);
   const active = useRef(true), running = useRef(false), stopping = useRef(false), line = useRef('');
+  const finished = useRef<Promise<void>>(Promise.resolve());
+  const resetRequest = useRef<{action: 'reset'; expectedRevision: string; operation: string} | null>(null);
   const latest = useRef(props); latest.current = props;
   const transcript = useRef('');
   const prompt = () => terminal.current?.write('\r\n\x1b[90mmarket>\x1b[0m ');
@@ -80,6 +82,8 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
     const p = latest.current;
     if (!p.enabled || !hosted || running.current || p.session.state === 'complete' || !terminal.current) return;
     running.current = true; stopping.current = false; setBusy(true); setError('');
+    let settle!: () => void;
+    finished.current = new Promise(resolve => { settle = resolve; });
     try {
       if (p.session.paused) await taskApi('sessions/' + session.id + '/control', {
         action: 'resume', expectedRevision: p.session.revision, operation: crypto.randomUUID(),
@@ -94,25 +98,53 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
       runtime.current = r;
       terminal.current.write('\x1b[2J\x1b[H> ' + text(p.session.prompt) + '\r\n');
       const result = await r.run(); terminal.current?.write('\r\n[' + text(result.stopReason) + ']\r\n');
+      if (!['end_turn', 'cancelled'].includes(result.stopReason) && !stopping.current) setError('Task stopped: ' + result.stopReason + '. Resume or reset this task.');
     } catch (e) {
       if (active.current && !stopping.current) setError(e instanceof Error ? e.message : 'Task outcome unavailable. Resume the original task.');
     } finally {
-      await runtime.current?.close().catch(() => {}); runtime.current = null; running.current = false;
-      if (active.current) { setBusy(false); transcript.current = ''; render(detail.current ?? undefined); await latest.current.refresh(); }
+      try {
+        await runtime.current?.close().catch(() => {}); runtime.current = null; running.current = false;
+        if (active.current) { setBusy(false); transcript.current = ''; render(detail.current ?? undefined); await latest.current.refresh(); }
+      } finally { settle(); }
     }
   }
-  async function pause() {
+  async function pause(internal = false) {
     const p = latest.current;
-    if (!hosted || p.session.state === 'complete' || p.session.paused) return true;
-    if (!p.enabled) return false;
+    if (!hosted) return true;
+    if (!p.enabled && !internal) return false;
     setError('');
     try {
-      await taskApi('sessions/' + session.id + '/control', {action: 'pause', expectedRevision: p.session.revision, operation: crypto.randomUUID()});
-      stopping.current = true; await runtime.current?.close(); runtime.current = null;
+      if (p.session.state !== 'complete' && !p.session.paused)
+        await taskApi('sessions/' + session.id + '/control', {action: 'pause', expectedRevision: p.session.revision, operation: crypto.randomUUID()});
+      stopping.current = true; await runtime.current?.close();
+      await finished.current;
       await p.refresh(); return true;
     } catch (e) { if (active.current) setError(e instanceof Error ? e.message : 'Pause was not confirmed.'); return false; }
   }
-  useImperativeHandle(ref, () => ({run, pause, focus: () => terminal.current?.focus()}));
+  async function reset() {
+    if (!hosted || !active.current) return;
+    setBusy(true); setError('');
+    try {
+      if (!resetRequest.current) {
+        if (!await pause(true)) return;
+        const saved = await taskApi<TaskStatus>('sessions/' + session.id);
+        resetRequest.current = {action: 'reset', expectedRevision: saved.task.revision, operation: crypto.randomUUID()};
+      }
+      // A completed turn may precede its final refund by a few ticks.
+      for (let attempt = 0; active.current; attempt++) {
+        try {
+          const next = await taskApi<{id: string}>('sessions/' + session.id + '/control', resetRequest.current);
+          return next.id;
+        } catch (e) {
+          if (!(e instanceof TaskApiError) || e.code !== 'original_settlement_pending' || attempt >= 40) throw e;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+    } catch (e) {
+      if (active.current) setError(e instanceof Error ? e.message : 'Reset was not confirmed.');
+    } finally { if (active.current) setBusy(false); }
+  }
+  useImperativeHandle(ref, () => ({run, pause, reset, focus: () => terminal.current?.focus()}));
   function input(data: string) {
     const p = latest.current;
     if (p.onInput(data)) return;

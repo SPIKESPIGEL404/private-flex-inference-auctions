@@ -14,6 +14,14 @@ In the public preview, connect a NEAR mainnet wallet and sign a NEP-413 login me
 
 Run the bounded example tasks without funding. Each agent owns an fx runtime, durable tools, task budget and autobidder. The model and inference payment/refund chain are fixtures. New task prompts do not turn the scripted model into a general language model.
 
+Use **reset all**, then **run all**, to repeat the visible tasks. Reset pauses their
+current runtimes, waits for outstanding settlement, and replaces each pane with a
+fresh session and workspace using the same task settings. Previous journals,
+results, orders and cumulative agent spend remain stored; reset does not add
+credit. The two-task limit counts active tasks, so retired attempts do not consume
+the slots needed for another run. An unknown settlement must resolve before that
+task can reset.
+
 Open the wallet panel to create two independent ordinary NEAR implicit accounts. Their random Ed25519 keys stay in encrypted IndexedDB in this browser profile. Download a password-encrypted backup before funding. The server stores public addresses, proof of key possession, and a transfer operation journal; it never receives private keys. Clearing browser data requires restoring that backup and password.
 
 Owner-wallet funding is a real NEAR mainnet Transfer, limited to 0.1 NEAR per request. Returning funds signs a Transfer locally from the agent to the connected owner and retains 0.002 NEAR for storage and gas. Pending operations block replacements, including after restoring an old backup. An unknown owner-wallet result requires the original hash from wallet history. A pending withdrawal can rebroadcast only its original signed bytes. No automatic payment retries occur.

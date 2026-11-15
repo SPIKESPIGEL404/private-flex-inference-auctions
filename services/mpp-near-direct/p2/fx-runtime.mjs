@@ -42,7 +42,7 @@ export async function createTaskRuntime({url,sessionId,fetcher=fetch,backend,was
     return response;
    },onEvent,
   });
- }catch(e){closed=true;clearInterval(timer);throw e;}
+ }catch(e){closed=true;clearInterval(timer);await api('release',{}).catch(()=>{});throw e;}
  return {generation:claimed.generation,engine,async run(){
   // The task prompt/call are durable before payment; fx journal replay and the
   // hosted original-response cache recover even before its first journal mark.
@@ -51,5 +51,9 @@ export async function createTaskRuntime({url,sessionId,fetcher=fetch,backend,was
    turn=engine.prompt(status.task?status.workspace['/workspace/task.txt']:'Complete the configured task.',{turnId:'task-'+sessionId});}
   for await(const event of turn)onEvent(event);
   const result=await turn.result;await fault('before_finish',result);await api('finish',result);return result;
- },async close(){closed=true;clearInterval(timer);turn?.cancel({reason:'handoff'});await engine.close();}};
+ },async close(){
+  if(closed)return;
+  closed=true;clearInterval(timer);turn?.cancel({reason:'handoff'});
+  try{await engine.close();}finally{await api('release',{}).catch(()=>{});}
+ }};
 }
