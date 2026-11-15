@@ -85,7 +85,9 @@ export const TaskPane = forwardRef<PaneHandle, Props>(function TaskPane(props, r
     if (!p.enabled || !hosted || running.current || !terminal.current) return;
     if (p.session.state === 'complete' || p.session.phase === 'expired' || detail.current?.result) {
       const next = await reset();
-      if (next && active.current) await p.onRestart(session.id, next);
+      // Polling may unmount this retired pane before the reset reply arrives.
+      // The parent fences owner changes and must still install the confirmed ID.
+      if (next) await p.onRestart(session.id, next);
       return;
     }
     running.current = true; stopping.current = false; setBusy(true); setError('');
