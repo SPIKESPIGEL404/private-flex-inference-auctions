@@ -84,14 +84,32 @@ NEARINTENTS_AUCTION_PRIVATE_JSON=<sealed private JSON>
 ENABLE_NEARINTENTS_AUCTION=<exact reviewedPlanHash>
 ```
 
+The deployed page and wallets can start without buying a Cloud probe. Until
+the operator also sets `ENABLE_NEARINTENTS_PAID_PROBE` to the same exact plan
+hash, supply stays unavailable and no paid readiness probe is started. Enable
+that flag only within the approved provider allowance. The probe consumes one
+of the immutable provider call slots; restarting never grants another allowance.
+
 The bootstrap uses database `private_market_auction_nearintents_v1`; the native
 database name is unchanged. The original Rust schema layout still uses
 `PRIVATE_MARKET_AUCTION=bounded-mainnet-v1`; the JS payment profile separately
 requires its own hash gate, schema/instance binding and exclusive runtime lease.
-Do not use the native overlay renderer/publisher unchanged: those currently
-render native environment names and a native volume. A future deployment must
-review a distinct Intents service/volume and preserve all existing services,
-volumes and sealed secrets. These commands do not deploy or push an image.
+The overlay renderer now selects a distinct Intents service, volume, network and
+sealed name from `paymentMethod: nearintents`. Its default leaves the paid probe
+off; `--enable-paid-probe` explicitly enables it. It refuses an occupied canary
+port and preserves the existing services, volumes and settings. All existing
+sealed values must be preserved when supplying the combined environment file.
+The publisher verifies both native bootstrap and Intents fresh-volume/restart
+bootstrap for an artifact carrying `paymentMethod: nearintents`. The renderer
+alone does not deploy or push an image.
+
+Live preflight on 2026-11-15 found that the original 1× request ($0.001993 at
+that tariff) was below 1Click's then-current bridge minimum (about $0.00529).
+The user selected a finite 3× / 3.2× bid canary while preserving the original
+pricing formula. Dry quotes were about 0.006042 / 0.006444 USDC with a 27-second
+settlement estimate. These observations are not a standing quote or measured
+latency. Default 1× orders are not accepted as a working live path; recheck exact
+amounts before funding. No minimum-price surcharge is silently added.
 
 The UI declares the active profile explicitly. Owner NEAR login must be on
 Mainnet; funding is USDC and ETH on Arbitrum. Successful fixed bundles have no

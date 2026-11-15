@@ -19,6 +19,18 @@ class PackageTests(unittest.TestCase):
    path=pathlib.Path(temp)/'config.json';path.write_text(json.dumps({'reviewedPlanHash':'a'*64,'dataDirectory':temp+'/state','plan':{'mode':'bounded-mainnet-v1','network':'mainnet'}}))
    result=subprocess.run(['python3',str(ROOT/'scripts/bootstrap-mainnet-auction.py'),str(path)],capture_output=True,text=True)
    self.assertNotEqual(result.returncode,0);self.assertIn('explicit_mainnet_plan_gate_required',result.stderr);self.assertFalse((path.parent/'state').exists())
+ def test_intents_preserves_existing_services_and_has_separate_probe_activation(self):
+  cfg={'paymentMethod':'nearintents','dataDirectory':'/data/nearintents-v1','reviewedPlanHash':'c'*64,'plan':{'mode':'live'}}
+  before=self.before();after,report=overlay.prepare(before,'ghcr.io/o/r@sha256:'+'b'*64,cfg)
+  compose=yaml.safe_load(after['docker_compose_file']);service=compose['services']['nearintents-auction']
+  self.assertEqual(compose['services']['old'],yaml.safe_load(before['docker_compose_file'])['services']['old'])
+  self.assertEqual(service['volumes'],['nearintents-auction-data:/data']);self.assertEqual(service['environment']['AUCTION_PAYMENT_PROFILE'],'nearintents')
+  self.assertNotIn('ENABLE_NEARINTENTS_PAID_PROBE',service['environment']);self.assertEqual(after['allowed_envs'],['EXISTING_SECRET','NEARINTENTS_AUCTION_PRIVATE_JSON'])
+  active,_=overlay.prepare(before,'ghcr.io/o/r@sha256:'+'b'*64,cfg,True)
+  self.assertEqual(yaml.safe_load(active['docker_compose_file'])['services']['nearintents-auction']['environment']['ENABLE_NEARINTENTS_PAID_PROBE'],'c'*64)
+ def test_canary_cannot_take_an_existing_service_port(self):
+  before=self.before();compose=yaml.safe_load(before['docker_compose_file']);compose['services']['old']['ports']=['3001:3000'];before['docker_compose_file']=yaml.safe_dump(compose)
+  with self.assertRaisesRegex(ValueError,'canary_port_already_in_use'):overlay.prepare(before,'ghcr.io/o/r@sha256:'+'b'*64,self.config())
  def test_nearintents_has_a_separate_explicit_gate_before_state_creation(self):
   import os
   with tempfile.TemporaryDirectory() as temp:

@@ -13,6 +13,28 @@ export const units = (raw: string, decimals: number) => {
       .padEnd(2, "0")
   );
 };
+export function fundingDefaults(limits: {
+  maximumTotalAmountIn: string;
+  maximumGasWei: string;
+  maximumTotalGasWei: string;
+}) {
+  const minimum = (a: bigint, b: bigint) => (a < b ? a : b);
+  return {
+    token: units(
+      String(minimum(2000000n, BigInt(limits.maximumTotalAmountIn))),
+      6,
+    ),
+    gas: units(
+      String(
+        minimum(
+          200000000000000n,
+          BigInt(limits.maximumTotalGasWei) + 2n * BigInt(limits.maximumGasWei),
+        ),
+      ),
+      18,
+    ),
+  };
+}
 export function parseUnits(text: string, decimals: number): string {
   if (!new RegExp("^(0|[1-9]\\d*)(\\.\\d{1," + decimals + "})?$").test(text))
     throw Error(

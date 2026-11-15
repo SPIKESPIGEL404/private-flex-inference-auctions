@@ -2,10 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   fundingAccount,
+  fundingDefaults,
   fundingTransaction,
   parseUnits,
   units,
 } from "../src/evm-funding";
+test("a small canary pre-fills funding within its source and gas allowance", () => {
+  assert.deepEqual(
+    fundingDefaults({
+      maximumTotalAmountIn: "20000",
+      maximumGasWei: "10000000000000",
+      maximumTotalGasWei: "20000000000000",
+    }),
+    { token: "0.02", gas: "0.00004" },
+  );
+});
 const from = "0x" + "11".repeat(20),
   to = "0x" + "22".repeat(20),
   token = "0x" + "33".repeat(20);

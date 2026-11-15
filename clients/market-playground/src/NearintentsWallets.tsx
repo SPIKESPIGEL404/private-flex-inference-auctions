@@ -3,6 +3,7 @@ import { Modal } from "./WorkspaceDialogs";
 import { taskApi, nanoUsd } from "./task-api";
 import {
   fundingAccount,
+  fundingDefaults,
   fundingTransaction,
   parseUnits,
   units,
@@ -65,11 +66,20 @@ export function NearintentsWallets({
     [hashes, setHashes] = useState<Record<string, string>>({});
   const locked = useRef(false),
     mounted = useRef(true),
+    initialized = useRef(false),
     sequence = useRef(0);
   const load = useCallback(async () => {
     const request = ++sequence.current;
     const next = await taskApi<Data>("nearintents-wallets");
-    if (mounted.current && request === sequence.current) setData(next);
+    if (mounted.current && request === sequence.current) {
+      if (!initialized.current) {
+        initialized.current = true;
+        const defaults = fundingDefaults(next.limits);
+        setTokenAmount(defaults.token);
+        setGasAmount(defaults.gas);
+      }
+      setData(next);
+    }
   }, []);
   useEffect(() => {
     mounted.current = true;

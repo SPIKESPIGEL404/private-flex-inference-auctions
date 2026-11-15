@@ -28,6 +28,15 @@ const privateText = async (p) => {
   check((await stat(p)).mode % 512 === 384, "private_runtime_file_required");
   return (await readFile(p, "utf8")).trim();
 };
+export async function paidProbeAccess(
+  probe,
+  tariff,
+  planHash,
+  enabledHash = process.env.ENABLE_NEARINTENTS_PAID_PROBE,
+) {
+  check(enabledHash === planHash, "paid_provider_probe_not_enabled");
+  return probe.ensure(tariff);
+}
 
 export async function launchNearintentsAuction(config) {
   const { plan, planHash } = auctionPlan(config.plan);
@@ -222,7 +231,7 @@ export async function launchNearintentsAuction(config) {
         validateFx(fx);
         await recordFx(pool, fx);
         const tariff = await provider.preflight(),
-          access = await probe.ensure(tariff);
+          access = await paidProbeAccess(probe, tariff, planHash);
         check(access?.verified, "provider_key_probe_required");
         const at = Date.now();
         await pool.query(

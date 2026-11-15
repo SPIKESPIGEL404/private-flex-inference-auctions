@@ -5,7 +5,30 @@ import { freezeClass } from "../../../mpp-near-direct/auction/contracts.mjs";
 import { AuctionMarket } from "../../../mpp-near-direct/auction/market.mjs";
 import { auctionPlan } from "../plan.mjs";
 import { NI_MODE, NearintentsAuctionRail } from "../rail.mjs";
-import { launchNearintentsAuction } from "../runtime.mjs";
+import { launchNearintentsAuction, paidProbeAccess } from "../runtime.mjs";
+test("a deployed canary cannot buy a provider probe without its exact operator gate", async () => {
+  let effects = 0;
+  const probe = {
+    ensure: async () => {
+      effects++;
+      return { verified: true };
+    },
+  };
+  await assert.rejects(
+    paidProbeAccess(probe, {}, "reviewed-plan", ""),
+    /paid_provider_probe_not_enabled/,
+  );
+  await assert.rejects(
+    paidProbeAccess(probe, {}, "reviewed-plan", "another-plan"),
+    /paid_provider_probe_not_enabled/,
+  );
+  assert.equal(effects, 0);
+  assert.deepEqual(
+    await paidProbeAccess(probe, {}, "reviewed-plan", "reviewed-plan"),
+    { verified: true },
+  );
+  assert.equal(effects, 1);
+});
 const { durationMs, ...example } = JSON.parse(
   await readFile(
     new URL(

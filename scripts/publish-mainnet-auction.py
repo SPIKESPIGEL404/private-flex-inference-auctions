@@ -37,6 +37,8 @@ with tempfile.TemporaryDirectory() as temporary:
    actual=subprocess.check_output(['docker','run','--rm','--platform','linux/amd64','--network','none','--read-only','--entrypoint','sha256sum',candidate,'/usr/local/bin/private-market-host-p2'],text=True).split()[0]
    if actual!=reuse['sha256']:raise SystemExit('reused_binary_bytes_changed')
  run(sys.executable,str(ROOT/'scripts/accept-mainnet-bootstrap.py'),local,'--evidence',str(path/'bootstrap.json'))
+ if metadata.get('paymentMethod')=='nearintents':
+  run(sys.executable,str(ROOT/'scripts/accept-nearintents-bootstrap.py'),local,'--evidence',str(path/'nearintents-bootstrap.json'))
  target=registry+':mainnet-auction-'+source[:12]+'-'+os.environ['GITHUB_RUN_ID']
  run('docker','tag',local,target);run('docker','push',target)
  pushed=json.loads(subprocess.check_output(['docker','image','inspect',target]))[0]
@@ -46,5 +48,7 @@ with tempfile.TemporaryDirectory() as temporary:
    'artifactRelease':tag,'archiveSha256':digest,'scope':'bounded-mainnet-candidate','bootstrap':json.loads((path/'bootstrap.json').read_bytes()),
    'realChainPaymentsTested':False,'realInferenceTested':False}
  if reuse:result['reusedRustBinary']=reuse
+ if metadata.get('paymentMethod')=='nearintents':
+  result['paymentMethod']='nearintents';result['nearintentsBootstrap']=json.loads((path/'nearintents-bootstrap.json').read_bytes())
  (ROOT/'published-images.json').write_text(json.dumps(result,indent=2)+'\n')
  print(json.dumps(result,indent=2))
