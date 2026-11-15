@@ -23,6 +23,7 @@ export interface Capabilities {
   tasks: boolean;
   walletSetup: boolean;
   realInferencePayments: boolean;
+  paymentsPaused?: boolean;
   maxTasksPerAgent?: number;
   taskWindowMs?: number;
 }

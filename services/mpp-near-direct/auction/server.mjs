@@ -308,6 +308,12 @@ async function runServer({
             ? "auction-fixed-request-v1"
             : "metered-prepay-v1",
           realInferencePayments: mainnet,
+          paymentsPaused: !!(
+            mainnet &&
+            nearintents &&
+            process.env.ENABLE_NEARINTENTS_PAID_PROBE !==
+              market.config.reviewedPlanHash
+          ),
           maxTasksPerAgent: 8,
           taskWindowMs: nearintents ? 1800000 : 180000,
           realChainPayments: mainnet,

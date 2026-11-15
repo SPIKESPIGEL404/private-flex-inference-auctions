@@ -54,9 +54,11 @@ interface Data {
 export function NearintentsWallets({
   onClose,
   onUpdated,
+  paymentsPaused = false,
 }: {
   onClose(): void;
   onUpdated(): Promise<void>;
+  paymentsPaused?: boolean;
 }) {
   const [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(""),
@@ -184,6 +186,12 @@ export function NearintentsWallets({
         to the inference gas budget, with at most eight exits per agent under
         the per-transfer cap. Paid inference refunds remain separate.
       </p>
+      {paymentsPaused && (
+        <p role="status">
+          Purchasing inference is paused. Token funding is disabled until
+          activation.
+        </p>
+      )}
       <p className="dialog-note">
         Each winning auction fixes one request price, including the service
         token limits. Successful requests have no usage rebate. Source-chain
@@ -270,7 +278,7 @@ export function NearintentsWallets({
                 <div className="dialog-actions">
                   <button
                     className="outline-button"
-                    disabled={busy || pending || !w.active}
+                    disabled={busy || pending || !w.active || paymentsPaused}
                     onClick={() => void action(() => fund(w.id, "token"))}
                   >
                     fund USDC

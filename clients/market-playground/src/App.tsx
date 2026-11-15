@@ -53,6 +53,7 @@ export default function App({ active = true }: { active?: boolean }) {
     memoryController.snapshot,
   );
   const nearintents = capabilities?.paymentMethod === "nearintents";
+  const paymentsPaused = capabilities?.paymentsPaused === true;
   const mainnet =
     capabilities?.mode === "bounded-mainnet-v1" ||
     capabilities?.mode === "bounded-nearintents-auction-v1";
@@ -758,6 +759,7 @@ export default function App({ active = true }: { active?: boolean }) {
                 className="outline-button"
                 disabled={
                   busy ||
+                  (paymentsPaused && !hasRunning) ||
                   !tasks ||
                   (!hasRunning &&
                     !shown.some(
@@ -835,7 +837,9 @@ export default function App({ active = true }: { active?: boolean }) {
         <button onClick={() => setDialog("mode")}>
           {nearintents
             ? mainnet
-              ? "Arbitrum USDC → NEAR · auction request price · agent pays gas"
+              ? paymentsPaused
+                ? "NEAR Intents canary · paid inference paused"
+                : "Arbitrum USDC → NEAR · auction request price · agent pays gas"
               : "Controlled NEAR Intents auction · no real payments or inference"
             : mainnet
               ? "Mainnet · real inference payments · agent pays principal and gas"
@@ -886,11 +890,15 @@ export default function App({ active = true }: { active?: boolean }) {
               access code. Sign-in is a message signature, with no on-chain fee.
             </p>
             <p>
-              {mainnet
-                ? "Install a merchant-only policy, fund each agent, and run tasks with real Mainnet MPP payments. Review the spending caps before funding."
-                : memory
-                  ? "Run the task, inspect its bids and orders, and verify the generated artifact. Testnet funding is not enabled in this controlled build."
-                  : "Run controlled agent tasks for free, or create and fund independent agent wallets. Real inference payments are not enabled in this release."}
+              {nearintents
+                ? paymentsPaused
+                  ? "Paid inference is currently paused. Connect a wallet to review the agent setup and spending caps; wait for activation before funding."
+                  : "Create independent agent wallets, fund them with Arbitrum USDC and ETH, and set each task’s budget and bidding strategy. Agent keys stay in the trusted service."
+                : mainnet
+                  ? "Install a merchant-only policy, fund each agent, and run tasks with real Mainnet MPP payments. Review the spending caps before funding."
+                  : memory
+                    ? "Run the task, inspect its bids and orders, and verify the generated artifact. Testnet funding is not enabled in this controlled build."
+                    : "Run controlled agent tasks for free, or create and fund independent agent wallets. Real inference payments are not enabled in this release."}
             </p>
             {native.error && <p role="alert">{native.error}</p>}
             <button
@@ -941,7 +949,9 @@ export default function App({ active = true }: { active?: boolean }) {
                 session={session}
                 hosted={tasks}
                 selected={selected === session.id}
-                enabled={!busy}
+                enabled={
+                  !busy && (!paymentsPaused || session.state === "running")
+                }
                 onSelect={() => setSelected(session.id)}
                 memory={memory ? memoryController : undefined}
                 clientStatus={displayedDetails[session.id]}
@@ -1014,6 +1024,7 @@ export default function App({ active = true }: { active?: boolean }) {
       )}
       {dialog === "wallet" && nearintents && (
         <NearintentsWallets
+          paymentsPaused={paymentsPaused}
           key={native.owner?.account_id ?? "disconnected"}
           onClose={() => setDialog(null)}
           onUpdated={refresh}
