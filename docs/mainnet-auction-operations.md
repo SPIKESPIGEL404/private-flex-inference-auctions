@@ -32,6 +32,17 @@ market-usd-near-v1`, the plan's exact HTTPS `source`, positive integer
 The runtime rereads `fxFile` every 15 seconds; stale/missing FX stops new quotes.
 It does not prevent original recovery or refund.
 
+For the bounded canary, optional `fxRefreshSource: oneclick-reference-v1` replaces
+the operator file reader with a packaged public reference-data fetcher. The plan's
+`fxSource` must be exactly `https://1click.chaindefuser.com/v0/tokens`. Every 15
+seconds it checks the single `nep141:wrap.near` row, NEAR chain/24 decimals/contract,
+positive decimal USD price and provider `priceUpdatedAt`. Observations expire 90
+seconds after provider time; re-fetching cannot renew an old price. Missing,
+future, stale, ambiguous or malformed data produces no new observation. Existing
+valid data can be used only until its original expiry. This does not request an
+Intents quote/swap or change direct-NEAR payments, and is not a production oracle.
+It permits acceptance on the current production CVM without SSH file updates.
+
 The first ready transition includes one project-funded paid Cloud chat probe;
 public model listing and SDK attestation alone cannot validate API credit. This
 probe consumes the reviewed provider allowance/call count and never repeats an

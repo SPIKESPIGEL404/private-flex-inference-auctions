@@ -17,6 +17,11 @@ import { AuctionWallet } from "./wallet.mjs";
 import { AuctionSetup } from "./setup.mjs";
 import { ProjectProbe } from "./project-probe.mjs";
 import { NearCloudProvider } from "./provider.mjs";
+import {
+  referenceFx,
+  REFERENCE_FX_MODE,
+  REFERENCE_FX_SOURCE,
+} from "./reference-fx.mjs";
 
 async function privateText(path) {
   const s = await stat(path);
@@ -31,6 +36,12 @@ export async function launch(config) {
     config.reviewedPlanHash === planHash &&
       process.env.ENABLE_BOUNDED_MAINNET === planHash,
     "explicit_mainnet_plan_gate_required",
+  );
+  check(
+    config.fxRefreshSource === undefined ||
+      (config.fxRefreshSource === REFERENCE_FX_MODE &&
+        plan.fxSource === REFERENCE_FX_SOURCE),
+    "reviewed_reference_fx_source_required",
   );
   check(
     config.rpcUrl === plan.rpcUrl &&
@@ -113,7 +124,10 @@ export async function launch(config) {
     });
     // Fresh sourced FX snapshots are append-only; they never rewrite an order.
     const refreshFx = async () => {
-      const fx = JSON.parse(await readFile(config.fxFile, "utf8"));
+      const fx =
+        config.fxRefreshSource === REFERENCE_FX_MODE
+          ? await referenceFx()
+          : JSON.parse(await readFile(config.fxFile, "utf8"));
       validateFx(fx);
       check(fx.source === plan.fxSource, "reviewed_fx_source_required");
       await recordFx(pool, fx);

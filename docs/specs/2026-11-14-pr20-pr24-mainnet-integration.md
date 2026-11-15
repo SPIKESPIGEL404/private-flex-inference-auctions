@@ -80,8 +80,14 @@ higher than the reviewed service rates. The merchant must have the correct
 FullAccess refund key and enough balance for existing principal liability and
 reserved refund gas. Readiness/FX failure prevents new purchases while original
 recovery/refunds stay available. FX observations are append-only and each
-allocation freezes its own conversion. The initial canary uses operator-supplied
-FX observations; a continuously refreshed production oracle is not included.
+allocation freezes its own conversion. Operator FX files remain supported.
+Because the production CVM has no working operator SSH path, the canary can opt
+into the packaged `oneclick-reference-v1` reader. It pins the 1Click public token
+endpoint and exact wrapped-NEAR identity, uses provider `priceUpdatedAt`, expires
+the reference after 90 seconds and appends snapshots every 15 seconds. Missing,
+stale or future prices stop new quotes; re-fetching never extends an old price.
+This is public reference data, not an executable swap quote or production oracle.
+Inference payments still transfer native NEAR directly on Mainnet.
 
 The public catalog and attestation do not authenticate the Cloud billing key.
 Before opening buyer payments, one bounded project-funded chat probe must return
